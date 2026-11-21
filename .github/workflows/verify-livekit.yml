@@ -1,0 +1,81 @@
+name: Verify YOYO LIVE LiveKit integration
+
+on:
+  push:
+    branches:
+      - feature/livekit-live-stream
+    paths:
+      - "YoyoLiveApp/App.js"
+      - "YoyoLiveApp/LiveRoomScreen.native.js"
+      - "YoyoLiveApp/LiveRoomScreen.web.js"
+      - "YoyoLiveApp/package.json"
+      - "YoyoLiveApp/app.json"
+      - ".github/workflows/verify-livekit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: yoyo-livekit-android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: YoyoLiveApp
+    steps:
+      - name: Check out YOYO LIVE
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: YoyoLiveApp/package-lock.json
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android API 37
+        run: sdkmanager "platforms;android-37" "build-tools;37.0.0" "platform-tools"
+
+      - name: Install JavaScript dependencies and refresh lockfile
+        run: npm install --no-audit --no-fund
+
+      - name: Check Expo dependency compatibility
+        run: npx expo install --check
+
+      - name: Verify web preview fallback
+        run: npx expo export --platform web
+
+      - name: Generate Android native project
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Compile Android debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Commit the generated dependency lockfile
+        working-directory: .
+        run: |
+          if ! git diff --quiet -- YoyoLiveApp/package-lock.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add YoyoLiveApp/package-lock.json
+            git commit -m "[bot] refresh LiveKit dependency lock"
+            git push
+          fi
