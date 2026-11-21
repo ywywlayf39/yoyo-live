@@ -90,7 +90,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
         )}
       </ScrollView>
 
-      {!isCall && userId ? <LiveGiftPanel userId={userId} receiverId={receiverId} isHost={isHost} /> : null}
+      {!isCall && userId ? <LiveGiftPanel userId={userId} receiverId={receiverId} isHost={isHost} roomName={roomName} /> : null}
 
       {!isCall && !isHost && userId ? (
         <TouchableOpacity style={styles.reportButton} onPress={reportLiveRoom} activeOpacity={0.85}>
