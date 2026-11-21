@@ -47,6 +47,11 @@ const keys = [
   "yoyo-epic-stinger"
 ];
 const directory = path.join(__dirname, '..', 'assets', 'gift-sounds');
+const animationKeys = ["balloon-rise","black-cat-moon","black-king-throne","black-panther-smoke","bunny-hop","butterfly-flight","clap-burst","cosmic-eclipse","crystal-castle","cute-cat-bounce","diamond-fall","diamond-galaxy-tiger","double-heart","dream-car","emperor-throne","galaxy-gate","galaxy-rocket","golden-horse","golden-throne-dragon","golden-yoyo-planet","heart-pulse","jungle-emperor-throne","legendary-tiger-storm","light-dragon","lion-king-roar","magic-cat-aura","mega-galaxy-dragon","meteor-trail","moon-drift","pearl-yacht","playful-cat-yarn","rose-bloom","royal-castle","royal-crown","royal-throne","royal-tiger-leap","ruby-yacht","star-sparkle","storm-lion-royal-entry","tiger-family-entrance","white-tiger-leap","yoyo-eternal-galaxy","yoyo-legendary-galaxy"];
+const giftPanel = fs.readFileSync(path.join(__dirname, '..', 'LiveGiftPanel.js'), 'utf8');
+for (const key of animationKeys) {
+  assert.ok(giftPanel.includes("'" + key + "': {"), 'Missing gift animation preset: ' + key);
+}
 const generator = fs.readFileSync(path.join(__dirname, 'generate-gift-sounds.cjs'), 'utf8');
 const registry = fs.readFileSync(path.join(__dirname, '..', 'giftSoundPlayers.js'), 'utf8');
 
@@ -64,4 +69,4 @@ for (const key of keys) {
   assert.equal(data.readUInt32LE(24), 22050, 'Unexpected sample rate: ' + key);
   assert.equal(data.readUInt32LE(40), data.length - 44, 'WAV data length mismatch: ' + key);
 }
-console.log('Gift audio checks passed (' + keys.length + ' unique sound keys).');
+console.log('Gift audio/effect checks passed (' + keys.length + ' sound keys, ' + animationKeys.length + ' animation keys).');
