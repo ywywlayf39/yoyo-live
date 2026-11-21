@@ -12,6 +12,7 @@ on:
       - "YoyoLiveApp/ProfileScreen.js"
       - "YoyoLiveApp/public/**"
       - "supabase/functions/admin-user-suspension/**"
+      - "supabase/functions/admin-live-room-action/**"
       - "supabase/functions/delete-account/**"
       - "supabase/functions/livekit-token/**"
       - "supabase/migrations/**"
@@ -92,7 +93,7 @@ jobs:
 
       - name: Type-check account deletion Edge Function
         working-directory: .
-        run: deno check supabase/functions/delete-account/index.ts supabase/functions/livekit-token/index.ts supabase/functions/admin-user-suspension/index.ts
+        run: deno check supabase/functions/delete-account/index.ts supabase/functions/livekit-token/index.ts supabase/functions/admin-user-suspension/index.ts supabase/functions/admin-live-room-action/index.ts
 
       - name: Commit the generated dependency lockfile
         working-directory: .
