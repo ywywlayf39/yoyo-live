@@ -568,7 +568,7 @@ import {
             </TouchableOpacity>
           </View>
           <Text style={{ color: C.muted, fontSize: 12, marginTop: 16, textAlign: 'center' }}>
-            🎁 إرسال الهدايا سيتاح بعد تأمين رصيد العملات وحسابات الأرباح.
+            🎁 لإرسال هدية، افتح البث المباشر للعضو واستخدم لوحة الهدايا.
           </Text>
         </ScrollView>
       </SafeAreaView>
