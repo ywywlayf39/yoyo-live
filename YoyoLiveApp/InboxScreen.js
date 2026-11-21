@@ -26,6 +26,7 @@ export default function InboxScreen({ userId, onBack, onOpenChat }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [unreadTotal, setUnreadTotal] = useState(0);
 
   const loadInbox = useCallback(async (isRefresh = false) => {
     if (!userId) return;
@@ -48,6 +49,23 @@ export default function InboxScreen({ userId, onBack, onOpenChat }) {
       setRefreshing(false);
       return;
     }
+
+    const { data: unreadRows, error: unreadError } = await supabase
+      .from('direct_messages')
+      .select('sender_id')
+      .eq('recipient_id', userId)
+      .is('read_at', null)
+      .order('created_at', { ascending: false })
+      .limit(1000);
+
+    if (unreadError) {
+      console.error('YOYO LIVE unread count failed:', unreadError);
+    }
+    const unreadByMember = new Map();
+    (unreadRows || []).forEach((message) => {
+      unreadByMember.set(message.sender_id, (unreadByMember.get(message.sender_id) || 0) + 1);
+    });
+    setUnreadTotal((unreadRows || []).length);
 
     const latestByMember = new Map();
     (rows || []).forEach((message) => {
@@ -80,6 +98,7 @@ export default function InboxScreen({ userId, onBack, onOpenChat }) {
     const items = memberIds.map((id) => ({
       member: profileMap.get(id) || { id, display_name: 'عضو YOYO LIVE' },
       lastMessage: latestByMember.get(id),
+      unreadCount: unreadByMember.get(id) || 0,
     }));
     items.sort((a, b) =>
       new Date(b.lastMessage.created_at).getTime() -
@@ -131,6 +150,7 @@ export default function InboxScreen({ userId, onBack, onOpenChat }) {
         <View style={styles.headerInfo}>
           <Text style={styles.title}>الرسائل الخاصة 💬</Text>
           <Text style={styles.subtitle}>كل محادثاتك في مكان واحد 🔒</Text>
+          {unreadTotal > 0 && <View style={styles.totalBadge}><Text style={styles.totalBadgeText}>{unreadTotal > 99 ? '99+' : unreadTotal} رسالة غير مقروءة</Text></View>}
         </View>
       </View>
 
@@ -186,6 +206,11 @@ export default function InboxScreen({ userId, onBack, onOpenChat }) {
                     {mine ? 'أنت: ' : ''}{item.lastMessage.body}
                   </Text>
                 </View>
+                {item.unreadCount > 0 && (
+                  <View style={styles.unreadBadge}>
+                    <Text style={styles.unreadBadgeText}>{item.unreadCount > 99 ? '99+' : item.unreadCount}</Text>
+                  </View>
+                )}
                 <Text style={styles.chevron}>‹</Text>
               </TouchableOpacity>
             );
@@ -212,6 +237,8 @@ const styles = StyleSheet.create({
   headerInfo: { alignItems: 'flex-end', flex: 1 },
   title: { color: C.white, fontSize: 20, fontWeight: 'bold' },
   subtitle: { color: C.muted, fontSize: 12, marginTop: 4 },
+  totalBadge: { backgroundColor: C.pink, borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4, marginTop: 7 },
+  totalBadgeText: { color: C.white, fontSize: 11, fontWeight: 'bold' },
   list: { padding: 12 },
   emptyList: { flexGrow: 1, justifyContent: 'center', padding: 28 },
   conversation: {
@@ -240,6 +267,8 @@ const styles = StyleSheet.create({
   date: { color: C.muted, fontSize: 10, marginLeft: 8 },
   preview: { color: C.muted, fontSize: 13, marginTop: 7, textAlign: 'right' },
   chevron: { color: C.pink, fontSize: 26, marginLeft: 2 },
+  unreadBadge: { minWidth: 23, height: 23, borderRadius: 12, backgroundColor: C.pink, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  unreadBadgeText: { color: C.white, fontSize: 11, fontWeight: 'bold' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   muted: { color: C.muted, textAlign: 'center', marginTop: 9, lineHeight: 21 },
   emptyIcon: { fontSize: 48, marginBottom: 14 },
