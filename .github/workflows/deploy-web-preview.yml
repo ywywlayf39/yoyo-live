@@ -1,5 +1,6 @@
 name: Build and deploy YOYO LIVE web preview
 
+# Publish the Expo web export from the development branch.
 on:
   push:
     branches:
