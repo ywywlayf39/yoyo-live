@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "YoyoLiveApp",
-    "slug": "YoyoLiveApp",
+    "name": "YOYO LIVE",
+    "slug": "yoyo-live",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -24,7 +24,10 @@
         "CAMERA",
         "RECORD_AUDIO",
         "MODIFY_AUDIO_SETTINGS"
-      ]
+      ],
+      "package": "com.yoyolive.app",
+      "versionCode": 1,
+      "label": "YOYO LIVE"
     },
     "web": {
       "output": "single",
