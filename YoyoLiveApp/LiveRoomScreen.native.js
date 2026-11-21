@@ -96,23 +96,12 @@ export default function LiveRoomScreen({ roomName, isHost, hostName, onClose }) 
 
   const leaveRoom = async () => {
     if (isHost) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setError('انتهت جلسة الدخول. سجّل الدخول مرة أخرى.');
-        return;
-      }
+      const { data, error: endError } = await supabase.functions.invoke('livekit-token', {
+        body: { roomName, action: 'end' },
+      });
 
-      const { data, error: updateError } = await supabase
-        .from('live_rooms')
-        .update({ status: 'ended', ended_at: new Date().toISOString() })
-        .eq('room_name', roomName)
-        .eq('host_id', user.id)
-        .eq('status', 'live')
-        .select('id')
-        .maybeSingle();
-
-      if (updateError || !data) {
-        setError('لم نتمكن من إنهاء البث في قاعدة البيانات. حاول مرة أخرى.');
+      if (endError || !data?.ended) {
+        setError(data?.error || endError?.message || 'لم نتمكن من إنهاء البث وإخراج المشاهدين.');
         return;
       }
     }
