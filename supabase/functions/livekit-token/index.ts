@@ -89,6 +89,8 @@ Deno.serve(async (req: Request) => {
     let isCall = false;
     let callType: string | null = null;
     let callId: string | null = null;
+    let callParticipantCallerId: string | null = null;
+    let callParticipantReceiverId: string | null = null;
 
     if (liveRoom) {
       if (liveRoom.status !== "live") {
@@ -125,6 +127,28 @@ Deno.serve(async (req: Request) => {
       isCall = true;
       callType = call.call_type;
       callId = call.id;
+      callParticipantCallerId = call.caller_id;
+      callParticipantReceiverId = call.receiver_id;
+    }
+
+    const otherParticipantId = isCall
+      ? (user.id === callParticipantCallerId ? callParticipantReceiverId : callParticipantCallerId)
+      : (!isHost && liveRoom ? liveRoom.host_id : null);
+
+    if (otherParticipantId && action !== "end") {
+      const { data: blockRows, error: blockError } = await supabase
+        .from("user_blocks")
+        .select("blocker_id, blocked_id")
+        .or(`blocker_id.eq.${user.id},blocked_id.eq.${user.id}`);
+      if (blockError) {
+        console.error("Live room block check failed:", blockError.message);
+        return json({ error: "Unable to verify room safety" }, 500);
+      }
+      const blocked = (blockRows ?? []).some((row) =>
+        (row.blocker_id === user.id && row.blocked_id === otherParticipantId) ||
+        (row.blocker_id === otherParticipantId && row.blocked_id === user.id)
+      );
+      if (blocked) return json({ error: "You cannot join this room because one of you has blocked the other" }, 403);
     }
 
     const apiKey = Deno.env.get("LIVEKIT_API_KEY");
