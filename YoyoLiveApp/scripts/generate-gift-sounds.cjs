@@ -39,6 +39,7 @@ const soundKeys = [
   "emperor-lion-roar",
   "yoyo-epic-stinger",
   "royal-fanfare",
+  "royal-hit",
   "yacht-horn",
   "castle-impact",
   "rocket-launch",
