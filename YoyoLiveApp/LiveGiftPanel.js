@@ -162,7 +162,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
 
       channel = supabase.channel('yoyo-room-gifts-' + roomName)
         .on('postgres_changes', {
-          event: 'INSERT', schema: 'public', table: 'gift_transfers',
+          event: 'INSERT', schema: 'public', table: 'live_gift_events',
           filter: 'room_name=eq.' + roomName,
         }, async (payload) => {
           const row = payload.new;
