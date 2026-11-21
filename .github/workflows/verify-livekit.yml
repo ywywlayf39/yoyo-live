@@ -21,6 +21,8 @@ on:
       - "YoyoLiveApp/LiveGiftPanel.js"
       - "YoyoLiveApp/financialCalculator.js"
       - "YoyoLiveApp/scripts/test-financial-calculator.cjs"
+      - "YoyoLiveApp/scripts/generate-gift-sounds.cjs"
+      - "YoyoLiveApp/scripts/test-gift-sounds.cjs"
       - "YoyoLiveApp/LiveRoomScreen.native.js"
       - "YoyoLiveApp/LiveRoomScreen.web.js"
       - "YoyoLiveApp/registerLiveKit.native.js"
@@ -62,6 +64,9 @@ jobs:
 
       - name: Test financial scenario calculator
         run: node scripts/test-financial-calculator.cjs
+
+      - name: Verify generated gift sound assets
+        run: node scripts/test-gift-sounds.cjs
 
       - name: Check Expo dependency compatibility
         run: npx expo install --check
