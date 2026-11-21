@@ -120,6 +120,21 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
     };
   }, [roomName, isCall]);
 
+  const exitAfterConnectionError = async () => {
+    if (isCall) {
+      await supabase.from('live_calls')
+        .update({ status: 'ended' })
+        .eq('room_name', roomName)
+        .in('status', ['ringing', 'accepted']);
+    } else if (isHost) {
+      await supabase.from('live_rooms')
+        .update({ status: 'ended', ended_at: new Date().toISOString() })
+        .eq('room_name', roomName)
+        .eq('status', 'live');
+    }
+    onClose?.();
+  };
+
   const leaveRoom = async () => {
     if (isHost || isCall) {
       const { data, error: endError } = await supabase.functions.invoke('livekit-token', {
@@ -143,7 +158,7 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
           {error ? (
             <>
               <Text style={styles.error}>{error}</Text>
-              <TouchableOpacity style={styles.leaveButton} onPress={onClose}>
+              <TouchableOpacity style={styles.leaveButton} onPress={exitAfterConnectionError}>
                 <Text style={styles.leaveButtonText}>رجوع</Text>
               </TouchableOpacity>
             </>
