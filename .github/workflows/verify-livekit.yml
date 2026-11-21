@@ -11,6 +11,7 @@ on:
       - "YoyoLiveApp/ProfileScreen.js"
       - "YoyoLiveApp/public/**"
       - "supabase/functions/delete-account/**"
+      - "supabase/functions/livekit-token/**"
       - "supabase/migrations/**"
       - "YoyoLiveApp/ChatScreen.js"
       - "YoyoLiveApp/eas.json"
