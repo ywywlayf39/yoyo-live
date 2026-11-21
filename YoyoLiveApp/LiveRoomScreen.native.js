@@ -15,13 +15,10 @@ import {
   LiveKitRoom,
   VideoTrack,
   isTrackReference,
-  registerGlobals,
   useTracks,
 } from '@livekit/react-native';
 import { Track } from 'livekit-client';
 import { supabase } from './supabase';
-
-registerGlobals();
 
 function RoomContent({ isHost, isCall, callType, hostName, onLeave, error }) {
   const tracks = useTracks([Track.Source.Camera]);
@@ -177,6 +174,8 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
           audio={connection.isCall || !!isHost}
           video={connection.isCall ? connection.callType === 'video' : !!isHost}
           options={{ adaptiveStream: { pixelDensity: 'screen' } }}
+          onDisconnected={() => onClose?.()}
+          onError={(roomError) => setError(roomError?.message || 'انقطع الاتصال بغرفة LiveKit.')}
         >
           <RoomContent
             isHost={isHost}
