@@ -15,6 +15,7 @@ export default function AccountScreen({ userId, email, onBack }) {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [showCountries, setShowCountries] = useState(false);
 
   const loadProfile = async () => {
@@ -47,14 +48,17 @@ export default function AccountScreen({ userId, email, onBack }) {
     }
     if (!gender) { setError('اختار النوع من فضلك.'); return; }
     const formattedBirthDate = year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
-    setSaving(true); setError('');
-    const { error: saveError } = await supabase.from('profiles')
+    setSaving(true); setError(''); setSuccess('');
+    const { data: savedProfile, error: saveError } = await supabase.from('profiles')
       .update({ display_name: name.trim(), country, gender, birth_date: formattedBirthDate, updated_at: new Date().toISOString() })
-      .eq('id', userId);
+      .eq('id', userId)
+      .select('display_name,country,gender,birth_date')
+      .maybeSingle();
     if (saveError) setError('تعذر حفظ التعديلات: ' + saveError.message);
+    else if (!savedProfile) setError('لم يتم حفظ التعديلات. تأكد من تسجيل الدخول ثم حاول مرة أخرى.');
     else {
-      setProfile(current => ({ ...current, display_name: name.trim(), country, gender, birth_date: formattedBirthDate }));
-      Alert.alert('تم الحفظ', 'تم تحديث بيانات حسابك بنجاح.');
+      setProfile(current => ({ ...current, ...savedProfile }));
+      setSuccess('تم الحفظ بنجاح ✓');
     }
     setSaving(false);
   };
@@ -119,6 +123,7 @@ export default function AccountScreen({ userId, email, onBack }) {
             <Text style={styles.note}>تاريخ الميلاد لا يظهر للأعضاء الآخرين.</Text>
           </View>
           {error ? <Text style={styles.error}>{error}</Text> : null}
+          {success ? <Text accessibilityRole="alert" style={styles.success}>{success}</Text> : null}
           <TouchableOpacity onPress={saveProfile} style={[styles.button, saving && styles.disabled]} disabled={saving || uploading}>
             {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>حفظ التعديلات</Text>}
           </TouchableOpacity>
@@ -151,6 +156,7 @@ const styles = StyleSheet.create({
   countryItem: { padding: 11, borderBottomWidth: 1, borderBottomColor: '#493b58' },
   note: { color: '#AAA1B8', textAlign: 'right', marginTop: 22, fontSize: 12 },
   error: { color: '#ff8585', textAlign: 'center', marginTop: 16 },
+  success: { color: '#65D69A', textAlign: 'center', marginTop: 16, fontSize: 16, fontWeight: 'bold' },
   button: { backgroundColor: '#8655F5', borderRadius: 12, padding: 15, alignItems: 'center', marginTop: 24 },
   disabled: { opacity: 0.6 },
   buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
