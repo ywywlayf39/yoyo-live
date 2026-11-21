@@ -38,6 +38,8 @@ export const GIFT_SOUND_PLAYERS = {
   'yoyo-epic-stinger': createAudioPlayer(require('./assets/gift-sounds/yoyo-epic-stinger.wav')),
   'royal-fanfare': createAudioPlayer(require('./assets/gift-sounds/royal-fanfare.wav')),
   'royal-hit': createAudioPlayer(require('./assets/gift-sounds/royal-hit.wav')),
+  'royal-tiger-roar': createAudioPlayer(require('./assets/gift-sounds/royal-tiger-roar.wav')),
+  'mega-dragon-roar': createAudioPlayer(require('./assets/gift-sounds/mega-dragon-roar.wav')),
   'yacht-horn': createAudioPlayer(require('./assets/gift-sounds/yacht-horn.wav')),
   'castle-impact': createAudioPlayer(require('./assets/gift-sounds/castle-impact.wav')),
   'rocket-launch': createAudioPlayer(require('./assets/gift-sounds/rocket-launch.wav')),
