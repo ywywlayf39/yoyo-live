@@ -31,6 +31,9 @@
       "themeColor": "#0B0912",
       "favicon": "./assets/favicon.png"
     },
+    "experiments": {
+      "baseUrl": "/yoyo-live"
+    },
     "plugins": [
       "@react-native-community/datetimepicker"
     ]
