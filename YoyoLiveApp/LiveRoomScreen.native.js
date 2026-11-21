@@ -19,8 +19,9 @@ import {
 } from '@livekit/react-native';
 import { Track } from 'livekit-client';
 import { supabase } from './supabase';
+import LiveGiftPanel from './LiveGiftPanel';
 
-function RoomContent({ isHost, isCall, callType, hostName, onLeave, error }) {
+function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userId, receiverId }) {
   const tracks = useTracks([Track.Source.Camera]);
   const videoTracks = tracks.filter(isTrackReference);
 
@@ -51,6 +52,8 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error }) {
         )}
       </ScrollView>
 
+      {!isCall && userId ? <LiveGiftPanel userId={userId} receiverId={receiverId} isHost={isHost} /> : null}
+
       <TouchableOpacity style={styles.leaveButton} onPress={onLeave} activeOpacity={0.85}>
         <Text style={styles.leaveButtonText}>{isCall ? 'إنهاء المكالمة' : isHost ? 'إنهاء البث' : 'مغادرة البث'}</Text>
       </TouchableOpacity>
@@ -58,7 +61,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error }) {
   );
 }
 
-export default function LiveRoomScreen({ roomName, isHost, isCall = false, callType = 'video', hostName, onClose }) {
+export default function LiveRoomScreen({ roomName, isHost, isCall = false, callType = 'video', hostName, onClose, userId, receiverId }) {
   const [connection, setConnection] = useState(null);
   const [error, setError] = useState('');
 
@@ -184,6 +187,8 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
             hostName={hostName}
             onLeave={leaveRoom}
             error={error}
+            userId={userId}
+            receiverId={receiverId}
           />
         </LiveKitRoom>
       )}
