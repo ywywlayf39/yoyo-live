@@ -1,7 +1,16 @@
 import React from 'react';
+import { supabase } from './supabase';
 import { SafeAreaView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-export default function LiveRoomScreen({ onClose, isCall = false }) {
+export default function LiveRoomScreen({ onClose, isCall = false, isHost = false, roomName }) {
+  const closePreview = async () => {
+    if (isCall) {
+      await supabase.from('live_calls').update({ status: 'ended' }).eq('room_name', roomName).in('status', ['ringing', 'accepted']);
+    } else if (isHost) {
+      await supabase.from('live_rooms').update({ status: 'ended', ended_at: new Date().toISOString() }).eq('room_name', roomName).eq('status', 'live');
+    }
+    onClose?.();
+  };
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0B0912" />
@@ -11,7 +20,7 @@ export default function LiveRoomScreen({ onClose, isCall = false }) {
         <Text style={styles.description}>
           البث والمكالمات بالكاميرا والميكروفون تحتاج نسخة Android التطويرية من YOYO LIVE، وليست معاينة الويب.
         </Text>
-        <TouchableOpacity style={styles.button} onPress={onClose}>
+        <TouchableOpacity style={styles.button} onPress={closePreview}>
           <Text style={styles.buttonText}>رجوع</Text>
         </TouchableOpacity>
       </View>
