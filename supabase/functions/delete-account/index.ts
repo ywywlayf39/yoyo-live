@@ -24,7 +24,19 @@ Deno.serve(async (req: Request) => {
     if (!jwt) return json({ error: "Authentication required" }, 401);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const secretKeysRaw = Deno.env.get("SUPABASE_SECRET_KEYS");
+    let serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    if (secretKeysRaw) {
+      try {
+        const keys = JSON.parse(secretKeysRaw);
+        if (typeof keys?.default === "string") {
+          serviceRoleKey = Deno.env.get(keys.default) ?? serviceRoleKey;
+        }
+      } catch {
+        // Keep the legacy service-role-key fallback.
+      }
+    }
+
     const publishableKeysRaw = Deno.env.get("SUPABASE_PUBLISHABLE_KEYS");
     let publicKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 
