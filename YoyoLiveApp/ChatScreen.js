@@ -115,6 +115,14 @@ export default function ChatScreen({ userId, member, onBack, onStartCall }) {
       console.error('YOYO LIVE start call failed:', callError);
       setError('العضو مشغول أو تعذر بدء المكالمة الآن. حاول مرة أخرى.');
     } else {
+      setTimeout(() => {
+        supabase.from('live_calls')
+          .update({ status: 'ended' })
+          .eq('id', data.id)
+          .eq('caller_id', userId)
+          .eq('status', 'ringing');
+      }, 45000);
+
       onStartCall?.({
         roomName: data.room_name,
         callType: data.call_type,
