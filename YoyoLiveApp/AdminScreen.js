@@ -42,7 +42,7 @@ export default function AdminScreen({ onBack }) {
     setError('');
     const [summaryResult, reportsResult, membersResult, suspensionsResult, auditResult, liveRoomsResult] = await Promise.all([
       supabase.rpc('yoyo_admin_summary'),
-      supabase.rpc('yoyo_admin_list_reports', { p_limit: 100 }),
+      supabase.rpc('yoyo_admin_list_reports_with_live', { p_limit: 100 }),
       supabase.from('profiles')
         .select('id, display_name, country, created_at')
         .order('created_at', { ascending: false })
@@ -314,7 +314,7 @@ export default function AdminScreen({ onBack }) {
           </View>
           <Text style={styles.memberHint}>يمكن للأدمن إنهاء بث بعد مراجعة البلاغ وكتابة سبب واضح. يتطلب الإجراء تأكيدًا ويسجل في سجل الإدارة.</Text>
           <TextInput value={liveActionReason} onChangeText={setLiveActionReason}
-            placeholder="سبب إنهاء البث (5 أحرف على الأقل)" placeholderTextColor="#8F849F"
+            placeholder="سبب إنهاء البث المرتبط بالبلاغ (5 أحرف على الأقل)" placeholderTextColor="#8F849F"
             style={styles.searchInput} multiline maxLength={500} />
           {liveRooms.length === 0 ? (
             <View style={styles.empty}><Text style={styles.emptyText}>لا توجد بثوث نشطة حاليًا.</Text></View>
@@ -346,6 +346,23 @@ export default function AdminScreen({ onBack }) {
               </View>
               <Text style={styles.person}>المبلّغ: {report.reporter_name}</Text>
               <Text style={styles.person}>العضو المُبلّغ عنه: {report.reported_name}</Text>
+              {report.live_room_id ? (
+                <View style={styles.linkedLiveBox}>
+                  <Text style={styles.linkedLiveTitle}>📺 البث المرتبط بآخر نشاط لهذا العضو</Text>
+                  <Text style={styles.person}>عنوان البث: {report.live_room_title || 'بث مباشر'}</Text>
+                  <Text style={styles.person}>حالة البث: {report.live_room_status === 'live' ? 'مباشر الآن' : 'انتهى'}</Text>
+                  <Text style={styles.date}>بدأ: {report.live_room_started_at ? new Date(report.live_room_started_at).toLocaleString('ar-EG') : 'غير متاح'}</Text>
+                  {!!report.live_room_ended_at && <Text style={styles.date}>انتهى: {new Date(report.live_room_ended_at).toLocaleString('ar-EG')}</Text>}
+                  {report.live_room_status === 'live' && (
+                    <TouchableOpacity disabled={!!liveActionBusyId} style={styles.dismissButton}
+                      onPress={() => endLiveRoom({ id: report.live_room_id, room_name: report.live_room_name, host_name: report.reported_name, title: report.live_room_title })}>
+                      <Text style={styles.actionText}>{liveActionBusyId === report.live_room_id ? 'جارٍ إنهاء البث...' : 'مراجعة وإنهاء البث المرتبط'}</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ) : (
+                <Text style={styles.memberHint}>لا يوجد بث محفوظ مرتبط بهذا العضو.</Text>
+              )}
               {!!report.details && <Text style={styles.details}>{report.details}</Text>}
               <Text style={styles.date}>{new Date(report.created_at).toLocaleString('ar-EG')}</Text>
               <View style={styles.actions}>
@@ -417,6 +434,8 @@ const styles = StyleSheet.create({
   auditMeta: { color: '#C8B9DC', textAlign: 'right', fontSize: 12, marginTop: 7 },
   auditReason: { color: '#F5C451', textAlign: 'right', marginTop: 8, lineHeight: 20 },
   reportCard: { backgroundColor: '#191424', borderRadius: 14, padding: 15, marginBottom: 12, borderWidth: 1, borderColor: '#3B304B' },
+  linkedLiveBox: { backgroundColor: '#241B31', borderRadius: 10, borderWidth: 1, borderColor: '#5B477B', padding: 11, marginTop: 10 },
+  linkedLiveTitle: { color: '#F5C451', fontWeight: 'bold', textAlign: 'right', marginBottom: 5 },
   reportTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10 },
   reason: { color: '#F5C451', fontWeight: 'bold', flex: 1, textAlign: 'right' },
   status: { color: '#C8B9DC', fontSize: 12 },
