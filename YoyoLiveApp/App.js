@@ -4,6 +4,7 @@ import AuthScreen from './AuthScreen';
 import ProfileScreen from './ProfileScreen';
 import WalletScreen from './WalletScreen';
 import AccountScreen from './AccountScreen';
+import ChatScreen from './ChatScreen';
 import { supabase } from './supabase';
 import {
   Alert,
@@ -50,6 +51,7 @@ import {
   const [showWallet, setShowWallet] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
+  const [chatMember, setChatMember] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -191,6 +193,16 @@ import {
     );
   }
 
+  if (chatMember) {
+    return (
+      <ChatScreen
+        userId={session.user.id}
+        member={chatMember}
+        onBack={() => setChatMember(null)}
+      />
+    );
+  }
+
   if (selectedMember) {
     return (
       <SafeAreaView style={styles.container}>
@@ -222,6 +234,15 @@ import {
           )}
           <Text style={{ color: C.muted, fontSize: 13, marginTop: 24, textAlign: 'center' }}>
             عضو في مجتمع YOYO LIVE 💗
+          </Text>
+          <TouchableOpacity
+            onPress={() => setChatMember(selectedMember)}
+            style={{ backgroundColor: C.pink, paddingVertical: 14, paddingHorizontal: 34, borderRadius: 15, marginTop: 28, minWidth: 210 }}
+          >
+            <Text style={{ color: C.white, fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>💬 إرسال رسالة خاصة</Text>
+          </TouchableOpacity>
+          <Text style={{ color: C.muted, fontSize: 12, marginTop: 16, textAlign: 'center' }}>
+            🎁 إرسال الهدايا سيتاح بعد تأمين رصيد العملات وحسابات الأرباح.
           </Text>
         </ScrollView>
       </SafeAreaView>
