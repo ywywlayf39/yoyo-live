@@ -54,7 +54,37 @@ import {
   const [selectedMember, setSelectedMember] = useState(null);
   const [chatMember, setChatMember] = useState(null);
   const [showInbox, setShowInbox] = useState(false);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
 
+  useEffect(() => {
+    if (!session?.user?.id) {
+      setUnreadMessageCount(0);
+      return;
+    }
+    let active = true;
+    const refreshUnreadCount = async () => {
+      const { count, error } = await supabase
+        .from('direct_messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('recipient_id', session.user.id)
+        .is('read_at', null);
+      if (!error && active) setUnreadMessageCount(count || 0);
+      if (error) console.error('YOYO LIVE unread badge failed:', error);
+    };
+    refreshUnreadCount();
+    const channel = supabase
+      .channel('unread-count-' + session.user.id)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_messages' }, (payload) => {
+        if (payload.new?.recipient_id === session.user.id || payload.old?.recipient_id === session.user.id) {
+          refreshUnreadCount();
+        }
+      })
+      .subscribe();
+    return () => {
+      active = false;
+      supabase.removeChannel(channel);
+    };
+  }, [session?.user?.id]);
   useEffect(() => {
     let active = true;
     async function loadProfile() {
@@ -400,7 +430,14 @@ else if (i === 2) Alert.alert('البث المباشر', 'البث المباش�
 else if (i === 3) setShowInbox(true);
 else if (i === 4) setShowAccount(true);
 }}>
+<View style={{ position: 'relative' }}>
 <Text style={styles.navIcon}>{['🏠', '✨', '🔴', '💬', '👤'][i]}</Text>
+{i === 3 && unreadMessageCount > 0 && (
+  <View style={{ position: 'absolute', top: -7, right: -13, minWidth: 19, height: 19, borderRadius: 10, backgroundColor: '#F34E9B', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1, borderColor: C.bg }}>
+    <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: 'bold' }}>{unreadMessageCount > 99 ? '99+' : unreadMessageCount}</Text>
+  </View>
+)}
+</View>
 <Text style={styles.navText}>{item}</Text>
 </TouchableOpacity>
 ))}
