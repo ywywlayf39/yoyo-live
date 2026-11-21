@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -22,7 +23,7 @@ import { supabase } from './supabase';
 
 registerGlobals();
 
-function RoomContent({ isHost, hostName, onLeave, error }) {
+function RoomContent({ isHost, isCall, callType, hostName, onLeave, error }) {
   const tracks = useTracks([Track.Source.Camera]);
   const videoTracks = tracks.filter(isTrackReference);
 
@@ -31,7 +32,7 @@ function RoomContent({ isHost, hostName, onLeave, error }) {
       <View style={styles.roomHeader}>
         <View>
           <Text style={styles.hostName}>{hostName || 'بث YOYO LIVE'}</Text>
-          <Text style={styles.roomStatus}>{isHost ? 'أنت تبث الآن' : 'أنت تشاهد البث المباشر'} 🔴</Text>
+          <Text style={styles.roomStatus}>{isCall ? (callType === 'audio' ? 'مكالمة صوتية' : 'مكالمة فيديو') : isHost ? 'أنت تبث الآن' : 'أنت تشاهد البث المباشر'} 🔴</Text>
         </View>
         <View style={styles.livePill}><Text style={styles.livePillText}>LIVE</Text></View>
       </View>
@@ -47,20 +48,20 @@ function RoomContent({ isHost, hostName, onLeave, error }) {
           />
         )) : (
           <View style={styles.waiting}>
-            <Text style={styles.waitingEmoji}>📹</Text>
-            <Text style={styles.waitingText}>جاري الاتصال بالبث واستقبال الصورة...</Text>
+            <Text style={styles.waitingEmoji}>{isCall && callType === 'audio' ? '📞' : '📹'}</Text>
+            <Text style={styles.waitingText}>{isCall && callType === 'audio' ? 'المكالمة الصوتية جاهزة. يمكنك التحدث الآن.' : 'جاري الاتصال بالبث واستقبال الصورة...'}</Text>
           </View>
         )}
       </ScrollView>
 
       <TouchableOpacity style={styles.leaveButton} onPress={onLeave} activeOpacity={0.85}>
-        <Text style={styles.leaveButtonText}>{isHost ? 'إنهاء البث' : 'مغادرة البث'}</Text>
+        <Text style={styles.leaveButtonText}>{isCall ? 'إنهاء المكالمة' : isHost ? 'إنهاء البث' : 'مغادرة البث'}</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
-export default function LiveRoomScreen({ roomName, isHost, hostName, onClose }) {
+export default function LiveRoomScreen({ roomName, isHost, isCall = false, callType = 'video', hostName, onClose }) {
   const [connection, setConnection] = useState(null);
   const [error, setError] = useState('');
 
@@ -81,7 +82,7 @@ export default function LiveRoomScreen({ roomName, isHost, hostName, onClose }) 
         throw new Error(data?.error || 'تعذر الحصول على تصريح دخول البث.');
       }
 
-      if (active) setConnection({ token: data.token, serverUrl: data.serverUrl });
+      if (active) setConnection({ token: data.token, serverUrl: data.serverUrl, isCall: !!data.isCall, callType: data.callType || callType });
     };
 
     getToken().catch((reason) => {
@@ -94,14 +95,39 @@ export default function LiveRoomScreen({ roomName, isHost, hostName, onClose }) 
     };
   }, [roomName]);
 
+
+  useEffect(() => {
+    if (!isCall) return;
+    const channel = supabase
+      .channel('call-status-' + roomName)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'live_calls',
+        filter: 'room_name=eq.' + roomName,
+      }, (payload) => {
+        if (payload.new?.status === 'rejected') {
+          Alert.alert('لم يتم قبول المكالمة', 'يمكنك المحاولة مرة أخرى لاحقًا.');
+          onClose?.();
+        } else if (payload.new?.status === 'ended') {
+          onClose?.();
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [roomName, isCall]);
+
   const leaveRoom = async () => {
-    if (isHost) {
+    if (isHost || isCall) {
       const { data, error: endError } = await supabase.functions.invoke('livekit-token', {
         body: { roomName, action: 'end' },
       });
 
       if (endError || !data?.ended) {
-        setError(data?.error || endError?.message || 'لم نتمكن من إنهاء البث وإخراج المشاهدين.');
+        setError(data?.error || endError?.message || 'لم نتمكن من إنهاء الجلسة وإخراج المشاركين.');
         return;
       }
     }
@@ -133,12 +159,14 @@ export default function LiveRoomScreen({ roomName, isHost, hostName, onClose }) 
           serverUrl={connection.serverUrl}
           token={connection.token}
           connect={true}
-          audio={!!isHost}
-          video={!!isHost}
+          audio={connection.isCall || !!isHost}
+          video={connection.isCall ? connection.callType === 'video' : !!isHost}
           options={{ adaptiveStream: { pixelDensity: 'screen' } }}
         >
           <RoomContent
             isHost={isHost}
+            isCall={connection.isCall}
+            callType={connection.callType}
             hostName={hostName}
             onLeave={leaveRoom}
             error={error}
