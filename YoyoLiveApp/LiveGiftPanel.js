@@ -210,7 +210,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
     const translateY = drift.interpolate({ inputRange: [0, 1], outputRange: [8, -14] });
     const shakeX = shake.interpolate({ inputRange: [-1, 0, 1], outputRange: [-5, 0, 5] });
     return (
-      <View pointerEvents="none" style={styles.effectLayer}>
+      <View pointerEvents="box-none" style={styles.effectLayer}>
         <Animated.View style={[styles.effectGlow, {
           borderColor: tint, opacity: glow,
           transform: [{ scale: entrance.interpolate({ inputRange: [0, 1], outputRange: [0.45, 1.18] }) }],
@@ -305,6 +305,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
 }
 
 const styles = StyleSheet.create({
+  hostSoundToggle: { position: 'absolute', top: 12, right: 12, zIndex: 100, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 16, backgroundColor: 'rgba(20,14,30,0.92)', borderWidth: 1, borderColor: '#6C557D' },
   soundSetting: { alignSelf: 'flex-end', paddingVertical: 7, paddingHorizontal: 12, borderRadius: 12, backgroundColor: COLORS.card2, marginBottom: 8 },
   soundToggleText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   openButton: { position: 'absolute', right: 16, bottom: 88, backgroundColor: COLORS.pink, borderRadius: 24, paddingVertical: 12, paddingHorizontal: 18, zIndex: 20, elevation: 8 },
