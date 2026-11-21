@@ -369,10 +369,7 @@ import {
         userId={session.user.id}
         member={chatMember}
         onBack={() => setChatMember(null)}
-        onStartCall={(call) => {
-          setChatMember(null);
-          setSelectedCall(call);
-        }}
+        onStartCall={(call) => setSelectedCall(call)}
       />
     );
   }
