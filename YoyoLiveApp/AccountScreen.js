@@ -177,6 +177,12 @@ export default function AccountScreen({ userId, email, onBack }) {
           <Text style={styles.hint}>تغيير الصورة يتم فور رفعها، وتعديل الاسم والبلد والنوع وتاريخ الميلاد يتم عند الضغط على حفظ التعديلات.</Text>
           <View style={styles.deleteSection}>
             <Text style={styles.deleteTitle}>إدارة الحساب</Text>
+            <TouchableOpacity onPress={() => Linking.openURL('https://ywywlayf39.github.io/yoyo-live/privacy-policy.html')} style={styles.externalDeleteLink}>
+              <Text style={styles.externalDeleteText}>سياسة الخصوصية</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => Linking.openURL('https://ywywlayf39.github.io/yoyo-live/terms.html')} style={styles.externalDeleteLink}>
+              <Text style={styles.externalDeleteText}>شروط الاستخدام</Text>
+            </TouchableOpacity>
             <TouchableOpacity onPress={openDeletionPage} style={styles.externalDeleteLink}>
               <Text style={styles.externalDeleteText}>طلب حذف الحساب من خارج التطبيق</Text>
             </TouchableOpacity>
