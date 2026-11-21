@@ -76,7 +76,21 @@ import {
         .select('id, room_name, host_id, host_name, title, created_at')
         .eq('status', 'live')
         .order('created_at', { ascending: false });
-      if (!error && active) setLiveRooms(data || []);
+      if (!error && active) {
+        const { data: blockRows, error: blockError } = await supabase
+          .from('user_blocks')
+          .select('blocker_id, blocked_id')
+          .or(`blocker_id.eq.${session.user.id},blocked_id.eq.${session.user.id}`);
+        if (blockError) {
+          console.error('YOYO LIVE block list failed:', blockError);
+          setLiveRooms(data || []);
+        } else {
+          const hiddenIds = new Set((blockRows || []).map((row) =>
+            row.blocker_id === session.user.id ? row.blocked_id : row.blocker_id
+          ));
+          setLiveRooms((data || []).filter((room) => !hiddenIds.has(room.host_id)));
+        }
+      }
       if (error) console.error('YOYO LIVE live rooms failed:', error);
     };
 
@@ -265,19 +279,26 @@ import {
       }
       setMembersLoading(true);
       setMembersError('');
-      const { data, error } = await supabase
-        .from('member_public_profiles')
-        .select('id, display_name, avatar_url, country')
-        .neq('id', session.user.id)
-        .order('display_name', { ascending: true })
-        .limit(30);
+      const [{ data, error }, { data: blockRows, error: blockError }] = await Promise.all([
+        supabase.from('member_public_profiles')
+          .select('id, display_name, avatar_url, country')
+          .neq('id', session.user.id)
+          .order('display_name', { ascending: true })
+          .limit(50),
+        supabase.from('user_blocks')
+          .select('blocker_id, blocked_id')
+          .or(`blocker_id.eq.${session.user.id},blocked_id.eq.${session.user.id}`),
+      ]);
       if (!active) return;
-      if (error) {
-        console.error('YOYO LIVE member directory failed:', error);
+      if (error || blockError) {
+        console.error('YOYO LIVE member directory failed:', error || blockError);
         setMembersError('تعذر تحميل الأعضاء حاليًا');
         setMembers([]);
       } else {
-        setMembers(data || []);
+        const hiddenIds = new Set((blockRows || []).map((row) =>
+          row.blocker_id === session.user.id ? row.blocked_id : row.blocker_id
+        ));
+        setMembers((data || []).filter((member) => !hiddenIds.has(member.id)));
       }
       setMembersLoading(false);
     }
@@ -300,6 +321,52 @@ import {
 
     return () => listener.subscription.unsubscribe();
   }, []);
+
+  const reportMember = (member) => {
+    if (!member?.id || member.id === session?.user?.id) return;
+    Alert.alert('إبلاغ عن العضو', 'اختار سبب الإبلاغ:', [
+      { text: 'محتوى غير لائق', onPress: () => submitMemberReport(member, 'محتوى غير لائق') },
+      { text: 'تحرش أو إساءة', onPress: () => submitMemberReport(member, 'تحرش أو إساءة') },
+      { text: 'رسائل مزعجة أو احتيال', onPress: () => submitMemberReport(member, 'رسائل مزعجة أو احتيال') },
+      { text: 'إلغاء', style: 'cancel' },
+    ]);
+  };
+
+  const submitMemberReport = async (member, reason) => {
+    const { error } = await supabase.from('user_reports').insert({
+      reporter_id: session.user.id,
+      reported_user_id: member.id,
+      reason,
+      status: 'pending',
+    });
+    if (error) Alert.alert('تعذر إرسال البلاغ', 'حاول مرة أخرى لاحقًا.');
+    else Alert.alert('تم استلام البلاغ', 'سنراجع البلاغ ونتخذ الإجراء المناسب.');
+  };
+
+  const blockMember = (member) => {
+    if (!member?.id || member.id === session?.user?.id) return;
+    Alert.alert('حظر العضو', 'لن تتمكن أنت وهذا العضو من إرسال رسائل خاصة لبعضكما، وسيختفي من قائمة الأعضاء والبثوث لديك.', [
+      { text: 'إلغاء', style: 'cancel' },
+      {
+        text: 'حظر',
+        style: 'destructive',
+        onPress: async () => {
+          const { error } = await supabase.from('user_blocks').upsert({
+            blocker_id: session.user.id,
+            blocked_id: member.id,
+          }, { onConflict: 'blocker_id,blocked_id', ignoreDuplicates: true });
+          if (error) {
+            Alert.alert('تعذر حظر العضو', 'حاول مرة أخرى.');
+            return;
+          }
+          setMembers((current) => current.filter((item) => item.id !== member.id));
+          if (selectedMember?.id === member.id) setSelectedMember(null);
+          if (chatMember?.id === member.id) setChatMember(null);
+          Alert.alert('تم الحظر', 'تم حظر العضو بنجاح.');
+        },
+      },
+    ]);
+  };
 
   const handleLogout = async () => {
     if (loggingOut) return;
@@ -397,6 +464,8 @@ import {
         member={chatMember}
         onBack={() => setChatMember(null)}
         onStartCall={(call) => setSelectedCall(call)}
+        onReport={() => reportMember(chatMember)}
+        onBlock={() => blockMember(chatMember)}
       />
     );
   }
@@ -449,6 +518,20 @@ import {
           >
             <Text style={{ color: C.white, fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>💬 إرسال رسالة خاصة</Text>
           </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 18, width: '100%' }}>
+            <TouchableOpacity
+              onPress={() => reportMember(selectedMember)}
+              style={{ flex: 1, backgroundColor: C.card2, padding: 12, borderRadius: 12, alignItems: 'center' }}
+            >
+              <Text style={{ color: C.white, fontWeight: 'bold' }}>🚩 إبلاغ</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => blockMember(selectedMember)}
+              style={{ flex: 1, backgroundColor: '#612A39', padding: 12, borderRadius: 12, alignItems: 'center' }}
+            >
+              <Text style={{ color: C.white, fontWeight: 'bold' }}>🚫 حظر</Text>
+            </TouchableOpacity>
+          </View>
           <Text style={{ color: C.muted, fontSize: 12, marginTop: 16, textAlign: 'center' }}>
             🎁 إرسال الهدايا سيتاح بعد تأمين رصيد العملات وحسابات الأرباح.
           </Text>
