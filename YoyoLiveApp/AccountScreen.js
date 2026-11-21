@@ -47,6 +47,10 @@ export default function AccountScreen({ userId, email, onBack }) {
     if (parsedDate.getFullYear() !== year || parsedDate.getMonth() !== month - 1 || parsedDate.getDate() !== day || parsedDate > new Date()) {
       setError('تاريخ الميلاد غير صحيح.'); return;
     }
+    const today = new Date();
+    let age = today.getFullYear() - year;
+    if (today.getMonth() < month - 1 || (today.getMonth() === month - 1 && today.getDate() < day)) age -= 1;
+    if (age < 18) { setError('YOYO LIVE متاح لمن بلغوا 18 عامًا فقط.'); return; }
     if (!gender) { setError('اختار النوع من فضلك.'); return; }
     const formattedBirthDate = year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
     setSaving(true); setError(''); setSuccess('');
