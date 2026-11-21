@@ -27,6 +27,7 @@ export default function AdminScreen({ onBack }) {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState('');
+  const [auditActions, setAuditActions] = useState([]);
   const [suspensions, setSuspensions] = useState([]);
   const [suspensionReason, setSuspensionReason] = useState('');
   const [suspensionDuration, setSuspensionDuration] = useState('24h');
@@ -36,7 +37,7 @@ export default function AdminScreen({ onBack }) {
   const loadDashboard = useCallback(async () => {
     setLoading(true);
     setError('');
-    const [summaryResult, reportsResult, membersResult, suspensionsResult] = await Promise.all([
+    const [summaryResult, reportsResult, membersResult, suspensionsResult, auditResult] = await Promise.all([
       supabase.rpc('yoyo_admin_summary'),
       supabase.rpc('yoyo_admin_list_reports', { p_limit: 100 }),
       supabase.from('profiles')
@@ -46,6 +47,10 @@ export default function AdminScreen({ onBack }) {
       supabase.from('user_suspensions')
         .select('user_id, reason, suspended_at, suspended_until, revoked_at')
         .is('revoked_at', null),
+      supabase.from('admin_user_actions')
+        .select('id, admin_id, target_user_id, action, reason, duration, created_at')
+        .order('created_at', { ascending: false })
+        .limit(100),
     ]);
 
     if (summaryResult.error || reportsResult.error || membersResult.error) {
@@ -57,6 +62,25 @@ export default function AdminScreen({ onBack }) {
     setMembers(membersResult.error ? [] : (membersResult.data || []));
     setSuspensions(suspensionsResult.error ? [] : (suspensionsResult.data || []));
     if (suspensionsResult.error) console.error('YOYO admin suspensions failed:', suspensionsResult.error);
+    if (auditResult.error) {
+      console.error('YOYO admin audit log failed:', auditResult.error);
+      setAuditActions([]);
+    } else {
+      const rows = auditResult.data || [];
+      const userIds = [...new Set(rows.flatMap(row => [row.admin_id, row.target_user_id]).filter(Boolean))];
+      let nameMap = {};
+      if (userIds.length) {
+        const { data: nameRows, error: namesError } = await supabase
+          .from('profiles').select('id, display_name').in('id', userIds);
+        if (namesError) console.error('YOYO admin audit names failed:', namesError);
+        else nameMap = Object.fromEntries((nameRows || []).map(row => [row.id, row.display_name || 'عضو بدون اسم']));
+      }
+      setAuditActions(rows.map(row => ({
+        ...row,
+        admin_name: nameMap[row.admin_id] || 'حساب إداري غير متاح',
+        target_name: nameMap[row.target_user_id] || 'حساب غير متاح',
+      })));
+    }
     setLoading(false);
   }, []);
 
@@ -223,6 +247,31 @@ export default function AdminScreen({ onBack }) {
           </View>
 
           <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>🧾 سجل الإجراءات الإدارية</Text>
+            <TouchableOpacity onPress={loadDashboard}><Text style={styles.refresh}>تحديث ↻</Text></TouchableOpacity>
+          </View>
+          <Text style={styles.memberHint}>آخر 100 إجراء إداري. السجل للمتابعة والتدقيق ولا يعرض بيانات الاتصال الخاصة.</Text>
+          {auditActions.length === 0 ? (
+            <View style={styles.empty}><Text style={styles.emptyText}>لا توجد إجراءات إدارية مسجلة حتى الآن.</Text></View>
+          ) : auditActions.map(item => (
+            <View key={item.id} style={styles.auditCard}>
+              <View style={styles.reportTop}>
+                <Text style={[styles.auditAction, item.action === 'suspend' ? styles.auditSuspend : styles.auditUnsuspend]}>
+                  {item.action === 'suspend' ? '⛔ إيقاف حساب' : '✅ رفع الإيقاف'}
+                </Text>
+                <Text style={styles.auditDate}>{new Date(item.created_at).toLocaleString('ar-EG')}</Text>
+              </View>
+              <Text style={styles.person}>العضو: {item.target_name}</Text>
+              <Text style={styles.person}>بواسطة: {item.admin_name}</Text>
+              {!!item.duration && <Text style={styles.auditMeta}>المدة: {({
+                '24h': '24 ساعة', '72h': '3 أيام', '168h': '7 أيام',
+                '720h': '30 يومًا', permanent: 'دائم',
+              })[item.duration] || item.duration}</Text>}
+              <Text style={styles.auditReason}>السبب: {item.reason}</Text>
+            </View>
+          ))}
+
+          <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>🚩 بلاغات الأعضاء</Text>
             <TouchableOpacity onPress={loadDashboard}><Text style={styles.refresh}>تحديث ↻</Text></TouchableOpacity>
           </View>
@@ -300,6 +349,13 @@ const styles = StyleSheet.create({
   suspensionReason: { color: '#E5D7E1', textAlign: 'right', fontSize: 12, marginTop: 5 },
   unsuspendButton: { backgroundColor: '#276B4A', borderRadius: 9, paddingHorizontal: 12, paddingVertical: 9, alignSelf: 'flex-end', marginTop: 10 },
 
+  auditCard: { backgroundColor: '#191424', borderRadius: 12, padding: 14, marginBottom: 9, borderWidth: 1, borderColor: '#5B477B' },
+  auditAction: { fontSize: 13, fontWeight: 'bold' },
+  auditSuspend: { color: '#FF9EAA' },
+  auditUnsuspend: { color: '#83D7A8' },
+  auditDate: { color: '#8F849F', fontSize: 10, textAlign: 'left', flexShrink: 1 },
+  auditMeta: { color: '#C8B9DC', textAlign: 'right', fontSize: 12, marginTop: 7 },
+  auditReason: { color: '#F5C451', textAlign: 'right', marginTop: 8, lineHeight: 20 },
   reportCard: { backgroundColor: '#191424', borderRadius: 14, padding: 15, marginBottom: 12, borderWidth: 1, borderColor: '#3B304B' },
   reportTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10 },
   reason: { color: '#F5C451', fontWeight: 'bold', flex: 1, textAlign: 'right' },
