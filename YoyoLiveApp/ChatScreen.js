@@ -40,7 +40,7 @@ export default function ChatScreen({ userId, member, onBack }) {
     ].join(',');
     const { data, error: loadError } = await supabase
       .from('direct_messages')
-      .select('id,sender_id,recipient_id,body,created_at')
+      .select('id,sender_id,recipient_id,body,created_at,read_at')
       .or(filter)
       .order('created_at', { ascending: true })
       .limit(300);
@@ -52,8 +52,22 @@ export default function ChatScreen({ userId, member, onBack }) {
     setLoading(false);
   }, [userId, member?.id]);
 
+  const markIncomingRead = useCallback(async () => {
+    if (!userId || !member?.id) return;
+    const { error: readError } = await supabase
+      .from('direct_messages')
+      .update({ read_at: new Date().toISOString() })
+      .eq('sender_id', member.id)
+      .eq('recipient_id', userId)
+      .is('read_at', null);
+    if (readError) {
+      console.error('YOYO LIVE mark messages read failed:', readError);
+    }
+  }, [userId, member?.id]);
+
   useEffect(() => {
     loadMessages();
+    markIncomingRead();
     const channel = supabase
       .channel(`direct-chat-${userId}-${member.id}`)
       .on(
@@ -65,6 +79,7 @@ export default function ChatScreen({ userId, member, onBack }) {
             (row.sender_id === userId && row.recipient_id === member.id) ||
             (row.sender_id === member.id && row.recipient_id === userId);
           if (belongsToChat) {
+            if (row.recipient_id === userId) markIncomingRead();
             setMessages((current) =>
               current.some((item) => item.id === row.id) ? current : [...current, row]
             );
@@ -76,7 +91,7 @@ export default function ChatScreen({ userId, member, onBack }) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [loadMessages, userId, member.id]);
+  }, [loadMessages, markIncomingRead, userId, member.id]);
 
   const sendMessage = async () => {
     const body = draft.trim();
