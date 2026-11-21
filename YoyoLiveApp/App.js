@@ -58,6 +58,8 @@ import {
   const [showInbox, setShowInbox] = useState(false);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [liveRooms, setLiveRooms] = useState([]);
+  const [selectedCall, setSelectedCall] = useState(null);
+  const [incomingCall, setIncomingCall] = useState(null);
 
 
   useEffect(() => {
@@ -88,6 +90,89 @@ import {
       supabase.removeChannel(channel);
     };
   }, [session?.user?.id]);
+
+
+  useEffect(() => {
+    if (!session?.user?.id) {
+      setIncomingCall(null);
+      return;
+    }
+
+    const channel = supabase
+      .channel('incoming-calls-' + session.user.id)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'live_calls',
+        filter: 'receiver_id=eq.' + session.user.id,
+      }, (payload) => {
+        if (payload.new?.status === 'ringing') {
+          setIncomingCall(payload.new);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (!incomingCall || !session?.user?.id) return;
+
+    if (selectedCall || selectedLive) {
+      supabase.from('live_calls')
+        .update({ status: 'rejected' })
+        .eq('id', incomingCall.id)
+        .eq('receiver_id', session.user.id)
+        .eq('status', 'ringing');
+      setIncomingCall(null);
+      return;
+    }
+
+    const callLabel = incomingCall.call_type === 'video' ? 'مكالمة فيديو واردة' : 'مكالمة صوتية واردة';
+    Alert.alert(callLabel, 'هناك عضو يحاول الاتصال بك على YOYO LIVE.', [
+      {
+        text: 'رفض',
+        style: 'cancel',
+        onPress: async () => {
+          const { error } = await supabase.from('live_calls')
+            .update({ status: 'rejected' })
+            .eq('id', incomingCall.id)
+            .eq('receiver_id', session.user.id)
+            .eq('status', 'ringing');
+          if (error) Alert.alert('تعذر رفض المكالمة', 'حاول مرة أخرى.');
+          setIncomingCall(null);
+        },
+      },
+      {
+        text: 'قبول',
+        onPress: async () => {
+          const { data, error } = await supabase.from('live_calls')
+            .update({ status: 'accepted' })
+            .eq('id', incomingCall.id)
+            .eq('receiver_id', session.user.id)
+            .eq('status', 'ringing')
+            .select('room_name, call_type')
+            .maybeSingle();
+
+          if (error || !data) {
+            Alert.alert('انتهت المكالمة', 'المكالمة لم تعد متاحة.');
+            setIncomingCall(null);
+            return;
+          }
+
+          setSelectedCall({
+            roomName: data.room_name,
+            callType: data.call_type,
+            name: 'مكالمة YOYO LIVE',
+            isCall: true,
+          });
+          setIncomingCall(null);
+        },
+      },
+    ], { cancelable: false });
+  }, [incomingCall, session?.user?.id, selectedCall, selectedLive]);
 
   useEffect(() => {
     if (!session?.user?.id) {
@@ -265,12 +350,29 @@ import {
     );
   }
 
+  if (selectedCall) {
+    return (
+      <LiveRoomScreen
+        roomName={selectedCall.roomName}
+        isHost={false}
+        isCall={true}
+        callType={selectedCall.callType}
+        hostName={selectedCall.name}
+        onClose={() => setSelectedCall(null)}
+      />
+    );
+  }
+
   if (chatMember) {
     return (
       <ChatScreen
         userId={session.user.id}
         member={chatMember}
         onBack={() => setChatMember(null)}
+        onStartCall={(call) => {
+          setChatMember(null);
+          setSelectedCall(call);
+        }}
       />
     );
   }
