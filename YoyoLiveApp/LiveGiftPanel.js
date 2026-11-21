@@ -5,12 +5,19 @@ import {
 } from 'react-native';
 import { supabase } from './supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { GIFT_SOUND_PLAYERS } from './giftSoundPlayers';
+import { createAudioPlayer } from 'expo-audio';
+import { GIFT_SOUND_ASSETS } from './giftSoundPlayers';
+
+const giftSoundPlayers = {};
 
 function playGiftSound(soundKey) {
-  const player = GIFT_SOUND_PLAYERS[soundKey] || GIFT_SOUND_PLAYERS['soft-chime'];
+  const key = GIFT_SOUND_ASSETS[soundKey] ? soundKey : 'soft-chime';
   try {
-    Object.values(GIFT_SOUND_PLAYERS).forEach((item) => { if (item !== player) item.pause(); });
+    if (!giftSoundPlayers[key]) {
+      giftSoundPlayers[key] = createAudioPlayer(GIFT_SOUND_ASSETS[key]);
+    }
+    const player = giftSoundPlayers[key];
+    Object.values(giftSoundPlayers).forEach((item) => { if (item !== player) item.pause(); });
     player.seekTo(0);
     player.play();
   } catch (error) { console.warn('Gift audio:', error?.message || error); }
