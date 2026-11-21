@@ -70,7 +70,8 @@ jobs:
 
       - name: Check generated Android target API
         run: |
-          TARGET=$(grep -Rho "targetSdkVersion[ =]*[0-9]*" android | grep -o "[0-9][0-9]*" | sort -nr | head -n1)
+          grep -R "targetSdkVersion" android
+          TARGET=$(grep -R "targetSdkVersion" android | grep -oE "[0-9]+" | sort -nr | head -n1)
           echo "Generated target SDK: $TARGET"
           test -n "$TARGET" && test "$TARGET" -ge 36
 
