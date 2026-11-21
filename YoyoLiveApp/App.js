@@ -351,14 +351,26 @@ import {
   };
 
   const submitMemberReport = async (member, reason) => {
+    // اربط البلاغ بغرفة البث النشطة وقت الإبلاغ إن كان العضو يبث الآن.
+    const { data: liveRoom } = await supabase.from('live_rooms')
+      .select('id')
+      .eq('host_id', member.id)
+      .eq('status', 'live')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
     const { error } = await supabase.from('user_reports').insert({
       reporter_id: session.user.id,
       reported_user_id: member.id,
+      live_room_id: liveRoom?.id || null,
       reason,
       status: 'pending',
     });
     if (error) Alert.alert('تعذر إرسال البلاغ', 'حاول مرة أخرى لاحقًا.');
-    else Alert.alert('تم استلام البلاغ', 'سنراجع البلاغ ونتخذ الإجراء المناسب.');
+    else Alert.alert('تم استلام البلاغ', liveRoom?.id
+      ? 'تم ربط البلاغ بالبث الجاري وإرساله للمراجعة.'
+      : 'سنراجع البلاغ ونتخذ الإجراء المناسب.');
   };
 
   const blockMember = (member) => {
