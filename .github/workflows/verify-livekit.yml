@@ -7,8 +7,11 @@ on:
     paths:
       - "YoyoLiveApp/App.js"
       - "YoyoLiveApp/AccountScreen.js"
+      - "YoyoLiveApp/AuthScreen.js"
+      - "YoyoLiveApp/ProfileScreen.js"
       - "YoyoLiveApp/public/**"
       - "supabase/functions/delete-account/**"
+      - "supabase/migrations/**"
       - "YoyoLiveApp/ChatScreen.js"
       - "YoyoLiveApp/eas.json"
       - "YoyoLiveApp/LiveRoomScreen.native.js"
@@ -72,6 +75,15 @@ jobs:
 
       - name: Run Expo diagnostics
         run: npx expo-doctor
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Type-check account deletion Edge Function
+        working-directory: .
+        run: deno check supabase/functions/delete-account/index.ts
 
       - name: Commit the generated dependency lockfile
         working-directory: .
