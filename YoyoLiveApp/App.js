@@ -5,6 +5,7 @@ import ProfileScreen from './ProfileScreen';
 import WalletScreen from './WalletScreen';
 import AccountScreen from './AccountScreen';
 import ChatScreen from './ChatScreen';
+import InboxScreen from './InboxScreen';
 import { supabase } from './supabase';
 import {
   Alert,
@@ -52,6 +53,7 @@ import {
   const [showAccount, setShowAccount] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
   const [chatMember, setChatMember] = useState(null);
+  const [showInbox, setShowInbox] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -199,6 +201,16 @@ import {
         userId={session.user.id}
         member={chatMember}
         onBack={() => setChatMember(null)}
+      />
+    );
+  }
+
+  if (showInbox) {
+    return (
+      <InboxScreen
+        userId={session.user.id}
+        onBack={() => setShowInbox(false)}
+        onOpenChat={(member) => setChatMember(member)}
       />
     );
   }
@@ -385,7 +397,7 @@ import {
 if (i === 0) { setSelectedLive(null); setShowWallet(false); setShowAccount(false); }
 else if (i === 1) Alert.alert('اكتشف', 'قسم اكتشف والمحتوى الحقيقي قيد التجهيز.');
 else if (i === 2) Alert.alert('البث المباشر', 'البث المباشر الحقيقي لم يتم تفعيله بعد.');
-else if (i === 3) Alert.alert('الرسائل', 'المراسلة بين المستخدمين لم يتم ربطها بعد.');
+else if (i === 3) setShowInbox(true);
 else if (i === 4) setShowAccount(true);
 }}>
 <Text style={styles.navIcon}>{['🏠', '✨', '🔴', '💬', '👤'][i]}</Text>
