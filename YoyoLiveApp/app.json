@@ -64,6 +64,12 @@
           }
         }
       ]
-    ]
+    ],
+    "owner": "ebrahim2211s-team",
+    "extra": {
+      "eas": {
+        "projectId": "14d34dd0-5abf-4d06-879e-b9fe0438f909"
+      }
+    }
   }
 }
