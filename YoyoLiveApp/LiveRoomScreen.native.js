@@ -21,9 +21,47 @@ import { Track } from 'livekit-client';
 import { supabase } from './supabase';
 import LiveGiftPanel from './LiveGiftPanel';
 
-function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userId, receiverId }) {
+function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userId, receiverId, roomName }) {
   const tracks = useTracks([Track.Source.Camera]);
   const videoTracks = tracks.filter(isTrackReference);
+
+  const reportLiveRoom = () => {
+    if (!userId || isHost || isCall) return;
+    Alert.alert('الإبلاغ عن البث', 'اختار سبب الإبلاغ عن البث الحالي:', [
+      { text: 'محتوى غير لائق', onPress: () => submitLiveReport('محتوى غير لائق') },
+      { text: 'إساءة أو تحرش أثناء البث', onPress: () => submitLiveReport('إساءة أو تحرش أثناء البث') },
+      { text: 'احتيال أو انتحال شخصية', onPress: () => submitLiveReport('احتيال أو انتحال شخصية') },
+      { text: 'إلغاء', style: 'cancel' },
+    ]);
+  };
+
+  const submitLiveReport = async (reason) => {
+    const { data: room, error: roomError } = await supabase
+      .from('live_rooms')
+      .select('id,host_id')
+      .eq('room_name', roomName)
+      .eq('status', 'live')
+      .maybeSingle();
+
+    if (roomError || !room?.id || !room?.host_id || room.host_id === userId) {
+      Alert.alert('تعذر إرسال البلاغ', 'لم نتمكن من التحقق من البث الحالي. حاول مرة أخرى.');
+      return;
+    }
+
+    const { error: reportError } = await supabase.from('user_reports').insert({
+      reporter_id: userId,
+      reported_user_id: room.host_id,
+      live_room_id: room.id,
+      reason,
+      status: 'pending',
+    });
+
+    if (reportError) {
+      Alert.alert('تعذر إرسال البلاغ', 'حاول مرة أخرى لاحقًا.');
+    } else {
+      Alert.alert('تم استلام البلاغ', 'تم ربط البلاغ بالبث الحالي وإرساله للمراجعة.');
+    }
+  };
 
   return (
     <View style={styles.room}>
@@ -53,6 +91,12 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
       </ScrollView>
 
       {!isCall && userId ? <LiveGiftPanel userId={userId} receiverId={receiverId} isHost={isHost} /> : null}
+
+      {!isCall && !isHost && userId ? (
+        <TouchableOpacity style={styles.reportButton} onPress={reportLiveRoom} activeOpacity={0.85}>
+          <Text style={styles.reportButtonText}>🚩 إبلاغ عن البث</Text>
+        </TouchableOpacity>
+      ) : null}
 
       <TouchableOpacity style={styles.leaveButton} onPress={onLeave} activeOpacity={0.85}>
         <Text style={styles.leaveButtonText}>{isCall ? 'إنهاء المكالمة' : isHost ? 'إنهاء البث' : 'مغادرة البث'}</Text>
@@ -189,6 +233,7 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
             error={error}
             userId={userId}
             receiverId={receiverId}
+            roomName={roomName}
           />
         </LiveKitRoom>
       )}
@@ -212,6 +257,8 @@ const styles = StyleSheet.create({
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 18 },
   loadingText: { color: '#FFFFFF', fontSize: 15 },
   error: { color: '#FF9EAD', textAlign: 'center', marginVertical: 12, lineHeight: 22 },
+  reportButton: { backgroundColor: '#34263F', borderWidth: 1, borderColor: '#8A5578', borderRadius: 12, padding: 12, alignItems: 'center', marginTop: 12 },
+  reportButtonText: { color: '#F4C5D8', fontSize: 14, fontWeight: 'bold' },
   leaveButton: { backgroundColor: '#E53965', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 16 },
   leaveButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
 });
