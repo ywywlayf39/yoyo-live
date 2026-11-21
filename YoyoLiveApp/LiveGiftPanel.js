@@ -40,9 +40,55 @@ const MEGA_EFFECTS = {
   'yoyo-legendary-galaxy': { particles: ['🌌', '🌠', '💜', '✨'], title: 'مجرة YOYO الأسطورية', tint: '#C39BFF', duration: 10000, shake: true },
 };
 
+const GIFT_ANIMATION_EFFECTS = {
+  'heart-pulse': { particles: ["💗","💕","✨"], tint: '#F34E9B', duration: 5200, shake: false },
+  'rose-bloom': { particles: ["🌹","🌸","✨"], tint: '#F08BAA', duration: 5200, shake: false },
+  'clap-burst': { particles: ["👏","🎉","✨"], tint: '#F5C451', duration: 5200, shake: false },
+  'cute-cat-bounce': { particles: ["🐱","🐾","💗"], tint: '#E6A6D7', duration: 5200, shake: false },
+  'star-sparkle': { particles: ["⭐","✨","🌟"], tint: '#F5C451', duration: 5200, shake: false },
+  'butterfly-flight': { particles: ["🦋","🌸","✨"], tint: '#8BC8F5', duration: 5200, shake: false },
+  'playful-cat-yarn': { particles: ["🐈","🧶","🐾"], tint: '#D6A6FF', duration: 5200, shake: false },
+  'moon-drift': { particles: ["🌙","⭐","✨"], tint: '#A9B5F5', duration: 5200, shake: false },
+  'bunny-hop': { particles: ["🐰","🥕","✨"], tint: '#F3B5D2', duration: 5200, shake: false },
+  'black-cat-moon': { particles: ["🐈‍⬛","🌙","✨"], tint: '#9B8ABF', duration: 5200, shake: false },
+  'meteor-trail': { particles: ["☄️","🌠","✨"], tint: '#FF9B70', duration: 5200, shake: false },
+  'white-tiger-leap': { particles: ["🐅","⚡","✨"], tint: '#DDE6F2', duration: 5200, shake: false },
+  'balloon-rise': { particles: ["🎈","🎈","✨"], tint: '#FF9FBA', duration: 5200, shake: false },
+  'double-heart': { particles: ["💞","💗","💕"], tint: '#F34E9B', duration: 5200, shake: false },
+  'royal-tiger-leap': { particles: ["🐅","👑","🔥"], tint: '#E5B45B', duration: 5200, shake: false },
+  'black-panther-smoke': { particles: ["🐆","🌫️","✨"], tint: '#8B83A8', duration: 5200, shake: false },
+  'golden-horse': { particles: ["🐎","🌟","✨"], tint: '#D6B15D', duration: 5200, shake: false },
+  'dream-car': { particles: ["🏎️","💨","✨"], tint: '#7DD7F2', duration: 5200, shake: false },
+  'tiger-family-entrance': { particles: ["🐅","🐯","🐾"], tint: '#D89B52', duration: 5200, shake: false },
+  'pearl-yacht': { particles: ["🛥️","🌊","💎"], tint: '#63D7F2', duration: 5200, shake: false },
+  'magic-cat-aura': { particles: ["🐈","🔮","✨"], tint: '#C39BFF', duration: 5200, shake: false },
+  'crystal-castle': { particles: ["🏰","💎","✨"], tint: '#9AD7F5', duration: 5200, shake: false },
+  'light-dragon': { particles: ["🐉","💡","✨"], tint: '#8DE0D0', duration: 7500, shake: false },
+  'diamond-fall': { particles: ["💎","💠","✨"], tint: '#8BD8F5', duration: 5200, shake: false },
+  'lion-king-roar': { particles: ["🦁","👑","🔥"], tint: '#F5A84C', duration: 5200, shake: true },
+  'legendary-tiger-storm': { particles: ["🐅","🌪️","⚡"], tint: '#E7A85B', duration: 5200, shake: true },
+  'galaxy-gate': { particles: ["🌌","🌀","✨"], tint: '#A88AF2', duration: 7500, shake: true },
+  'cosmic-eclipse': { particles: ["🌑","🌞","✨"], tint: '#9A8CF2', duration: 5200, shake: false },
+  'black-king-throne': { particles: ["🦁","🖤","👑"], tint: '#8F86A8', duration: 7500, shake: true },
+  'royal-throne': { particles: ["👑","🪑","💫"], tint: '#F5C451', duration: 7500, shake: true },
+  'storm-lion-royal-entry': { particles: ["🦁","⛈️","👑"], tint: '#E5A64D', duration: 5200, shake: true },
+  'diamond-galaxy-tiger': { particles: ["🐅","💎","🌌"], tint: '#A78BFA', duration: 7500, shake: true },
+  'golden-throne-dragon': { particles: ["🐉","👑","✨"], tint: '#F5C451', duration: 7500, shake: true },
+  'jungle-emperor-throne': { particles: ["🦁","🌴","👑"], tint: '#D6A45B', duration: 7500, shake: true },
+  'yoyo-eternal-galaxy': { particles: ["🌌","🌠","💜"], tint: '#C39BFF', duration: 7500, shake: true },
+  'royal-crown': { particles: ["👑","✨","💎"], tint: '#F5C451', duration: 5200, shake: false },
+  'ruby-yacht': { particles: ["🛥️","🌊","💎"], tint: '#63D7F2', duration: 5200, shake: false },
+  'royal-castle': { particles: ["🏰","✨","🌟"], tint: '#D7A6FF', duration: 5200, shake: false },
+  'galaxy-rocket': { particles: ["🚀","☄️","⭐"], tint: '#FF8C62', duration: 7500, shake: true },
+  'mega-galaxy-dragon': { particles: ["🐉","🔥","✨"], tint: '#FF6B6B', duration: 7500, shake: true },
+  'emperor-throne': { particles: ["🪑","👑","💫"], tint: '#F5C451', duration: 7500, shake: true },
+  'golden-yoyo-planet': { particles: ["🌍","🪐","✨"], tint: '#7BE0C3', duration: 5200, shake: false },
+  'yoyo-legendary-galaxy': { particles: ["🌌","🌠","💜"], tint: '#C39BFF', duration: 7500, shake: true },
+};
+
 function effectFor(gift) {
   if (!gift) return null;
-  return MEGA_EFFECTS[gift.animation_key] || null;
+  return GIFT_ANIMATION_EFFECTS[gift.animation_key] || null;
 }
 
 export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
@@ -217,8 +263,8 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
               <Text key={index} style={[styles.particle, { transform: [{ translateY: index % 2 ? -12 : 8 }] }]}>{particle}</Text>
             ))}
           </View>
-          <Text style={styles.megaLabel}>{effect ? 'هدية أسطورية وصلت!' : 'هدية وصلت!'}</Text>
-          <Text style={[styles.effectEmoji, effect && styles.megaEmoji]}>{incoming.emoji}</Text>
+          <Text style={styles.megaLabel}>{incoming.coinCost >= 100000 ? 'هدية أسطورية وصلت!' : 'هدية وصلت!'}</Text>
+          <Text style={[styles.effectEmoji, incoming.coinCost >= 100000 && styles.megaEmoji]}>{incoming.emoji}</Text>
           <Text style={[styles.effectTitle, { color: tint }]}>{incoming.name}</Text>
           <Text style={styles.effectSubtitle}>
             {incoming.sender} أرسل الهدية {incoming.quantity > 1 ? '× ' + incoming.quantity : ''}
