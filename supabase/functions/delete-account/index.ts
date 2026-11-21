@@ -88,17 +88,16 @@ Deno.serve(async (req: Request) => {
     // Remove profile images owned by this account before deleting the Auth user.
     const bucket = admin.storage.from("profile-avatars");
     const pageSize = 500;
-    for (let offset = 0; ; offset += pageSize) {
-      const { data: files, error: listError } = await bucket.list(userId, { limit: pageSize, offset });
+    for (;;) {
+      const { data: files, error: listError } = await bucket.list(userId, { limit: pageSize, offset: 0 });
       if (listError) throw listError;
       if (!files?.length) break;
       const paths = files
-        .filter((file) => file.name && file.id)
+        .filter((file) => file.name)
         .map((file) => `${userId}/${file.name}`);
-      if (paths.length) {
-        const { error: removeError } = await bucket.remove(paths);
-        if (removeError) throw removeError;
-      }
+      if (!paths.length) break;
+      const { error: removeError } = await bucket.remove(paths);
+      if (removeError) throw removeError;
       if (files.length < pageSize) break;
     }
 
