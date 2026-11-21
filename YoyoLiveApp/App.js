@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import AuthScreen from './AuthScreen';
 import ProfileScreen from './ProfileScreen';
 import WalletScreen from './WalletScreen';
+import AccountScreen from './AccountScreen';
 import { supabase } from './supabase';
 import {
   View,
@@ -49,6 +50,7 @@ import {
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutMessage, setLogoutMessage] = useState('');
   const [showWallet, setShowWallet] = useState(false);
+  const [showAccount, setShowAccount] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -140,7 +142,17 @@ import {
   }
 
 
-                                                  if (showWallet) {
+  if (showAccount) {
+    return (
+      <AccountScreen
+        userId={session.user.id}
+        email={session.user.email}
+        onBack={() => setShowAccount(false)}
+      />
+    );
+  }
+
+  if (showWallet) {
     return (
       <WalletScreen
         userId={session.user.id}
@@ -198,6 +210,7 @@ import {
                                                                                                                                                                                                                                                                                                                                                                                                                                                                   </Text>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                             </View>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       <View style={styles.headerIcons}>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  <TouchableOpacity onPress={() => setShowAccount(true)}><Text style={styles.coins}>👤 حسابي</Text></TouchableOpacity>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   <TouchableOpacity onPress={() => setShowWallet(true)}><Text style={styles.coins}>🪙 المحفظة</Text></TouchableOpacity>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               <Text style={styles.notification}>🔔</Text>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         </View>
