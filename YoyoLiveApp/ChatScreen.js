@@ -23,7 +23,7 @@ const C = {
   border: '#30263F',
 };
 
-export default function ChatScreen({ userId, member, onBack, onStartCall }) {
+export default function ChatScreen({ userId, member, onBack, onStartCall, onReport, onBlock }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(true);
@@ -171,10 +171,16 @@ export default function ChatScreen({ userId, member, onBack, onStartCall }) {
           <Text style={styles.subtitle}>محادثة خاصة 🔒</Text>
         </View>
         <View style={styles.callActions}>
-          <TouchableOpacity onPress={() => startCall('audio')} style={styles.callButton} disabled={calling}>
+          <TouchableOpacity onPress={onReport} style={styles.callButton} accessibilityLabel="الإبلاغ عن العضو">
+            <Text style={styles.callButtonText}>🚩</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onBlock} style={styles.callButton} accessibilityLabel="حظر العضو">
+            <Text style={styles.callButtonText}>🚫</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => startCall('audio')} style={styles.callButton} disabled={calling} accessibilityLabel="مكالمة صوتية">
             <Text style={styles.callButtonText}>📞</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => startCall('video')} style={styles.callButton} disabled={calling}>
+          <TouchableOpacity onPress={() => startCall('video')} style={styles.callButton} disabled={calling} accessibilityLabel="مكالمة فيديو">
             <Text style={styles.callButtonText}>🎥</Text>
           </TouchableOpacity>
         </View>
