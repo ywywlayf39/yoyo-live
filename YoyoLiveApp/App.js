@@ -40,7 +40,21 @@ import {
                                               { emoji: '🌸', name: 'نور', desc: 'يوم جميل مع YOYO', views: '5.7K' },
                                               ];
 
-                                              export default function App() {
+                                              const isAdultBirthDate = (birthDate) => {
+  if (!birthDate) return false;
+  const parts = String(birthDate).split('-').map(Number);
+  if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) return false;
+  const [year, month, day] = parts;
+  const today = new Date();
+  let age = today.getFullYear() - year;
+  if (
+    today.getMonth() + 1 < month ||
+    (today.getMonth() + 1 === month && today.getDate() < day)
+  ) age -= 1;
+  return age >= 18;
+};
+
+export default function App() {
                                                 const [selectedLive, setSelectedLive] = useState(null);
   const [session, setSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -61,11 +75,11 @@ import {
       setProfileLoading(true);
       const { data, error } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id,birth_date')
         .eq('id', session.user.id)
         .maybeSingle();
       if (active) {
-        setProfileReady(!error && !!data);
+        setProfileReady(!error && !!data && isAdultBirthDate(data.birth_date));
         setProfileLoading(false);
       }
     }
