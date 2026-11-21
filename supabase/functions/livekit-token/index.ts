@@ -62,6 +62,24 @@ Deno.serve(async (req: Request) => {
       return json({ error: "Invalid or expired session" }, 401);
     }
 
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!serviceKey) {
+      console.error("Suspension status service configuration is missing");
+      return json({ error: "Unable to verify account status" }, 500);
+    }
+    const service = createClient(supabaseUrl, serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const checkSuspension = async (userId: string) => {
+      const { data, error } = await service.from("user_suspensions")
+        .select("reason, suspended_until")
+        .eq("user_id", userId)
+        .is("revoked_at", null)
+        .maybeSingle();
+      if (error) throw new Error("Unable to verify account status");
+      return !!data && (!data.suspended_until || new Date(data.suspended_until).getTime() > Date.now());
+    };
+
     const body = await req.json();
     const roomName = typeof body?.roomName === "string" ? body.roomName.trim() : "";
     const action = body?.action === undefined ? "join" : body.action;
@@ -72,6 +90,9 @@ Deno.serve(async (req: Request) => {
 
     if (!roomName || roomName.length > 128 || !/^[a-zA-Z0-9_-]+$/.test(roomName)) {
       return json({ error: "A valid roomName is required" }, 400);
+    }
+    if (action !== "end" && await checkSuspension(user.id)) {
+      return json({ error: "تم إيقاف حسابك مؤقتًا أو بشكل دائم. تواصل مع الدعم لمعرفة التفاصيل." }, 403);
     }
 
     const { data: liveRoom, error: liveRoomError } = await supabase
@@ -136,6 +157,9 @@ Deno.serve(async (req: Request) => {
       : (!isHost && liveRoom ? liveRoom.host_id : null);
 
     if (otherParticipantId && action !== "end") {
+      if (await checkSuspension(otherParticipantId)) {
+        return json({ error: "هذا الحساب موقوف حاليًا ولا يمكن الانضمام إلى البث أو المكالمة" }, 403);
+      }
       const { data: blockRows, error: blockError } = await supabase
         .from("user_blocks")
         .select("blocker_id, blocked_id")
