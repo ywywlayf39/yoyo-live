@@ -6,12 +6,16 @@ on:
       - feature/livekit-live-stream
     paths:
       - "YoyoLiveApp/App.js"
+      - "YoyoLiveApp/AccountScreen.js"
+      - "YoyoLiveApp/public/**"
+      - "supabase/functions/delete-account/**"
       - "YoyoLiveApp/ChatScreen.js"
       - "YoyoLiveApp/eas.json"
       - "YoyoLiveApp/LiveRoomScreen.native.js"
       - "YoyoLiveApp/LiveRoomScreen.web.js"
       - "YoyoLiveApp/registerLiveKit.native.js"
       - "YoyoLiveApp/registerLiveKit.web.js"
+      - "YoyoLiveApp/public/delete-account.html"
       - "YoyoLiveApp/package.json"
       - "YoyoLiveApp/app.json"
       - ".github/workflows/verify-livekit.yml"
@@ -52,8 +56,19 @@ jobs:
       - name: Verify web preview fallback
         run: npx expo export --platform web
 
+      - name: Verify external account deletion page is exported
+        run: |
+          test -f dist/delete-account.html
+          grep -q "delete-account" dist/delete-account.html
+
       - name: Generate Android native project and apply LiveKit config plugins
         run: npx expo prebuild --platform android --no-install
+
+      - name: Check generated Android target API
+        run: |
+          TARGET=$(grep -Rho "targetSdkVersion[ =]*[0-9]*" android | grep -o "[0-9][0-9]*" | sort -nr | head -n1)
+          echo "Generated target SDK: $TARGET"
+          test -n "$TARGET" && test "$TARGET" -ge 36
 
       - name: Run Expo diagnostics
         run: npx expo-doctor
