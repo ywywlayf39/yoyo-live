@@ -18,6 +18,17 @@
       }
     },
     "web": {
+      "output": "single",
+      "bundler": "metro",
+      "name": "يويو لايف",
+      "shortName": "YOYO LIVE",
+      "lang": "ar",
+      "dir": "rtl",
+      "display": "standalone",
+      "orientation": "portrait",
+      "startUrl": ".",
+      "backgroundColor": "#0B0912",
+      "themeColor": "#0B0912",
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
