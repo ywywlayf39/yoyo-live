@@ -37,13 +37,14 @@ export default function AdminScreen({ onBack }) {
   const [suspensionDuration, setSuspensionDuration] = useState('24h');
   const [suspensionBusyId, setSuspensionBusyId] = useState(null);
   const [coinPurchaseRequests, setCoinPurchaseRequests] = useState([]);
+  const [giftCatalog, setGiftCatalog] = useState([]);
   const [coinReviewNote, setCoinReviewNote] = useState('');
   const [coinReviewBusyId, setCoinReviewBusyId] = useState(null);
   const [financialInputs, setFinancialInputs] = useState({
     packagePriceEgp: '', packageCoins: '', giftCoinsSpent: '', hostRedeemablePoints: '',
     egpPerHostPoint: '', paymentFeePercent: '', storeFeePercent: '', taxPercent: '',
     refundReservePercent: '', payoutFeePercent: '', paymentFixedFeeEgp: '',
-    payoutFixedFeeEgp: '', allocatedOperatingCostEgp: '', targetMarginPercent: '15',
+    payoutFixedFeeEgp: '', allocatedOperatingCostEgp: '', targetMarginPercent: '',
   });
   const [financialResult, setFinancialResult] = useState(null);
   const [financialError, setFinancialError] = useState('');
@@ -52,7 +53,7 @@ export default function AdminScreen({ onBack }) {
   const loadDashboard = useCallback(async () => {
     setLoading(true);
     setError('');
-    const [summaryResult, reportsResult, membersResult, suspensionsResult, auditResult, liveRoomsResult, coinRequestsResult] = await Promise.all([
+    const [summaryResult, reportsResult, membersResult, suspensionsResult, auditResult, liveRoomsResult, coinRequestsResult, giftCatalogResult] = await Promise.all([
       supabase.rpc('yoyo_admin_summary'),
       supabase.rpc('yoyo_admin_list_reports_with_live', { p_limit: 100 }),
       supabase.from('profiles')
@@ -74,6 +75,7 @@ export default function AdminScreen({ onBack }) {
       supabase.from('coin_purchase_requests')
         .select('id,user_id,requested_amount_egp,requested_coins,payment_method,transfer_reference,proof_storage_path,status,admin_note,created_at')
         .order('created_at', { ascending: false }).limit(100),
+      supabase.from('gift_catalog').select('id,name,coin_cost,gross_points,active').order('coin_cost', { ascending: true }),
     ]);
 
     if (summaryResult.error || reportsResult.error || membersResult.error) {
@@ -85,6 +87,8 @@ export default function AdminScreen({ onBack }) {
     setMembers(membersResult.error ? [] : (membersResult.data || []));
     setLiveRooms(liveRoomsResult.error ? [] : (liveRoomsResult.data || []));
     setCoinPurchaseRequests(coinRequestsResult.error ? [] : (coinRequestsResult.data || []));
+    setGiftCatalog(giftCatalogResult.error ? [] : (giftCatalogResult.data || []));
+    if (giftCatalogResult.error) console.error('YOYO gift catalog audit failed:', giftCatalogResult.error);
     if (coinRequestsResult.error) console.error('YOYO coin purchase requests failed:', coinRequestsResult.error);
     if (liveRoomsResult.error) console.error('YOYO admin live rooms failed:', liveRoomsResult.error);
     setSuspensions(suspensionsResult.error ? [] : (suspensionsResult.data || []));
@@ -419,6 +423,33 @@ export default function AdminScreen({ onBack }) {
             </View>
           ))}
 
+
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>📊 مراجعة نسب الهدايا</Text>
+          </View>
+          <View style={styles.financialPanel}>
+            <Text style={styles.financialMargin}>الهدايا النشطة: {giftCatalog.filter(item => item.active).length} من {giftCatalog.length}</Text>
+            <Text style={styles.memberHint}>تقسيم 70/30 يُقرب إلى نقاط صحيحة في كل عملية إرسال؛ لذلك قد تختلف النسبة في الهدية الصغيرة الواحدة.</Text>
+            {giftCatalog.filter(item => item.active && Number(item.gross_points) > 0)
+              .filter(item => {
+                const hostPoints = Math.round(Number(item.gross_points) * 0.70);
+                const share = hostPoints / Number(item.gross_points);
+                return share < 0.69 || share > 0.71;
+              }).map(item => {
+                const hostPoints = Math.round(Number(item.gross_points) * 0.70);
+                const platformPoints = Number(item.gross_points) - hostPoints;
+                return (
+                  <View key={item.id} style={styles.financialLine}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.financialLabel}>{item.name} — {Number(item.coin_cost).toLocaleString('en-US')} عملة</Text>
+                      <Text style={styles.memberHint}>المضيف {hostPoints} نقطة / المنصة {platformPoints} نقطة</Text>
+                    </View>
+                    <Text style={styles.financialValue}>{(hostPoints / Number(item.gross_points) * 100).toFixed(0)}%</Text>
+                  </View>
+                );
+              })}
+            {giftCatalog.length === 0 && <Text style={styles.memberHint}>تعذر تحميل قائمة الهدايا للمراجعة.</Text>}
+          </View>
 
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>📊 محاكاة ربحية الباقات والهدايا</Text>
