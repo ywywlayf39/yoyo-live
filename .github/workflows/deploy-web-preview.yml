@@ -3,7 +3,7 @@ name: Build and deploy YOYO LIVE web preview
 on:
   push:
     branches:
-      - web-preview-deploy
+      - wallet-screen-implementation
     paths:
       - "YoyoLiveApp/**"
       - ".github/workflows/deploy-web-preview.yml"
