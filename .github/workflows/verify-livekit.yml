@@ -6,6 +6,8 @@ on:
       - feature/livekit-live-stream
     paths:
       - "YoyoLiveApp/App.js"
+      - "YoyoLiveApp/ChatScreen.js"
+      - "YoyoLiveApp/eas.json"
       - "YoyoLiveApp/LiveRoomScreen.native.js"
       - "YoyoLiveApp/LiveRoomScreen.web.js"
       - "YoyoLiveApp/package.json"
