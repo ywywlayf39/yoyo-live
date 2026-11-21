@@ -86,7 +86,7 @@ import {
       setMembersLoading(true);
       setMembersError('');
       const { data, error } = await supabase
-        .from('member_directory')
+        .from('member_public_profiles')
         .select('id, display_name, avatar_url, country')
         .order('display_name', { ascending: true })
         .limit(30);
