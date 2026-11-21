@@ -189,7 +189,7 @@ export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUp
       )}
 
       {!recoveryMode && (
-        <TouchableOpacity onPress={() => { setForgotMode(false); switchMode(); }} disabled={loading}>
+        <TouchableOpacity onPress={() => { if (forgotMode) { setForgotMode(false); setFeedback(''); } else { switchMode(); } }} disabled={loading}>
           <Text style={styles.switchText}>
             {forgotMode ? 'العودة إلى تسجيل الدخول' : isLogin ? 'ليس لديك حساب؟ إنشاء حساب جديد' : 'لديك حساب بالفعل؟ تسجيل الدخول'}
           </Text>
