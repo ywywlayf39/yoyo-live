@@ -14,6 +14,7 @@ assert.ok(panel.includes("table: 'live_gift_events'"), 'Gift feed must use the s
 assert.ok(panel.includes("filter: 'room_name=eq.' + roomName"), 'Gift feed must be filtered to the current room');
 assert.ok(panel.includes("p_room_name: roomName"), 'Gift RPC must receive the current room');
 assert.ok(panel.includes("status === 'SUBSCRIBED'"), 'Gift sending must wait for Realtime subscription');
+assert.ok(panel.includes('liveSoundToggle'), 'Hosts and viewers must have a live mute control');
 assert.ok(panel.includes(".delete().eq('room_name', roomName).eq('user_id', userId)"), 'Viewer presence must be cleaned up');
 assert.ok(room.includes("roomName={roomName}"), 'Live room must pass its room identity to the gift panel');
 assert.ok(migration.includes('create policy "View gifts in joined live rooms"'), 'Migration must scope viewer presence to joined rooms');
