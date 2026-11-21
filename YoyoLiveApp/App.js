@@ -98,6 +98,22 @@ import {
       return;
     }
 
+    const loadPendingCall = async () => {
+      const since = new Date(Date.now() - 45000).toISOString();
+      const { data, error } = await supabase.from('live_calls')
+        .select('id, room_name, caller_id, receiver_id, call_type, status, created_at')
+        .eq('receiver_id', session.user.id)
+        .eq('status', 'ringing')
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!error && data) {
+        setIncomingCall((current) => current?.id === data.id ? current : data);
+      }
+    };
+
+    loadPendingCall();
     const channel = supabase
       .channel('incoming-calls-' + session.user.id)
       .on('postgres_changes', {
@@ -107,7 +123,17 @@ import {
         filter: 'receiver_id=eq.' + session.user.id,
       }, (payload) => {
         if (payload.new?.status === 'ringing') {
-          setIncomingCall(payload.new);
+          setIncomingCall((current) => current?.id === payload.new.id ? current : payload.new);
+        }
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'live_calls',
+        filter: 'receiver_id=eq.' + session.user.id,
+      }, (payload) => {
+        if (payload.new?.status !== 'ringing') {
+          setIncomingCall((current) => current?.id === payload.new.id ? null : current);
         }
       })
       .subscribe();
