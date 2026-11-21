@@ -27,17 +27,25 @@ export default function AdminScreen({ onBack }) {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState('');
+  const [suspensions, setSuspensions] = useState([]);
+  const [suspensionReason, setSuspensionReason] = useState('');
+  const [suspensionDuration, setSuspensionDuration] = useState('24h');
+  const [suspensionBusyId, setSuspensionBusyId] = useState(null);
+
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
     setError('');
-    const [summaryResult, reportsResult, membersResult] = await Promise.all([
+    const [summaryResult, reportsResult, membersResult, suspensionsResult] = await Promise.all([
       supabase.rpc('yoyo_admin_summary'),
       supabase.rpc('yoyo_admin_list_reports', { p_limit: 100 }),
       supabase.from('profiles')
         .select('id, display_name, country, created_at')
         .order('created_at', { ascending: false })
         .limit(100),
+      supabase.from('user_suspensions')
+        .select('user_id, reason, suspended_at, suspended_until, revoked_at')
+        .is('revoked_at', null),
     ]);
 
     if (summaryResult.error || reportsResult.error || membersResult.error) {
@@ -47,6 +55,8 @@ export default function AdminScreen({ onBack }) {
     setSummary(summaryResult.error ? null : (summaryResult.data || {}));
     setReports(reportsResult.error ? [] : (reportsResult.data || []));
     setMembers(membersResult.error ? [] : (membersResult.data || []));
+    setSuspensions(suspensionsResult.error ? [] : (suspensionsResult.data || []));
+    if (suspensionsResult.error) console.error('YOYO admin suspensions failed:', suspensionsResult.error);
     setLoading(false);
   }, []);
 
@@ -61,6 +71,35 @@ export default function AdminScreen({ onBack }) {
       member.id.toLowerCase().includes(q)
     );
   }, [members, memberSearch]);
+
+  const applySuspension = async (member, action, duration = suspensionDuration) => {
+    const reason = suspensionReason.trim();
+    if (reason.length < 5) {
+      Alert.alert('اكتب سبب الإجراء', 'سبب الإيقاف أو رفعه يجب ألا يقل عن 5 أحرف.');
+      return;
+    }
+    const title = action === 'suspend' ? 'تأكيد إيقاف الحساب' : 'تأكيد رفع الإيقاف';
+    const message = action === 'suspend'
+      ? `سيتم إيقاف حساب ${member.display_name} لمدة ${duration === 'permanent' ? 'دائمة' : duration}.`
+      : `سيتم السماح لـ ${member.display_name} بتسجيل الدخول واستخدام التطبيق مجددًا.`;
+    Alert.alert(title, message, [
+      { text: 'إلغاء', style: 'cancel' },
+      { text: 'تأكيد', style: 'destructive', onPress: async () => {
+        setSuspensionBusyId(member.id);
+        const { data, error: actionError } = await supabase.functions.invoke('admin-user-suspension', {
+          body: { action, targetUserId: member.id, duration, reason },
+        });
+        if (actionError || !data?.success) {
+          Alert.alert('تعذر تنفيذ الإجراء', data?.error || actionError?.message || 'حاول مرة أخرى.');
+        } else {
+          setSuspensionReason('');
+          await loadDashboard();
+          Alert.alert('تم', action === 'suspend' ? 'تم إيقاف الحساب وتسجيل السبب.' : 'تم رفع الإيقاف وتسجيل العملية.');
+        }
+        setSuspensionBusyId(null);
+      }},
+    ]);
+  };
 
   const updateStatus = async (report, status) => {
     setBusyId(report.id);
@@ -124,9 +163,55 @@ export default function AdminScreen({ onBack }) {
               <Text style={styles.person}>البلد: {member.country || 'غير محدد'}</Text>
               <Text style={styles.date}>تاريخ الانضمام: {member.created_at ? new Date(member.created_at).toLocaleDateString('ar-EG') : 'غير متاح'}</Text>
               <Text style={styles.memberId}>رقم العضو: {member.id}</Text>
+              {(() => {
+                const suspension = suspensions.find(item => item.user_id === member.id &&
+                  (!item.suspended_until || new Date(item.suspended_until).getTime() > Date.now()));
+                return suspension ? (
+                  <View style={styles.suspendedBox}>
+                    <Text style={styles.suspendedText}>⛔ الحساب موقوف {suspension.suspended_until ? 'حتى ' + new Date(suspension.suspended_until).toLocaleString('ar-EG') : 'بشكل دائم'}</Text>
+                    <Text style={styles.suspensionReason}>السبب: {suspension.reason}</Text>
+                    <TouchableOpacity disabled={!!suspensionBusyId} style={styles.unsuspendButton}
+                      onPress={() => applySuspension(member, 'unsuspend')}>
+                      <Text style={styles.actionText}>{suspensionBusyId === member.id ? '...' : 'رفع الإيقاف'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={styles.suspendButtons}>
+                    <TouchableOpacity disabled={!!suspensionBusyId} style={styles.suspendButton}
+                      onPress={() => applySuspension(member, 'suspend')}>
+                      <Text style={styles.actionText}>{suspensionBusyId === member.id ? '...' : 'إيقاف الحساب بالمدة المحددة'}</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })()}
             </View>
           ))}
-          <Text style={styles.notice}>الإيقاف الإداري الشامل غير مفعّل بعد؛ لن يتم حظر أو تعطيل أي حساب من هذه الشاشة حاليًا.</Text>
+          <View style={styles.suspensionPanel}>
+            <Text style={styles.suspensionTitle}>سبب الإجراء والمدة</Text>
+            <TextInput
+              value={suspensionReason}
+              onChangeText={setSuspensionReason}
+              placeholder="اكتب سبب الإيقاف أو رفعه (5 أحرف على الأقل)"
+              placeholderTextColor="#8F849F"
+              style={styles.searchInput}
+              multiline
+              maxLength={500}
+            />
+            <View style={styles.durationRow}>
+              {[
+                ['24h', '24 ساعة'],
+                ['72h', '3 أيام'],
+                ['168h', '7 أيام'],
+                ['720h', '30 يومًا'],
+                ['permanent', 'دائم'],
+              ].map(([value, label]) => (
+                <TouchableOpacity key={value} onPress={() => setSuspensionDuration(value)}
+                  style={[styles.durationChip, suspensionDuration === value && styles.durationChipActive]}>
+                  <Text style={styles.durationText}>{label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
 
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>🚩 بلاغات الأعضاء</Text>
@@ -193,6 +278,19 @@ const styles = StyleSheet.create({
   memberName: { color: '#F5C451', fontSize: 16, fontWeight: 'bold', textAlign: 'right', marginBottom: 5 },
   memberId: { color: '#756A83', fontSize: 10, textAlign: 'left', marginTop: 8 },
   notice: { color: '#E9C77A', backgroundColor: '#302719', padding: 12, borderRadius: 9, textAlign: 'right', fontSize: 12, lineHeight: 19, marginTop: 4 },
+  suspensionPanel: { backgroundColor: '#191424', borderRadius: 12, padding: 13, marginTop: 10, borderWidth: 1, borderColor: '#5B477B' },
+  suspensionTitle: { color: '#F5C451', fontWeight: 'bold', textAlign: 'right', marginBottom: 10 },
+  durationRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 10, justifyContent: 'flex-end' },
+  durationChip: { borderWidth: 1, borderColor: '#5B477B', borderRadius: 18, paddingHorizontal: 10, paddingVertical: 7 },
+  durationChipActive: { backgroundColor: '#5B477B' },
+  durationText: { color: '#fff', fontSize: 11 },
+  suspendButtons: { alignItems: 'flex-end', marginTop: 12 },
+  suspendButton: { backgroundColor: '#8A3147', borderRadius: 9, paddingHorizontal: 12, paddingVertical: 10 },
+  suspendedBox: { backgroundColor: '#351B27', borderRadius: 9, padding: 10, marginTop: 10 },
+  suspendedText: { color: '#FF9EAA', fontWeight: 'bold', textAlign: 'right' },
+  suspensionReason: { color: '#E5D7E1', textAlign: 'right', fontSize: 12, marginTop: 5 },
+  unsuspendButton: { backgroundColor: '#276B4A', borderRadius: 9, paddingHorizontal: 12, paddingVertical: 9, alignSelf: 'flex-end', marginTop: 10 },
+
   reportCard: { backgroundColor: '#191424', borderRadius: 14, padding: 15, marginBottom: 12, borderWidth: 1, borderColor: '#3B304B' },
   reportTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10 },
   reason: { color: '#F5C451', fontWeight: 'bold', flex: 1, textAlign: 'right' },
