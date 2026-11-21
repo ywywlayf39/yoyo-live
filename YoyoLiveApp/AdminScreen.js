@@ -23,6 +23,8 @@ export default function AdminScreen({ onBack }) {
   const [summary, setSummary] = useState(null);
   const [reports, setReports] = useState([]);
   const [liveRooms, setLiveRooms] = useState([]);
+  const [liveActionReason, setLiveActionReason] = useState('');
+  const [liveActionBusyId, setLiveActionBusyId] = useState(null);
   const [members, setMembers] = useState([]);
   const [memberSearch, setMemberSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -138,6 +140,33 @@ export default function AdminScreen({ onBack }) {
           );
         }
         setSuspensionBusyId(null);
+      }},
+    ]);
+  };
+
+  const endLiveRoom = (room) => {
+    const reason = liveActionReason.trim();
+    if (reason.length < 5) {
+      Alert.alert('اكتب سبب الإجراء', 'سبب إنهاء البث يجب ألا يقل عن 5 أحرف.');
+      return;
+    }
+    Alert.alert('تأكيد إنهاء البث', `سيتم فصل المشاهدين وإنهاء بث ${room.host_name || 'العضو'} نهائيًا. لا يمكن التراجع عن هذا الإجراء.`, [
+      { text: 'إلغاء', style: 'cancel' },
+      { text: 'إنهاء البث', style: 'destructive', onPress: async () => {
+        setLiveActionBusyId(room.id);
+        const { data, error: actionError } = await supabase.functions.invoke('admin-live-room-action', {
+          body: { roomId: room.id, reason },
+        });
+        if (actionError || !data?.success) {
+          Alert.alert('تعذر إنهاء البث', data?.error || actionError?.message || 'حاول مرة أخرى.');
+        } else {
+          setLiveActionReason('');
+          await loadDashboard();
+          Alert.alert('تم إنهاء البث', data.auditWarning
+            ? 'تم إنهاء البث، لكن تعذر حفظ سجل التدقيق. راجع سجلات الخدمة.'
+            : 'تم فصل غرفة البث وتحديث حالتها وحفظ الإجراء في سجل الإدارة.');
+        }
+        setLiveActionBusyId(null);
       }},
     ]);
   };
@@ -265,7 +294,7 @@ export default function AdminScreen({ onBack }) {
             <View key={item.id} style={styles.auditCard}>
               <View style={styles.reportTop}>
                 <Text style={[styles.auditAction, item.action === 'suspend' ? styles.auditSuspend : styles.auditUnsuspend]}>
-                  {item.action === 'suspend' ? '⛔ إيقاف حساب' : '✅ رفع الإيقاف'}
+                  {item.action === 'suspend' ? '⛔ إيقاف حساب' : item.action === 'unsuspend' ? '✅ رفع الإيقاف' : '🔴 إنهاء بث مباشر'}
                 </Text>
                 <Text style={styles.auditDate}>{new Date(item.created_at).toLocaleString('ar-EG')}</Text>
               </View>
@@ -283,7 +312,10 @@ export default function AdminScreen({ onBack }) {
             <Text style={styles.sectionTitle}>🔴 متابعة البثوث النشطة</Text>
             <TouchableOpacity onPress={loadDashboard}><Text style={styles.refresh}>تحديث ↻</Text></TouchableOpacity>
           </View>
-          <Text style={styles.memberHint}>عرض البثوث التي حالتها نشطة فقط. هذه الشاشة للمراقبة ولا تنهي البث تلقائيًا.</Text>
+          <Text style={styles.memberHint}>يمكن للأدمن إنهاء بث بعد مراجعة البلاغ وكتابة سبب واضح. يتطلب الإجراء تأكيدًا ويسجل في سجل الإدارة.</Text>
+          <TextInput value={liveActionReason} onChangeText={setLiveActionReason}
+            placeholder="سبب إنهاء البث (5 أحرف على الأقل)" placeholderTextColor="#8F849F"
+            style={styles.searchInput} multiline maxLength={500} />
           {liveRooms.length === 0 ? (
             <View style={styles.empty}><Text style={styles.emptyText}>لا توجد بثوث نشطة حاليًا.</Text></View>
           ) : liveRooms.map(room => (
@@ -293,6 +325,9 @@ export default function AdminScreen({ onBack }) {
               <Text style={styles.person}>الحالة: مباشر الآن</Text>
               <Text style={styles.date}>بدأ: {room.created_at ? new Date(room.created_at).toLocaleString('ar-EG') : 'غير متاح'}</Text>
               <Text style={styles.memberId}>معرّف البث: {room.id}</Text>
+              <TouchableOpacity disabled={!!liveActionBusyId} style={styles.dismissButton} onPress={() => endLiveRoom(room)}>
+                <Text style={styles.actionText}>{liveActionBusyId === room.id ? 'جارٍ إنهاء البث...' : 'إنهاء البث بعد المراجعة'}</Text>
+              </TouchableOpacity>
             </View>
           ))}
 
