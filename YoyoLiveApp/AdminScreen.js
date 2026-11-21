@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { supabase } from './supabase';
+import { calculateGiftEconomics } from './financialCalculator';
 
 const statusLabels = {
   pending: 'جديد',
@@ -38,6 +39,14 @@ export default function AdminScreen({ onBack }) {
   const [coinPurchaseRequests, setCoinPurchaseRequests] = useState([]);
   const [coinReviewNote, setCoinReviewNote] = useState('');
   const [coinReviewBusyId, setCoinReviewBusyId] = useState(null);
+  const [financialInputs, setFinancialInputs] = useState({
+    packagePriceEgp: '', packageCoins: '', giftCoinsSpent: '', hostRedeemablePoints: '',
+    egpPerHostPoint: '', paymentFeePercent: '', storeFeePercent: '', taxPercent: '',
+    refundReservePercent: '', payoutFeePercent: '', paymentFixedFeeEgp: '',
+    payoutFixedFeeEgp: '', allocatedOperatingCostEgp: '', targetMarginPercent: '15',
+  });
+  const [financialResult, setFinancialResult] = useState(null);
+  const [financialError, setFinancialError] = useState('');
 
 
   const loadDashboard = useCallback(async () => {
@@ -193,6 +202,30 @@ export default function AdminScreen({ onBack }) {
         setCoinReviewBusyId(null);
       }},
     ]);
+  };
+
+  const runFinancialSimulation = () => {
+    setFinancialError('');
+    setFinancialResult(null);
+    const required = ['packagePriceEgp', 'packageCoins', 'giftCoinsSpent', 'hostRedeemablePoints', 'egpPerHostPoint'];
+    if (required.some(key => String(financialInputs[key]).trim() === '')) {
+      setFinancialError('أدخل سعر الباقة وعدد العملات والعملات المستهلكة ونقاط المضيف وقيمة النقطة بالجنيه.');
+      return;
+    }
+    try {
+      const result = calculateGiftEconomics(Object.fromEntries(
+        Object.entries(financialInputs).map(([key, value]) => [key, value === '' ? 0 : Number(value)])
+      ));
+      setFinancialResult(result);
+    } catch (e) {
+      setFinancialError(e?.message || 'راجع القيم المدخلة وحاول مرة أخرى.');
+    }
+  };
+
+  const updateFinancialInput = (key, value) => {
+    setFinancialInputs(current => ({ ...current, [key]: value }));
+    setFinancialResult(null);
+    setFinancialError('');
   };
 
   const updateStatus = async (report, status) => {
@@ -386,6 +419,78 @@ export default function AdminScreen({ onBack }) {
             </View>
           ))}
 
+
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>📊 محاكاة ربحية الباقات والهدايا</Text>
+          </View>
+          <Text style={styles.memberHint}>أداة حساب داخلية فقط. أدخل الرسوم والقيم من عقود موثقة. لا تغيّر أرصدة ولا تعتمد أسعارًا أو مدفوعات.</Text>
+          <View style={styles.financialPanel}>
+            <Text style={styles.financialHeading}>بيانات الباقة والاستهلاك</Text>
+            {[
+              ['packagePriceEgp', 'سعر الباقة بالجنيه'],
+              ['packageCoins', 'إجمالي العملات في الباقة'],
+              ['giftCoinsSpent', 'العملات المستهلكة في الهدايا'],
+              ['hostRedeemablePoints', 'نقاط المضيف القابلة للتحويل'],
+              ['egpPerHostPoint', 'قيمة نقطة المضيف بالجنيه'],
+            ].map(([key, label]) => (
+              <View key={key} style={styles.financialField}>
+                <Text style={styles.financialLabel}>{label}</Text>
+                <TextInput keyboardType="decimal-pad" value={financialInputs[key]}
+                  onChangeText={value => updateFinancialInput(key, value)}
+                  placeholder="أدخل قيمة موثقة" placeholderTextColor="#8F849F" style={styles.financialInput} />
+              </View>
+            ))}
+            <Text style={styles.financialHeading}>الرسوم والتكاليف والنسبة المستهدفة</Text>
+            {[
+              ['paymentFeePercent', 'عمولة الدفع %'],
+              ['storeFeePercent', 'عمولة المتجر %'],
+              ['taxPercent', 'الضرائب %'],
+              ['refundReservePercent', 'احتياطي الاسترداد %'],
+              ['payoutFeePercent', 'عمولة صرف أرباح المضيف %'],
+              ['paymentFixedFeeEgp', 'رسوم دفع ثابتة بالجنيه'],
+              ['payoutFixedFeeEgp', 'رسوم صرف ثابتة بالجنيه'],
+              ['allocatedOperatingCostEgp', 'التكلفة التشغيلية المخصصة للباقة بالجنيه'],
+              ['targetMarginPercent', 'هامش الربح المستهدف %'],
+            ].map(([key, label]) => (
+              <View key={key} style={styles.financialField}>
+                <Text style={styles.financialLabel}>{label}</Text>
+                <TextInput keyboardType="decimal-pad" value={financialInputs[key]}
+                  onChangeText={value => updateFinancialInput(key, value)}
+                  placeholder="0" placeholderTextColor="#8F849F" style={styles.financialInput} />
+              </View>
+            ))}
+            <TouchableOpacity style={styles.calculateButton} onPress={runFinancialSimulation}>
+              <Text style={styles.actionText}>احسب الربحية الآن</Text>
+            </TouchableOpacity>
+            {!!financialError && <Text style={styles.financialError}>{financialError}</Text>}
+            {financialResult && (
+              <View style={styles.financialResult}>
+                <Text style={styles.financialHeading}>نتيجة المحاكاة</Text>
+                <Text style={[styles.financialStatus, financialResult.status === 'LOSS' ? styles.financialLoss : financialResult.status === 'PASS' ? styles.financialPass : styles.financialWarning]}>
+                  {financialResult.status === 'LOSS' ? 'خسارة' : financialResult.status === 'PASS' ? 'اجتاز هامش الربح المستهدف' : 'ربح أقل من الهامش المستهدف'}
+                </Text>
+                {[
+                  ['قيمة العملات المستهلكة', financialResult.allocatedGrossEgp],
+                  ['عمولة الدفع', financialResult.paymentFeesEgp],
+                  ['عمولة المتجر', financialResult.storeFeesEgp],
+                  ['الضرائب', financialResult.taxesEgp],
+                  ['احتياطي الاسترداد', financialResult.refundReserveEgp],
+                  ['التكلفة التشغيلية', financialResult.operatingCostEgp],
+                  ['التزام المضيف النقدي', financialResult.hostLiabilityEgp],
+                  ['رسوم صرف المضيف', financialResult.payoutFeesEgp],
+                  ['صافي مساهمة المنصة', financialResult.platformContributionEgp],
+                ].map(([label, value]) => (
+                  <View key={label} style={styles.financialLine}>
+                    <Text style={styles.financialLabel}>{label}</Text>
+                    <Text style={styles.financialValue}>{Number(value).toFixed(2)} ج.م</Text>
+                  </View>
+                ))}
+                <Text style={styles.financialMargin}>هامش المساهمة: {financialResult.contributionMarginPercent.toFixed(2)}%</Text>
+                <Text style={styles.memberHint}>قيمة العملة المحسوبة: {financialResult.coinValueEgp.toFixed(6)} ج.م. النتيجة تقديرية وتعتمد على صحة القيم المدخلة.</Text>
+              </View>
+            )}
+          </View>
+
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>🚩 بلاغات الأعضاء</Text>
             <TouchableOpacity onPress={loadDashboard}><Text style={styles.refresh}>تحديث ↻</Text></TouchableOpacity>
@@ -489,6 +594,21 @@ const styles = StyleSheet.create({
   auditDate: { color: '#8F849F', fontSize: 10, textAlign: 'left', flexShrink: 1 },
   auditMeta: { color: '#C8B9DC', textAlign: 'right', fontSize: 12, marginTop: 7 },
   auditReason: { color: '#F5C451', textAlign: 'right', marginTop: 8, lineHeight: 20 },
+  financialPanel: { backgroundColor: '#191424', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#5B477B' },
+  financialHeading: { color: '#F5C451', fontWeight: 'bold', textAlign: 'right', marginTop: 10, marginBottom: 8 },
+  financialField: { marginBottom: 9 },
+  financialLabel: { color: '#DDD6E7', textAlign: 'right', fontSize: 12, marginBottom: 5 },
+  financialInput: { backgroundColor: '#0B0912', borderColor: '#3B304B', borderWidth: 1, borderRadius: 9, color: '#fff', paddingHorizontal: 12, paddingVertical: 10, textAlign: 'right' },
+  calculateButton: { backgroundColor: '#5B477B', borderRadius: 10, padding: 13, alignItems: 'center', marginTop: 12 },
+  financialError: { color: '#FF9EAA', textAlign: 'right', marginTop: 10 },
+  financialResult: { backgroundColor: '#241B31', borderRadius: 10, padding: 12, marginTop: 14 },
+  financialStatus: { textAlign: 'center', fontWeight: 'bold', fontSize: 16, marginVertical: 8 },
+  financialLoss: { color: '#FF8585' },
+  financialPass: { color: '#83D7A8' },
+  financialWarning: { color: '#E9C77A' },
+  financialLine: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#3B304B' },
+  financialValue: { color: '#fff', fontWeight: 'bold' },
+  financialMargin: { color: '#F5C451', textAlign: 'center', fontWeight: 'bold', marginTop: 10 },
   reportCard: { backgroundColor: '#191424', borderRadius: 14, padding: 15, marginBottom: 12, borderWidth: 1, borderColor: '#3B304B' },
   linkedLiveBox: { backgroundColor: '#241B31', borderRadius: 10, borderWidth: 1, borderColor: '#5B477B', padding: 11, marginTop: 10 },
   linkedLiveTitle: { color: '#F5C451', fontWeight: 'bold', textAlign: 'right', marginBottom: 5 },
