@@ -80,7 +80,7 @@ function effectFor(gift) {
   return GIFT_ANIMATION_EFFECTS[gift.animation_key] || null;
 }
 
-export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
+export default function LiveGiftPanel({ userId, receiverId, isHost = false, roomName }) {
   const [visible, setVisible] = useState(false);
   const [gifts, setGifts] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('starter');
@@ -140,35 +140,67 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
   }, [userId]);
 
   useEffect(() => {
-    if (!isHost || !userId) return;
-    const channel = supabase.channel('yoyo-gifts-in-' + userId)
-      .on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'gift_transfers',
-        filter: 'receiver_id=eq.' + userId,
-      }, async (payload) => {
-        const row = payload.new;
-        const gift = gifts.find((item) => item.id === row.gift_id);
-        const { data: sender } = await supabase.from('member_public_profiles')
-          .select('display_name').eq('id', row.sender_id).maybeSingle();
-        const receivedGift = {
-          id: row.id,
-          emoji: gift?.emoji || '🎁',
-          name: gift?.name || 'هدية جديدة',
-          sender: sender?.display_name || 'أحد المتابعين',
-          quantity: row.quantity || 1,
-          coinCost: Number(gift?.coin_cost || 0),
-          animationKey: gift?.animation_key || '',
-          soundKey: gift?.sound_key || 'soft-chime',
-        };
-        setIncoming(receivedGift);
-        if (soundEnabledRef.current) playGiftSound(receivedGift.soundKey);
-        Vibration.vibrate(receivedGift.coinCost >= 100000 ? [0, 220, 90, 220, 90, 320] : [0, 100, 70, 100]);
-        const effect = effectFor({ animation_key: receivedGift.animationKey });
-        setTimeout(() => setIncoming((current) => current?.id === row.id ? null : current),
-          effect?.duration || 4500);
-      }).subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [isHost, userId, gifts]);
+    if (!userId || !roomName) return undefined;
+    let active = true;
+    let channel = null;
+
+    const joinAndListen = async () => {
+      await supabase.from('live_room_viewers')
+        .delete().eq('room_name', roomName).eq('user_id', userId);
+      const { error: joinError } = await supabase.from('live_room_viewers')
+        .insert({ room_name: roomName, user_id: userId });
+      if (joinError) {
+        console.warn('YOYO live gift room join:', joinError.message);
+        return;
+      }
+      if (!active) {
+        await supabase.from('live_room_viewers')
+          .delete().eq('room_name', roomName).eq('user_id', userId);
+        return;
+      }
+
+      channel = supabase.channel('yoyo-room-gifts-' + roomName)
+        .on('postgres_changes', {
+          event: 'INSERT', schema: 'public', table: 'gift_transfers',
+          filter: 'room_name=eq.' + roomName,
+        }, async (payload) => {
+          const row = payload.new;
+          const [{ data: gift }, { data: sender }] = await Promise.all([
+            supabase.from('gift_catalog')
+              .select('name,emoji,coin_cost,animation_key,sound_key')
+              .eq('id', row.gift_id).maybeSingle(),
+            supabase.from('member_public_profiles')
+              .select('display_name').eq('id', row.sender_id).maybeSingle(),
+          ]);
+          const receivedGift = {
+            id: row.id,
+            emoji: gift?.emoji || '🎁',
+            name: gift?.name || 'هدية جديدة',
+            sender: sender?.display_name || 'أحد المتابعين',
+            quantity: row.quantity || 1,
+            coinCost: Number(gift?.coin_cost || 0),
+            animationKey: gift?.animation_key || '',
+            soundKey: gift?.sound_key || 'soft-chime',
+          };
+          setIncoming(receivedGift);
+          if (soundEnabledRef.current) playGiftSound(receivedGift.soundKey);
+          Vibration.vibrate(receivedGift.coinCost >= 100000 ? [0, 220, 90, 220, 90, 320] : [0, 100, 70, 100]);
+          const effect = effectFor({ animation_key: receivedGift.animationKey });
+          setTimeout(() => setIncoming((current) => current?.id === row.id ? null : current),
+            effect?.duration || 4500);
+        })
+        .subscribe();
+    };
+
+    joinAndListen().catch((error) => console.warn('YOYO gift realtime:', error?.message || error));
+    return () => {
+      active = false;
+      if (channel) supabase.removeChannel(channel);
+      supabase.from('live_room_viewers')
+        .delete().eq('room_name', roomName).eq('user_id', userId)
+        .then(() => {});
+    };
+  }, [userId, roomName]);
 
   useEffect(() => {
     if (!incoming) return undefined;
@@ -217,6 +249,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
       p_receiver_id: receiverId,
       p_gift_id: selectedGift.id,
       p_quantity: quantity,
+      p_room_name: roomName,
     });
     setSending(false);
     if (error) {
@@ -228,46 +261,46 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
     Alert.alert('وصلت هديتك 🎁', 'تم إرسال ' + selectedGift.name + ' بنجاح.');
   };
 
-  if (isHost) {
-    if (!incoming) return null;
-    const effect = effectFor({ animation_key: incoming.animationKey });
-    const tint = effect?.tint || COLORS.gold;
-    const particles = effect?.particles || [incoming.emoji, '✨', '💗'];
-    const translateY = drift.interpolate({ inputRange: [0, 1], outputRange: [8, -14] });
-    const shakeX = shake.interpolate({ inputRange: [-1, 0, 1], outputRange: [-5, 0, 5] });
-    return (
-      <View pointerEvents="box-none" style={styles.effectLayer}>
-        <Animated.View style={[styles.effectGlow, {
-          borderColor: tint, opacity: glow,
-          transform: [{ scale: entrance.interpolate({ inputRange: [0, 1], outputRange: [0.45, 1.18] }) }],
-        }]} />
-        <Animated.View style={[styles.effectCard, {
-          borderColor: tint,
-          opacity: entrance,
-          transform: [{ scale: entrance }, { translateY }, { translateX: shakeX }],
-          shadowColor: tint,
-        }]}>
-          <View style={styles.particleRow}>
-            {particles.map((particle, index) => (
-              <Text key={index} style={[styles.particle, { transform: [{ translateY: index % 2 ? -12 : 8 }] }]}>{particle}</Text>
-            ))}
-          </View>
-          <Text style={styles.megaLabel}>{incoming.coinCost >= 100000 ? 'هدية أسطورية وصلت!' : 'هدية وصلت!'}</Text>
-          <Text style={[styles.effectEmoji, incoming.coinCost >= 100000 && styles.megaEmoji]}>{incoming.emoji}</Text>
-          <Text style={[styles.effectTitle, { color: tint }]}>{incoming.name}</Text>
-          <Text style={styles.effectSubtitle}>
-            {incoming.sender} أرسل الهدية {incoming.quantity > 1 ? '× ' + incoming.quantity : ''}
-          </Text>
-          {incoming.coinCost >= 100000 ? (
-            <Text style={[styles.valueLabel, { color: tint }]}> {incoming.coinCost.toLocaleString('ar-EG')} عملة </Text>
-          ) : null}
-        </Animated.View>
-      </View>
-    );
-  }
+  const effect = incoming ? effectFor({ animation_key: incoming.animationKey }) : null;
+  const tint = effect?.tint || COLORS.gold;
+  const particles = effect?.particles || (incoming ? [incoming.emoji, '✨', '💗'] : []);
+  const translateY = drift.interpolate({ inputRange: [0, 1], outputRange: [8, -14] });
+  const shakeX = shake.interpolate({ inputRange: [-1, 0, 1], outputRange: [-5, 0, 5] });
+  const incomingEffect = incoming ? (
+    <View pointerEvents="none" style={styles.effectLayer}>
+      <Animated.View style={[styles.effectGlow, {
+        borderColor: tint, opacity: glow,
+        transform: [{ scale: entrance.interpolate({ inputRange: [0, 1], outputRange: [0.45, 1.18] }) }],
+      }]} />
+      <Animated.View style={[styles.effectCard, {
+        borderColor: tint,
+        opacity: entrance,
+        transform: [{ scale: entrance }, { translateY }, { translateX: shakeX }],
+        shadowColor: tint,
+      }]}>
+        <View style={styles.particleRow}>
+          {particles.map((particle, index) => (
+            <Text key={index} style={[styles.particle, { transform: [{ translateY: index % 2 ? -12 : 8 }] }]}>{particle}</Text>
+          ))}
+        </View>
+        <Text style={styles.megaLabel}>{incoming.coinCost >= 100000 ? 'هدية أسطورية وصلت!' : 'هدية وصلت!'}</Text>
+        <Text style={[styles.effectEmoji, incoming.coinCost >= 100000 && styles.megaEmoji]}>{incoming.emoji}</Text>
+        <Text style={[styles.effectTitle, { color: tint }]}>{incoming.name}</Text>
+        <Text style={styles.effectSubtitle}>
+          {incoming.sender} أرسل الهدية {incoming.quantity > 1 ? '× ' + incoming.quantity : ''}
+        </Text>
+        {incoming.coinCost >= 100000 ? (
+          <Text style={[styles.valueLabel, { color: tint }]}> {incoming.coinCost.toLocaleString('ar-EG')} عملة </Text>
+        ) : null}
+      </Animated.View>
+    </View>
+  ) : null;
+
+  if (isHost) return incomingEffect;
 
   return (
     <>
+      {incomingEffect}
       <TouchableOpacity style={styles.openButton} onPress={() => setVisible(true)}>
         <Text style={styles.openButtonText}>🎁 الهدايا</Text>
       </TouchableOpacity>
