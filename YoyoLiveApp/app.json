@@ -7,7 +7,11 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "YOYO LIVE يستخدم الكاميرا لبدء البث المباشر.",
+        "NSMicrophoneUsageDescription": "YOYO LIVE يستخدم الميكروفون لنقل صوت البث المباشر."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -15,7 +19,12 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+      },
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "output": "single",
@@ -35,7 +44,15 @@
       "baseUrl": "/yoyo-live"
     },
     "plugins": [
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "@livekit/react-native-expo-plugin",
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "اسمح ليويو لايف باستخدام الكاميرا لبدء البث المباشر.",
+          "microphonePermission": "اسمح ليويو لايف باستخدام الميكروفون لنقل صوت البث المباشر."
+        }
+      ]
     ]
   }
 }
