@@ -99,10 +99,8 @@ Deno.serve(async (req: Request) => {
         admin_id: admin.id, target_user_id: targetUserId, action: "suspend",
         reason, duration: body.duration,
       });
-      if (auditError) {
-        console.error("Suspension audit write failed:", auditError.message);
-        return json({ error: "Suspension was applied but the audit record failed; contact support" }, 500);
-      }
+      const auditWarning = !!auditError;
+      if (auditError) console.error("Suspension audit write failed:", auditError.message);
 
       let liveDisconnectWarning = false;
       const livekitKey = Deno.env.get("LIVEKIT_API_KEY");
@@ -112,12 +110,14 @@ Deno.serve(async (req: Request) => {
         try {
           const serviceUrl = livekitUrl.replace(/^wss:/, "https:").replace(/^ws:/, "http:");
           const roomService = new RoomServiceClient(serviceUrl, livekitKey, livekitSecret);
-          const { data: hostRooms } = await service.from("live_rooms")
+          const { data: hostRooms, error: hostRoomsError } = await service.from("live_rooms")
             .select("room_name").eq("host_id", targetUserId).eq("status", "live");
+          if (hostRoomsError) throw hostRoomsError;
           const hostRoomNames = new Set((hostRooms ?? []).map((room: { room_name: string }) => room.room_name));
-          const { data: activeCalls } = await service.from("live_calls")
+          const { data: activeCalls, error: activeCallsError } = await service.from("live_calls")
             .select("room_name").or(`caller_id.eq.${targetUserId},receiver_id.eq.${targetUserId}`)
             .in("status", ["ringing", "accepted"]);
+          if (activeCallsError) throw activeCallsError;
           const callRoomNames = new Set((activeCalls ?? []).map((call: { room_name: string }) => call.room_name));
           const rooms = await roomService.listRooms();
           for (const room of rooms) {
@@ -135,11 +135,13 @@ Deno.serve(async (req: Request) => {
             }
           }
           const endedAt = new Date().toISOString();
-          await service.from("live_rooms").update({ status: "ended", ended_at: endedAt })
+          const { error: endRoomsError } = await service.from("live_rooms").update({ status: "ended", ended_at: endedAt })
             .eq("host_id", targetUserId).eq("status", "live");
-          await service.from("live_calls").update({ status: "ended", ended_at: endedAt })
+          if (endRoomsError) throw endRoomsError;
+          const { error: endCallsError } = await service.from("live_calls").update({ status: "ended", ended_at: endedAt })
             .or(`caller_id.eq.${targetUserId},receiver_id.eq.${targetUserId}`)
             .in("status", ["ringing", "accepted"]);
+          if (endCallsError) throw endCallsError;
         } catch (disconnectError) {
           liveDisconnectWarning = true;
           console.error("LiveKit participant disconnect failed:", disconnectError instanceof Error ? disconnectError.message : "Unknown error");
@@ -148,7 +150,7 @@ Deno.serve(async (req: Request) => {
         liveDisconnectWarning = true;
         console.error("LiveKit server configuration is unavailable for immediate participant disconnect");
       }
-      return json({ success: true, action, suspendedUntil: until, liveDisconnectWarning });
+      return json({ success: true, action, suspendedUntil: until, liveDisconnectWarning, auditWarning });
     }
 
     const { error: unbanError } = await service.auth.admin.updateUserById(targetUserId, {
