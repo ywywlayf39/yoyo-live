@@ -13,6 +13,7 @@ const CATEGORIES = [
   { id: 'popular', label: 'مميزة' },
   { id: 'premium', label: 'فخمة' },
   { id: 'legendary', label: 'أسطورية' },
+  { id: 'animals', label: '🐾 حيوانات' },
 ];
 
 export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
