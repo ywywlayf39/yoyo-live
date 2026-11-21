@@ -74,23 +74,27 @@ export default function AccountScreen({ userId, email, onBack }) {
         setError('حجم الصورة أكبر من 5 ميجابايت. اختار صورة أصغر.');
         return;
       }
-      setUploading(true); setError('');
+      setUploading(true); setError(''); setSuccess('');
       const ext = (asset.fileName?.split('.').pop() || asset.mimeType?.split('/').pop() || 'jpg').toLowerCase();
       const safeExt = ['jpg','jpeg','png','webp'].includes(ext) ? ext : 'jpg';
       const path = userId + '/' + Date.now() + '.' + safeExt;
       const response = await fetch(asset.uri);
+      if (!response.ok) throw new Error('تعذر قراءة الصورة من الهاتف.');
       const blob = await response.blob();
-      const contentType = asset.mimeType || (safeExt === 'png' ? 'image/png' : safeExt === 'webp' ? 'image/webp' : 'image/jpeg');
+      const contentType = safeExt === 'png' ? 'image/png' : safeExt === 'webp' ? 'image/webp' : 'image/jpeg';
       const { error: uploadError } = await supabase.storage.from('profile-avatars')
-        .upload(path, blob, { contentType, upsert: true });
+        .upload(path, blob, { contentType, upsert: false });
       if (uploadError) throw uploadError;
       const { data } = supabase.storage.from('profile-avatars').getPublicUrl(path);
-      const { error: updateError } = await supabase.from('profiles')
+      const { data: updatedProfile, error: updateError } = await supabase.from('profiles')
         .update({ avatar_url: data.publicUrl, updated_at: new Date().toISOString() })
-        .eq('id', userId);
+        .eq('id', userId)
+        .select('avatar_url')
+        .maybeSingle();
       if (updateError) throw updateError;
-      setProfile(current => ({ ...current, avatar_url: data.publicUrl }));
-      Alert.alert('تم تغيير الصورة', 'صورتك الشخصية اتحدثت بنجاح.');
+      if (!updatedProfile?.avatar_url) throw new Error('تم رفع الصورة لكن لم يتم ربطها بحسابك. حاول مرة أخرى.');
+      setProfile(current => ({ ...current, avatar_url: updatedProfile.avatar_url }));
+      setSuccess('تم تحديث صورة البروفايل بنجاح ✓');
     } catch (e) {
       setError('تعذر تغيير الصورة: ' + (e?.message || 'حاول مرة أخرى'));
     } finally { setUploading(false); }
