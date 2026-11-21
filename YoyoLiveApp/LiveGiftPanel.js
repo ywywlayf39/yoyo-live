@@ -274,6 +274,11 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
   const particles = effect?.particles || (incoming ? [incoming.emoji, '✨', '💗'] : []);
   const translateY = drift.interpolate({ inputRange: [0, 1], outputRange: [8, -14] });
   const shakeX = shake.interpolate({ inputRange: [-1, 0, 1], outputRange: [-5, 0, 5] });
+  const liveSoundToggle = (
+    <TouchableOpacity style={styles.liveSoundToggle} onPress={toggleGiftSounds}>
+      <Text style={styles.soundToggleText}>{soundEnabled ? '🔊 صوت الهدايا' : '🔇 صامت'}</Text>
+    </TouchableOpacity>
+  );
   const incomingEffect = incoming ? (
     <View pointerEvents="none" style={styles.effectLayer}>
       <Animated.View style={[styles.effectGlow, {
@@ -304,10 +309,11 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
     </View>
   ) : null;
 
-  if (isHost) return incomingEffect;
+  if (isHost) return <>{liveSoundToggle}{incomingEffect}</>;
 
   return (
     <>
+      {liveSoundToggle}
       {incomingEffect}
       <TouchableOpacity style={styles.openButton} onPress={() => setVisible(true)}>
         <Text style={styles.openButtonText}>🎁 الهدايا</Text>
@@ -374,6 +380,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
 
 const styles = StyleSheet.create({
   hostSoundToggle: { position: 'absolute', top: 12, right: 12, zIndex: 100, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 16, backgroundColor: 'rgba(20,14,30,0.92)', borderWidth: 1, borderColor: '#6C557D' },
+  liveSoundToggle: { position: 'absolute', left: 16, bottom: 88, zIndex: 25, elevation: 8, paddingVertical: 10, paddingHorizontal: 13, borderRadius: 18, backgroundColor: COLORS.card2, borderWidth: 1, borderColor: '#6C557D' },
   soundSetting: { alignSelf: 'flex-end', paddingVertical: 7, paddingHorizontal: 12, borderRadius: 12, backgroundColor: COLORS.card2, marginBottom: 8 },
   soundToggleText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   openButton: { position: 'absolute', right: 16, bottom: 88, backgroundColor: COLORS.pink, borderRadius: 24, paddingVertical: 12, paddingHorizontal: 18, zIndex: 20, elevation: 8 },
