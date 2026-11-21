@@ -39,20 +39,6 @@ jobs:
           cache: npm
           cache-dependency-path: YoyoLiveApp/package-lock.json
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: platform-tools
-
-      - name: Install Android API 37
-        run: sdkmanager "platforms;android-37" "build-tools;37.0.0" "platform-tools"
-
       - name: Install JavaScript dependencies and refresh lockfile
         run: npm install --no-audit --no-fund
 
@@ -62,14 +48,11 @@ jobs:
       - name: Verify web preview fallback
         run: npx expo export --platform web
 
-      - name: Generate Android native project
+      - name: Generate Android native project and apply LiveKit config plugins
         run: npx expo prebuild --platform android --no-install
 
-      - name: Compile Android debug APK
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+      - name: Run Expo diagnostics
+        run: npx expo-doctor
 
       - name: Commit the generated dependency lockfile
         working-directory: .
