@@ -14,6 +14,7 @@ import {
           TouchableOpacity,
             SafeAreaView,
               StatusBar,
+              Image,
               } from 'react-native';
 
               const C = {
@@ -47,6 +48,7 @@ import {
   const [session, setSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [profileReady, setProfileReady] = useState(false);
+  const [currentProfile, setCurrentProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutMessage, setLogoutMessage] = useState('');
@@ -58,16 +60,18 @@ import {
     async function loadProfile() {
       if (!session?.user?.id) {
         setProfileReady(false);
+        setCurrentProfile(null);
         setProfileLoading(false);
         return;
       }
       setProfileLoading(true);
       const { data, error } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id, display_name, avatar_url')
         .eq('id', session.user.id)
         .maybeSingle();
       if (active) {
+        setCurrentProfile(!error && data ? data : null);
         setProfileReady(!error && !!data);
         setProfileLoading(false);
       }
@@ -209,6 +213,17 @@ import {
                                                                                                                                                                                                                                                                                                                                                                                                                                         <Text style={styles.subtitle}>
                                                                                                                                                                                                                                                                                                                                                                                                                                                       عالمك .. لحظتك .. جمهورك
                                                                                                                                                                                                                                                                                                                                                                                                                                                                   </Text>
+        <TouchableOpacity style={styles.currentUser} onPress={() => setShowAccount(true)}>
+          {currentProfile?.avatar_url ? (
+            <Image source={{ uri: currentProfile.avatar_url }} style={styles.currentUserAvatar} />
+          ) : (
+            <View style={styles.currentUserFallback}><Text style={styles.currentUserFallbackText}>👤</Text></View>
+          )}
+          <Text style={styles.currentUserName} numberOfLines={1}>
+            {currentProfile?.display_name || 'حسابي'}
+          </Text>
+          <Text style={styles.currentUserHint}>عرض الحساب ←</Text>
+        </TouchableOpacity>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                             </View>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       <View style={styles.headerIcons}>
 
@@ -306,6 +321,12 @@ const styles = StyleSheet.create({
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           marginTop: 5,
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               fontSize: 13,
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 },
+  currentUser: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginTop: 12, paddingVertical: 6, paddingHorizontal: 9, borderRadius: 22, backgroundColor: C.card, maxWidth: 230 },
+  currentUserAvatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: C.card2 },
+  currentUserFallback: { width: 34, height: 34, borderRadius: 17, backgroundColor: C.card2, alignItems: 'center', justifyContent: 'center' },
+  currentUserFallbackText: { fontSize: 18 },
+  currentUserName: { color: C.white, fontWeight: 'bold', marginHorizontal: 8, maxWidth: 90 },
+  currentUserHint: { color: C.pink, fontSize: 10 },
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   headerIcons: {
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       alignItems: 'center',
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           gap: 10,
