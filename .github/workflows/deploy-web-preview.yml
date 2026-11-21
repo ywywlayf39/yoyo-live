@@ -1,0 +1,59 @@
+name: Build and deploy YOYO LIVE web preview
+
+on:
+  push:
+    branches:
+      - web-preview-deploy
+    paths:
+      - "YoyoLiveApp/**"
+      - ".github/workflows/deploy-web-preview.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: YoyoLiveApp
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: YoyoLiveApp/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Export Expo web app
+        run: npx expo export --platform web
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload web build
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: YoyoLiveApp/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
