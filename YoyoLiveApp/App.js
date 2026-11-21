@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import AuthScreen from './AuthScreen';
 import ProfileScreen from './ProfileScreen';
 import WalletScreen from './WalletScreen';
+import SafetyScreen from './SafetyScreen';
 import { supabase } from './supabase';
 import {
   View,
@@ -63,6 +64,7 @@ export default function App() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutMessage, setLogoutMessage] = useState('');
   const [showWallet, setShowWallet] = useState(false);
+  const [showSafety, setShowSafety] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -154,7 +156,16 @@ export default function App() {
   }
 
 
-                                                  if (showWallet) {
+                                                  if (showSafety) {
+    return (
+      <SafetyScreen
+        userId={session.user.id}
+        onBack={() => setShowSafety(false)}
+      />
+    );
+  }
+
+  if (showWallet) {
     return (
       <WalletScreen
         userId={session.user.id}
@@ -212,7 +223,8 @@ export default function App() {
                                                                                                                                                                                                                                                                                                                                                                                                                                                                   </Text>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                             </View>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       <View style={styles.headerIcons}>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  <TouchableOpacity onPress={() => setShowWallet(true)}><Text style={styles.coins}>🪙 المحفظة</Text></TouchableOpacity>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  <TouchableOpacity onPress={() => setShowSafety(true)}><Text style={styles.coins}>🛡️ الأمان</Text></TouchableOpacity>
+                                                                                                                                                                                                                                                                                                                                                                  <TouchableOpacity onPress={() => setShowWallet(true)}><Text style={styles.coins}>🪙 المحفظة</Text></TouchableOpacity>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               <Text style={styles.notification}>🔔</Text>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         </View>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 </View>
