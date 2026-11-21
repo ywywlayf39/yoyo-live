@@ -568,6 +568,7 @@ import {
       setSelectedLive({
         roomName: existingRoom.room_name,
         isHost: true,
+        hostId: existingRoom.host_id,
         name: existingRoom.host_name,
       });
       return;
@@ -589,7 +590,7 @@ import {
       return;
     }
 
-    setSelectedLive({ roomName, isHost: true, name: hostName });
+    setSelectedLive({ roomName, isHost: true, hostId: session.user.id, name: hostName });
   };
 
   if (selectedLive) {
@@ -598,6 +599,8 @@ import {
         roomName={selectedLive.roomName}
         isHost={selectedLive.isHost}
         hostName={selectedLive.name}
+        userId={session.user.id}
+        receiverId={selectedLive.hostId}
         onClose={() => setSelectedLive(null)}
       />
     );
@@ -695,6 +698,7 @@ import {
           onPress={() => setSelectedLive({
             roomName: room.room_name,
             isHost: room.host_id === session?.user?.id,
+            hostId: room.host_id,
             name: room.host_name,
           })}
           style={{ backgroundColor: C.card, borderWidth: 1, borderColor: '#E53965', borderRadius: 15, padding: 14, marginRight: 10, minWidth: 145 }}
