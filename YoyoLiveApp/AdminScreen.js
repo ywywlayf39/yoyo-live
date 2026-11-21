@@ -22,6 +22,7 @@ const reasonLabels = {
 export default function AdminScreen({ onBack }) {
   const [summary, setSummary] = useState(null);
   const [reports, setReports] = useState([]);
+  const [liveRooms, setLiveRooms] = useState([]);
   const [members, setMembers] = useState([]);
   const [memberSearch, setMemberSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -37,7 +38,7 @@ export default function AdminScreen({ onBack }) {
   const loadDashboard = useCallback(async () => {
     setLoading(true);
     setError('');
-    const [summaryResult, reportsResult, membersResult, suspensionsResult, auditResult] = await Promise.all([
+    const [summaryResult, reportsResult, membersResult, suspensionsResult, auditResult, liveRoomsResult] = await Promise.all([
       supabase.rpc('yoyo_admin_summary'),
       supabase.rpc('yoyo_admin_list_reports', { p_limit: 100 }),
       supabase.from('profiles')
@@ -51,6 +52,11 @@ export default function AdminScreen({ onBack }) {
         .select('id, admin_id, target_user_id, action, reason, duration, created_at')
         .order('created_at', { ascending: false })
         .limit(100),
+      supabase.from('live_rooms')
+        .select('id, host_id, host_name, title, status, created_at')
+        .eq('status', 'live')
+        .order('created_at', { ascending: false })
+        .limit(50),
     ]);
 
     if (summaryResult.error || reportsResult.error || membersResult.error) {
@@ -60,6 +66,8 @@ export default function AdminScreen({ onBack }) {
     setSummary(summaryResult.error ? null : (summaryResult.data || {}));
     setReports(reportsResult.error ? [] : (reportsResult.data || []));
     setMembers(membersResult.error ? [] : (membersResult.data || []));
+    setLiveRooms(liveRoomsResult.error ? [] : (liveRoomsResult.data || []));
+    if (liveRoomsResult.error) console.error('YOYO admin live rooms failed:', liveRoomsResult.error);
     setSuspensions(suspensionsResult.error ? [] : (suspensionsResult.data || []));
     if (suspensionsResult.error) console.error('YOYO admin suspensions failed:', suspensionsResult.error);
     if (auditResult.error) {
@@ -268,6 +276,23 @@ export default function AdminScreen({ onBack }) {
                 '720h': '30 يومًا', permanent: 'دائم',
               })[item.duration] || item.duration}</Text>}
               <Text style={styles.auditReason}>السبب: {item.reason}</Text>
+            </View>
+          ))}
+
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>🔴 متابعة البثوث النشطة</Text>
+            <TouchableOpacity onPress={loadDashboard}><Text style={styles.refresh}>تحديث ↻</Text></TouchableOpacity>
+          </View>
+          <Text style={styles.memberHint}>عرض البثوث التي حالتها نشطة فقط. هذه الشاشة للمراقبة ولا تنهي البث تلقائيًا.</Text>
+          {liveRooms.length === 0 ? (
+            <View style={styles.empty}><Text style={styles.emptyText}>لا توجد بثوث نشطة حاليًا.</Text></View>
+          ) : liveRooms.map(room => (
+            <View key={room.id} style={styles.memberCard}>
+              <Text style={styles.memberName}>{room.title || 'بث مباشر'}</Text>
+              <Text style={styles.person}>صاحب البث: {room.host_name || 'عضو'}</Text>
+              <Text style={styles.person}>الحالة: مباشر الآن</Text>
+              <Text style={styles.date}>بدأ: {room.created_at ? new Date(room.created_at).toLocaleString('ar-EG') : 'غير متاح'}</Text>
+              <Text style={styles.memberId}>معرّف البث: {room.id}</Text>
             </View>
           ))}
 
