@@ -293,7 +293,7 @@ export default function AdminScreen({ onBack }) {
           ) : auditActions.map(item => (
             <View key={item.id} style={styles.auditCard}>
               <View style={styles.reportTop}>
-                <Text style={[styles.auditAction, item.action === 'suspend' ? styles.auditSuspend : styles.auditUnsuspend]}>
+                <Text style={[styles.auditAction, item.action === 'suspend' ? styles.auditSuspend : item.action === 'end_live_room' ? styles.auditLiveEnd : styles.auditUnsuspend]}>
                   {item.action === 'suspend' ? '⛔ إيقاف حساب' : item.action === 'unsuspend' ? '✅ رفع الإيقاف' : '🔴 إنهاء بث مباشر'}
                 </Text>
                 <Text style={styles.auditDate}>{new Date(item.created_at).toLocaleString('ar-EG')}</Text>
@@ -430,6 +430,7 @@ const styles = StyleSheet.create({
   auditAction: { fontSize: 13, fontWeight: 'bold' },
   auditSuspend: { color: '#FF9EAA' },
   auditUnsuspend: { color: '#83D7A8' },
+  auditLiveEnd: { color: '#FF9EAA' },
   auditDate: { color: '#8F849F', fontSize: 10, textAlign: 'left', flexShrink: 1 },
   auditMeta: { color: '#C8B9DC', textAlign: 'right', fontSize: 12, marginTop: 7 },
   auditReason: { color: '#F5C451', textAlign: 'right', marginTop: 8, lineHeight: 20 },
