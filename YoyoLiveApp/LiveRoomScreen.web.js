@@ -1,15 +1,15 @@
 import React from 'react';
 import { SafeAreaView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-export default function LiveRoomScreen({ onClose }) {
+export default function LiveRoomScreen({ onClose, isCall = false }) {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0B0912" />
       <View style={styles.content}>
         <Text style={styles.icon}>📱</Text>
-        <Text style={styles.title}>البث المباشر</Text>
+        <Text style={styles.title}>{isCall ? 'المكالمات الصوتية والفيديو' : 'البث المباشر'}</Text>
         <Text style={styles.description}>
-          البث بالكاميرا والميكروفون يحتاج نسخة Android التطويرية من YOYO LIVE، وليس معاينة الويب.
+          البث والمكالمات بالكاميرا والميكروفون تحتاج نسخة Android التطويرية من YOYO LIVE، وليست معاينة الويب.
         </Text>
         <TouchableOpacity style={styles.button} onPress={onClose}>
           <Text style={styles.buttonText}>رجوع</Text>
