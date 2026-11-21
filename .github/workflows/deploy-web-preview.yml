@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - web-preview-deploy
+      - wallet-screen-implementation
     paths:
       - "YoyoLiveApp/**"
       - ".github/workflows/deploy-web-preview.yml"
