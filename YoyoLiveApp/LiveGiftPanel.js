@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Animated, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View,
+  ActivityIndicator, Alert, Animated, Modal, ScrollView, StyleSheet, Text,
+  TouchableOpacity, Vibration, View,
 } from 'react-native';
 import { supabase } from './supabase';
 
@@ -16,6 +17,22 @@ const CATEGORIES = [
   { id: 'animals', label: '🐾 عالم الحيوانات' },
 ];
 
+const MEGA_EFFECTS = {
+  'royal-crown': { particles: ['👑', '✨', '💎'], title: 'تاج الملوك', tint: '#F5C451', duration: 6500, shake: false },
+  'ruby-yacht': { particles: ['🛥️', '🌊', '💎'], title: 'يخت الياقوت', tint: '#63D7F2', duration: 6500, shake: false },
+  'royal-castle': { particles: ['🏰', '✨', '🌟'], title: 'قلعة الملوك', tint: '#D7A6FF', duration: 7000, shake: true },
+  'galaxy-rocket': { particles: ['🚀', '☄️', '⭐'], title: 'صاروخ المجرة', tint: '#FF8C62', duration: 7500, shake: true },
+  'mega-galaxy-dragon': { particles: ['🐉', '🔥', '✨'], title: 'تنين المجرة العملاق', tint: '#FF6B6B', duration: 8000, shake: true },
+  'emperor-throne': { particles: ['🪑', '👑', '💫'], title: 'عرش الإمبراطور', tint: '#F5C451', duration: 8500, shake: true },
+  'golden-yoyo-planet': { particles: ['🌍', '🪐', '✨'], title: 'كوكب YOYO الذهبي', tint: '#7BE0C3', duration: 9000, shake: true },
+  'yoyo-legendary-galaxy': { particles: ['🌌', '🌠', '💜', '✨'], title: 'مجرة YOYO الأسطورية', tint: '#C39BFF', duration: 10000, shake: true },
+};
+
+function effectFor(gift) {
+  if (!gift) return null;
+  return MEGA_EFFECTS[gift.animation_key] || null;
+}
+
 export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
   const [visible, setVisible] = useState(false);
   const [gifts, setGifts] = useState([]);
@@ -27,6 +44,10 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
   const [sending, setSending] = useState(false);
   const [incoming, setIncoming] = useState(null);
   const pulse = useRef(new Animated.Value(0.86)).current;
+  const entrance = useRef(new Animated.Value(0)).current;
+  const glow = useRef(new Animated.Value(0.35)).current;
+  const drift = useRef(new Animated.Value(0)).current;
+  const shake = useRef(new Animated.Value(0)).current;
 
   const refreshBalance = async () => {
     if (!userId) return;
@@ -38,11 +59,9 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
   useEffect(() => {
     let active = true;
     const load = async () => {
-      const [{ data, error }] = await Promise.all([
-        supabase.from('gift_catalog')
-          .select('id,name,coin_cost,gross_points,category,emoji,description,animation_key,sound_key,sort_order')
-          .eq('active', true).order('sort_order', { ascending: true }),
-      ]);
+      const { data, error } = await supabase.from('gift_catalog')
+        .select('id,name,coin_cost,gross_points,category,emoji,description,animation_key,sound_key,sort_order')
+        .eq('active', true).order('sort_order', { ascending: true });
       if (!active) return;
       if (error) console.error('YOYO gift catalog:', error);
       setGifts(data || []);
@@ -65,27 +84,54 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
         const gift = gifts.find((item) => item.id === row.gift_id);
         const { data: sender } = await supabase.from('member_public_profiles')
           .select('display_name').eq('id', row.sender_id).maybeSingle();
-        setIncoming({
+        const receivedGift = {
           id: row.id,
           emoji: gift?.emoji || '🎁',
           name: gift?.name || 'هدية جديدة',
           sender: sender?.display_name || 'أحد المتابعين',
           quantity: row.quantity || 1,
-        });
-        setTimeout(() => setIncoming((current) => current?.id === row.id ? null : current), 4500);
+          coinCost: Number(gift?.coin_cost || 0),
+          animationKey: gift?.animation_key || '',
+        };
+        setIncoming(receivedGift);
+        // Tactile alert only; no prerecorded sound asset is bundled yet.
+        Vibration.vibrate(receivedGift.coinCost >= 100000 ? [0, 220, 90, 220, 90, 320] : [0, 100, 70, 100]);
+        const effect = effectFor({ animation_key: receivedGift.animationKey });
+        setTimeout(() => setIncoming((current) => current?.id === row.id ? null : current),
+          effect?.duration || 4500);
       }).subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [isHost, userId, gifts]);
 
   useEffect(() => {
-    if (!incoming) return;
-    const animation = Animated.loop(Animated.sequence([
-      Animated.timing(pulse, { toValue: 1.08, duration: 420, useNativeDriver: true }),
-      Animated.timing(pulse, { toValue: 0.96, duration: 420, useNativeDriver: true }),
-    ]));
-    animation.start();
-    return () => animation.stop();
-  }, [incoming, pulse]);
+    if (!incoming) return undefined;
+    entrance.setValue(0);
+    glow.setValue(0.25);
+    drift.setValue(0);
+    shake.setValue(0);
+    const effect = effectFor({ animation_key: incoming.animationKey });
+    const animations = [
+      Animated.spring(entrance, { toValue: 1, friction: 5, tension: 55, useNativeDriver: true }),
+      Animated.loop(Animated.sequence([
+        Animated.timing(glow, { toValue: 1, duration: 650, useNativeDriver: true }),
+        Animated.timing(glow, { toValue: 0.35, duration: 650, useNativeDriver: true }),
+      ])),
+      Animated.loop(Animated.sequence([
+        Animated.timing(drift, { toValue: 1, duration: 1500, useNativeDriver: true }),
+        Animated.timing(drift, { toValue: 0, duration: 1500, useNativeDriver: true }),
+      ])),
+    ];
+    if (effect?.shake) {
+      animations.push(Animated.sequence([
+        Animated.timing(shake, { toValue: 1, duration: 65, useNativeDriver: true }),
+        Animated.timing(shake, { toValue: -1, duration: 65, useNativeDriver: true }),
+        Animated.timing(shake, { toValue: 0, duration: 65, useNativeDriver: true }),
+      ]));
+    }
+    const runner = Animated.parallel(animations);
+    runner.start();
+    return () => runner.stop();
+  }, [incoming, entrance, glow, drift, shake]);
 
   const visibleGifts = useMemo(
     () => gifts.filter((gift) => gift.category === selectedCategory),
@@ -100,7 +146,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
       return;
     }
     setSending(true);
-    const { data, error } = await supabase.rpc('send_live_gift', {
+    const { error } = await supabase.rpc('send_live_gift', {
       p_receiver_id: receiverId,
       p_gift_id: selectedGift.id,
       p_quantity: quantity,
@@ -116,15 +162,41 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
   };
 
   if (isHost) {
-    return incoming ? (
-      <Animated.View pointerEvents="none" style={[styles.overlay, { transform: [{ scale: pulse }] }]}>
-        <Text style={styles.overlayEmoji}>{incoming.emoji}</Text>
-        <Text style={styles.overlayTitle}>{incoming.name}</Text>
-        <Text style={styles.overlaySubtitle}>
-          {incoming.sender} أرسل الهدية {incoming.quantity > 1 ? '× ' + incoming.quantity : ''}
-        </Text>
-      </Animated.View>
-    ) : null;
+    if (!incoming) return null;
+    const effect = effectFor({ animation_key: incoming.animationKey });
+    const tint = effect?.tint || COLORS.gold;
+    const particles = effect?.particles || [incoming.emoji, '✨', '💗'];
+    const translateY = drift.interpolate({ inputRange: [0, 1], outputRange: [8, -14] });
+    const shakeX = shake.interpolate({ inputRange: [-1, 0, 1], outputRange: [-5, 0, 5] });
+    return (
+      <View pointerEvents="none" style={styles.effectLayer}>
+        <Animated.View style={[styles.effectGlow, {
+          borderColor: tint, opacity: glow,
+          transform: [{ scale: entrance.interpolate({ inputRange: [0, 1], outputRange: [0.45, 1.18] }) }],
+        }]} />
+        <Animated.View style={[styles.effectCard, {
+          borderColor: tint,
+          opacity: entrance,
+          transform: [{ scale: entrance }, { translateY }, { translateX: shakeX }],
+          shadowColor: tint,
+        }]}>
+          <View style={styles.particleRow}>
+            {particles.map((particle, index) => (
+              <Text key={index} style={[styles.particle, { transform: [{ translateY: index % 2 ? -12 : 8 }] }]}>{particle}</Text>
+            ))}
+          </View>
+          <Text style={styles.megaLabel}>{effect ? 'هدية أسطورية وصلت!' : 'هدية وصلت!'}</Text>
+          <Text style={[styles.effectEmoji, effect && styles.megaEmoji]}>{incoming.emoji}</Text>
+          <Text style={[styles.effectTitle, { color: tint }]}>{incoming.name}</Text>
+          <Text style={styles.effectSubtitle}>
+            {incoming.sender} أرسل الهدية {incoming.quantity > 1 ? '× ' + incoming.quantity : ''}
+          </Text>
+          {incoming.coinCost >= 100000 ? (
+            <Text style={[styles.valueLabel, { color: tint }]}> {incoming.coinCost.toLocaleString('ar-EG')} عملة </Text>
+          ) : null}
+        </Animated.View>
+      </View>
+    );
   }
 
   return (
@@ -151,17 +223,19 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
             </ScrollView>
             {loading ? <ActivityIndicator color={COLORS.pink} /> : (
               <ScrollView style={styles.giftScroll} showsVerticalScrollIndicator={false}>
-              <View style={styles.grid}>
-                {visibleGifts.map((gift) => (
-                  <TouchableOpacity key={gift.id}
-                    style={[styles.gift, selectedGift?.id === gift.id && styles.giftSelected]}
-                    onPress={() => setSelectedGift(gift)}>
-                    <Text style={styles.giftEmoji}>{gift.emoji}</Text>
-                    <Text style={styles.giftName} numberOfLines={1}>{gift.name}</Text>
-                    <Text style={styles.giftPrice}>🪙 {Number(gift.coin_cost).toLocaleString('ar-EG')}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+                <View style={styles.grid}>
+                  {visibleGifts.map((gift) => (
+                    <TouchableOpacity key={gift.id}
+                      style={[styles.gift, selectedGift?.id === gift.id && styles.giftSelected,
+                        Number(gift.coin_cost) >= 100000 && styles.megaGift]}
+                      onPress={() => setSelectedGift(gift)}>
+                      <Text style={styles.giftEmoji}>{gift.emoji}</Text>
+                      <Text style={styles.giftName} numberOfLines={1}>{gift.name}</Text>
+                      <Text style={styles.giftPrice}>🪙 {Number(gift.coin_cost).toLocaleString('ar-EG')}</Text>
+                      {Number(gift.coin_cost) >= 100000 ? <Text style={styles.megaTag}>فائقة الندرة</Text> : null}
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </ScrollView>
             )}
             {!!selectedGift && (
@@ -177,7 +251,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
                 <TouchableOpacity style={[styles.sendButton, sending && { opacity: 0.6 }]}
                   onPress={sendGift} disabled={sending}>
                   {sending ? <ActivityIndicator color="#fff" /> :
-                    <Text style={styles.sendText}>إرسال {selectedGift.emoji} — {Number(selectedGift.coin_cost) * quantity} عملة</Text>}
+                    <Text style={styles.sendText}>إرسال {selectedGift.emoji} — {(Number(selectedGift.coin_cost) * quantity).toLocaleString('ar-EG')} عملة</Text>}
                 </TouchableOpacity>
               </View>
             )}
@@ -206,6 +280,8 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8 },
   gift: { width: '31%', backgroundColor: COLORS.card, borderRadius: 14, padding: 10, alignItems: 'center', borderWidth: 1, borderColor: COLORS.card2, marginBottom: 2 },
   giftSelected: { borderColor: COLORS.gold, backgroundColor: '#30243A' },
+  megaGift: { borderColor: '#A783D5', backgroundColor: '#211832' },
+  megaTag: { color: '#D6B4FF', fontSize: 9, fontWeight: '900', marginTop: 4 },
   giftEmoji: { fontSize: 32, marginBottom: 4 },
   giftName: { color: COLORS.white, fontSize: 11, fontWeight: 'bold' },
   giftPrice: { color: COLORS.gold, fontSize: 11, marginTop: 4 },
@@ -216,8 +292,15 @@ const styles = StyleSheet.create({
   quantityText: { color: '#fff', fontWeight: 'bold' },
   sendButton: { backgroundColor: COLORS.pink, borderRadius: 14, padding: 14, alignItems: 'center' },
   sendText: { color: '#fff', fontWeight: '900' },
-  overlay: { position: 'absolute', zIndex: 50, top: '22%', alignSelf: 'center', alignItems: 'center', backgroundColor: 'rgba(16,10,25,0.92)', borderWidth: 1, borderColor: COLORS.gold, borderRadius: 22, padding: 22, minWidth: 210 },
-  overlayEmoji: { fontSize: 76 },
-  overlayTitle: { color: COLORS.gold, fontSize: 21, fontWeight: '900', marginTop: 5 },
-  overlaySubtitle: { color: '#fff', fontSize: 14, marginTop: 6 },
+  effectLayer: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, zIndex: 80, alignItems: 'center', justifyContent: 'center' },
+  effectGlow: { position: 'absolute', width: 300, height: 300, borderWidth: 5, borderRadius: 150, backgroundColor: 'rgba(170,120,255,0.08)' },
+  effectCard: { width: '88%', maxWidth: 360, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(13,8,23,0.94)', borderWidth: 2, borderRadius: 28, paddingVertical: 22, paddingHorizontal: 16, elevation: 18, shadowOpacity: 0.65, shadowRadius: 24, shadowOffset: { width: 0, height: 0 } },
+  particleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 18, marginBottom: 4 },
+  particle: { fontSize: 27 },
+  megaLabel: { color: '#FFFFFF', fontSize: 13, fontWeight: '900', letterSpacing: 1, marginBottom: 8 },
+  effectEmoji: { fontSize: 72 },
+  megaEmoji: { fontSize: 104 },
+  effectTitle: { fontSize: 24, fontWeight: '900', marginTop: 8, textAlign: 'center' },
+  effectSubtitle: { color: '#FFFFFF', fontSize: 14, marginTop: 8, textAlign: 'center' },
+  valueLabel: { fontSize: 17, fontWeight: '900', marginTop: 10 },
 });
