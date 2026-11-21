@@ -256,9 +256,24 @@ import {
       setProfileLoading(true);
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, display_name, avatar_url')
+         .select('id, display_name, avatar_url, birth_date')
         .eq('id', session.user.id)
         .maybeSingle();
+      if (active && !error && data?.birth_date) {
+        const [birthYear, birthMonth, birthDay] = data.birth_date.split('-').map(Number);
+        const today = new Date();
+        let age = today.getFullYear() - birthYear;
+        if (today.getMonth() < birthMonth - 1 || (today.getMonth() === birthMonth - 1 && today.getDate() < birthDay)) age -= 1;
+        if (age < 18) {
+          await supabase.auth.signOut({ scope: 'local' });
+          setSession(null);
+          setCurrentProfile(null);
+          setProfileReady(false);
+          setProfileLoading(false);
+          Alert.alert('الخدمة لمن هم 18 عامًا أو أكثر', 'لا يمكن استخدام YOYO LIVE إذا كان عمرك أقل من 18 عامًا.');
+          return;
+        }
+      }
       if (active) {
         setCurrentProfile(!error && data ? data : null);
         setProfileReady(!error && !!data);
