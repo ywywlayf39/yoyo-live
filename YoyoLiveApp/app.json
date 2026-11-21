@@ -55,6 +55,15 @@
           "cameraPermission": "اسمح ليويو لايف باستخدام الكاميرا لبدء البث المباشر.",
           "microphonePermission": "اسمح ليويو لايف باستخدام الميكروفون لنقل صوت البث المباشر."
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 37,
+            "targetSdkVersion": 36
+          }
+        }
       ]
     ]
   }
