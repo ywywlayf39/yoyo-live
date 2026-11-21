@@ -73,6 +73,7 @@ const GIFT_ANIMATION_EFFECTS = {
   'jungle-emperor-throne': { particles: ["🦁","🌴","👑"], tint: '#D6A45B', duration: 7500, shake: true },
   'yoyo-eternal-galaxy': { particles: ["🌌","🌠","💜"], tint: '#C39BFF', duration: 7500, shake: true },
   'royal-crown': { particles: ["👑","✨","💎"], tint: '#F5C451', duration: 5200, shake: false },
+  'royal-king-crown': { particles: ["👑","🦁","✨"], tint: '#D7B15D', duration: 6500, shake: true },
   'ruby-yacht': { particles: ["🛥️","🌊","💎"], tint: '#63D7F2', duration: 5200, shake: false },
   'royal-castle': { particles: ["🏰","✨","🌟"], tint: '#D7A6FF', duration: 5200, shake: false },
   'galaxy-rocket': { particles: ["🚀","☄️","⭐"], tint: '#FF8C62', duration: 7500, shake: true },
