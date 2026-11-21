@@ -23,12 +23,13 @@ const C = {
   border: '#30263F',
 };
 
-export default function ChatScreen({ userId, member, onBack }) {
+export default function ChatScreen({ userId, member, onBack, onStartCall }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  const [calling, setCalling] = useState(false);
   const listRef = useRef(null);
 
   const loadMessages = useCallback(async () => {
@@ -93,6 +94,37 @@ export default function ChatScreen({ userId, member, onBack }) {
     };
   }, [loadMessages, markIncomingRead, userId, member.id]);
 
+  const startCall = async (callType) => {
+    if (calling || !userId || !member?.id || member.id === userId) return;
+    setCalling(true);
+    setError('');
+    const roomName = `call_${userId.replace(/-/g, '').slice(0, 12)}_${Date.now()}`;
+    const { data, error: callError } = await supabase
+      .from('live_calls')
+      .insert({
+        room_name: roomName,
+        caller_id: userId,
+        receiver_id: member.id,
+        call_type: callType,
+        status: 'ringing',
+      })
+      .select('id, room_name, call_type')
+      .single();
+
+    if (callError) {
+      console.error('YOYO LIVE start call failed:', callError);
+      setError('العضو مشغول أو تعذر بدء المكالمة الآن. حاول مرة أخرى.');
+    } else {
+      onStartCall?.({
+        roomName: data.room_name,
+        callType: data.call_type,
+        name: member.display_name || 'عضو YOYO LIVE',
+        isCall: true,
+      });
+    }
+    setCalling(false);
+  };
+
   const sendMessage = async () => {
     const body = draft.trim();
     if (!body || sending || body.length > 2000) return;
@@ -129,6 +161,14 @@ export default function ChatScreen({ userId, member, onBack }) {
         <View style={styles.headerInfo}>
           <Text style={styles.name}>{member.display_name || 'عضو YOYO LIVE'}</Text>
           <Text style={styles.subtitle}>محادثة خاصة 🔒</Text>
+        </View>
+        <View style={styles.callActions}>
+          <TouchableOpacity onPress={() => startCall('audio')} style={styles.callButton} disabled={calling}>
+            <Text style={styles.callButtonText}>📞</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => startCall('video')} style={styles.callButton} disabled={calling}>
+            <Text style={styles.callButtonText}>🎥</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -207,6 +247,9 @@ const styles = StyleSheet.create({
   backButton: { padding: 8 },
   backText: { color: C.pink, fontWeight: 'bold' },
   headerInfo: { alignItems: 'flex-end', flex: 1 },
+  callActions: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 8 },
+  callButton: { width: 38, height: 38, borderRadius: 12, backgroundColor: C.card2, alignItems: 'center', justifyContent: 'center' },
+  callButtonText: { fontSize: 18 },
   name: { color: C.white, fontSize: 18, fontWeight: 'bold' },
   subtitle: { color: C.muted, fontSize: 12, marginTop: 3 },
   list: { flex: 1 },
