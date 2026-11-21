@@ -94,7 +94,14 @@ export default function AdminScreen({ onBack }) {
         } else {
           setSuspensionReason('');
           await loadDashboard();
-          Alert.alert('تم', action === 'suspend' ? 'تم إيقاف الحساب وتسجيل السبب.' : 'تم رفع الإيقاف وتسجيل العملية.');
+          Alert.alert(
+            'تم',
+            action === 'suspend'
+              ? (data.liveDisconnectWarning
+                ? 'تم إيقاف الحساب ومنع الخدمات الجديدة، لكن تعذر تأكيد فصل جلسة LiveKit الحالية. راجع سجلات الخدمة.'
+                : 'تم إيقاف الحساب وفصل جلسات البث والمكالمات النشطة.')
+              : 'تم رفع الإيقاف وتسجيل العملية.'
+          );
         }
         setSuspensionBusyId(null);
       }},
