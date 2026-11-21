@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { AccessToken } from "npm:livekit-server-sdk@2.20.1";
+import { AccessToken, RoomServiceClient } from "npm:livekit-server-sdk@2.20.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -64,6 +64,11 @@ Deno.serve(async (req: Request) => {
 
     const body = await req.json();
     const roomName = typeof body?.roomName === "string" ? body.roomName.trim() : "";
+    const action = body?.action === undefined ? "join" : body.action;
+
+    if (action !== "join" && action !== "end") {
+      return json({ error: "A valid action is required" }, 400);
+    }
 
     if (!roomName || roomName.length > 128 || !/^[a-zA-Z0-9_-]+$/.test(roomName)) {
       return json({ error: "A valid roomName is required" }, 400);
@@ -92,6 +97,35 @@ Deno.serve(async (req: Request) => {
     if (!apiKey || !apiSecret || !livekitUrl) {
       console.error("LiveKit server configuration is incomplete");
       return json({ error: "LiveKit is not configured on the server" }, 500);
+    }
+
+    if (action === "end") {
+      if (!isHost) return json({ error: "Only the room host can end this live stream" }, 403);
+
+      const serviceUrl = livekitUrl.replace(/^wss:/, "https:").replace(/^ws:/, "http:");
+      try {
+        const roomService = new RoomServiceClient(serviceUrl, apiKey, apiSecret);
+        await roomService.deleteRoom(roomName);
+      } catch (error) {
+        console.error("LiveKit room deletion failed:", error instanceof Error ? error.message : "Unknown error");
+        return json({ error: "Unable to disconnect viewers from the live room" }, 502);
+      }
+
+      const { data: endedRoom, error: endError } = await supabase
+        .from("live_rooms")
+        .update({ status: "ended", ended_at: new Date().toISOString() })
+        .eq("room_name", roomName)
+        .eq("host_id", user.id)
+        .eq("status", "live")
+        .select("id")
+        .maybeSingle();
+
+      if (endError || !endedRoom) {
+        console.error("Live room end update failed:", endError?.message ?? "Room was not updated");
+        return json({ error: "Live room could not be marked as ended" }, 500);
+      }
+
+      return json({ ended: true, roomName });
     }
 
     const accessToken = new AccessToken(apiKey, apiSecret, {
