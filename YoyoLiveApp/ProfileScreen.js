@@ -51,6 +51,20 @@ export default function ProfileScreen({ userId, onComplete }) {
       return;
     }
 
+    const today = new Date();
+    let age = today.getFullYear() - year;
+    if (
+      today.getMonth() + 1 < month ||
+      (today.getMonth() + 1 === month && today.getDate() < day)
+    ) {
+      age -= 1;
+    }
+
+    if (age < 18) {
+      setError('عذرًا، YOYO LIVE متاح لمن أتم 18 سنة فقط.');
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -115,7 +129,7 @@ export default function ProfileScreen({ userId, onComplete }) {
         keyboardType="numeric"
         textAlign="right"
       />
-      <Text style={styles.note}>تاريخ ميلادك لن يظهر للأعضاء الآخرين.</Text>
+      <Text style={styles.note}>تاريخ ميلادك لن يظهر للأعضاء الآخرين. التسجيل متاح لمن أتم 18 سنة فقط.</Text>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
