@@ -49,6 +49,7 @@ import {
   const [logoutMessage, setLogoutMessage] = useState('');
   const [showWallet, setShowWallet] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
+  const [selectedMember, setSelectedMember] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -190,6 +191,43 @@ import {
     );
   }
 
+  if (selectedMember) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={C.bg} />
+        <ScrollView contentContainerStyle={{ padding: 22, alignItems: 'center' }}>
+          <TouchableOpacity
+            onPress={() => setSelectedMember(null)}
+            style={{ alignSelf: 'flex-start', paddingVertical: 12 }}
+          >
+            <Text style={{ color: C.pink, fontSize: 16, fontWeight: 'bold' }}>→ رجوع للأعضاء</Text>
+          </TouchableOpacity>
+          {selectedMember.avatar_url ? (
+            <Image
+              source={{ uri: selectedMember.avatar_url }}
+              style={{ width: 124, height: 124, borderRadius: 62, marginTop: 28, backgroundColor: C.card2 }}
+            />
+          ) : (
+            <View style={{ width: 124, height: 124, borderRadius: 62, marginTop: 28, backgroundColor: C.card2, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: 54 }}>👤</Text>
+            </View>
+          )}
+          <Text style={{ color: C.white, fontSize: 24, fontWeight: 'bold', marginTop: 18 }}>
+            {selectedMember.display_name || 'عضو YOYO LIVE'}
+          </Text>
+          {!!selectedMember.country && (
+            <Text style={{ color: C.muted, fontSize: 16, marginTop: 10 }}>
+              🌍 {selectedMember.country}
+            </Text>
+          )}
+          <Text style={{ color: C.muted, fontSize: 13, marginTop: 24, textAlign: 'center' }}>
+            عضو في مجتمع YOYO LIVE 💗
+          </Text>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
   if (selectedLive) {
                                                       return (
                                                             <SafeAreaView style={styles.container}>
@@ -270,7 +308,12 @@ import {
             ) : (
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 {members.map((member) => (
-                  <View key={member.id} style={styles.story}>
+                  <TouchableOpacity
+                    key={member.id}
+                    style={styles.story}
+                    activeOpacity={0.8}
+                    onPress={() => setSelectedMember(member)}
+                  >
                     <View style={styles.memberCircle}>
                       {member.avatar_url ? (
                         <Image source={{ uri: member.avatar_url }} style={styles.memberAvatar} />
@@ -284,7 +327,7 @@ import {
                     {!!member.country && (
                       <Text style={styles.memberCountry} numberOfLines={1}>{member.country}</Text>
                     )}
-                  </View>
+                  </TouchableOpacity>
                 ))}
               </ScrollView>
             )}
