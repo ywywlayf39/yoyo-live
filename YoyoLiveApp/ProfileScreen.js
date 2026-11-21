@@ -53,23 +53,24 @@ export default function ProfileScreen({ userId, onComplete }) {
 
     setSaving(true);
 
-    const { error: saveError } = await supabase
-      .from('profiles')
-      .upsert({
-        id: userId,
-        display_name: name.trim(),
-        country,
-        birth_date: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-      });
+    try {
+      const { error: saveError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: userId,
+          display_name: name.trim(),
+          country,
+          birth_date: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+        });
 
-    setSaving(false);
+      if (saveError) throw saveError;
 
-    if (saveError) {
-      setError('تعذر حفظ البيانات: ' + saveError.message);
-      return;
+      onComplete?.();
+    } catch (saveError) {
+      setError('تعذر حفظ البيانات: ' + (saveError?.message || 'حاول مرة أخرى'));
+    } finally {
+      setSaving(false);
     }
-
-    onComplete?.();
   };
 
   return (
