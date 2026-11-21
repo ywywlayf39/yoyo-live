@@ -76,3 +76,17 @@ Do not assume that one coin equals one point or that one point equals one EGP. T
 ## Next decision data
 
 The owner does not currently have a payment gateway or confirmed payment receiving account. Until one is selected and its fees are verified, all package examples are simulations only and must be visibly labeled hypothetical.
+
+
+## Scenario calculator added
+
+The app repository now contains `YoyoLiveApp/financialCalculator.js`, a pure calculation module for offline/internal scenarios. It reports:
+- allocated gross EGP for the proportion of a coin package consumed by gifts;
+- allocated payment and app-store fees, tax, refund reserve, and operating cost;
+- host redemption liability and payout fees;
+- platform contribution in EGP and contribution margin;
+- `LOSS`, `BELOW_TARGET_MARGIN`, or `PASS` against an explicitly supplied target margin.
+
+A Node test file is provided at `YoyoLiveApp/scripts/test-financial-calculator.cjs`. It covers a profitable scenario, a loss scenario, overspending package coins, and a negative redemption rate. The four scenario checks passed locally.
+
+The calculator is not connected to production wallet balances, gift transfers, coin purchases, or withdrawals. It is a simulation helper only. It deliberately does not provide default real-world fee, tax, or redemption rates; those must be supplied from verified commercial terms and approved accounting rules before use for pricing.
