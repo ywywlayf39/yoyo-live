@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#0b0912">
+  <title>حذف حساب YOYO LIVE</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;background:#0b0912;color:#fff;font-family:Arial,Tahoma,sans-serif;display:flex;align-items:center;justify-content:center;padding:20px}
+    main{width:100%;max-width:460px;background:#191424;border:1px solid #49334f;border-radius:20px;padding:26px;box-shadow:0 18px 60px #0008}
+    h1{text-align:center;color:#f5c451;margin:0 0 8px;font-size:25px}p{color:#c4bdce;line-height:1.8;font-size:14px}
+    label{display:block;margin:16px 0 7px;color:#eee;font-size:14px}input[type=email],input[type=password]{width:100%;padding:14px;border-radius:10px;border:1px solid #59476b;background:#30243e;color:#fff;font-size:16px}
+    .confirm{display:flex;gap:10px;align-items:flex-start;margin:18px 0;color:#eee;line-height:1.6;font-size:13px}.confirm input{margin-top:4px}
+    button{width:100%;border:0;border-radius:12px;background:#9e293c;color:#fff;padding:15px;font-weight:bold;font-size:16px;cursor:pointer}button:disabled{opacity:.55}
+    #status{min-height:28px;margin-top:16px;text-align:center;color:#f5c451;line-height:1.7;font-size:14px}.back{display:block;text-align:center;margin-top:18px;color:#f5c451}
+    .small{font-size:12px;color:#9f96aa}
+  </style>
+</head>
+<body>
+<main>
+  <h1>حذف حساب YOYO LIVE</h1>
+  <p>يمكنك طلب حذف حسابك والبيانات المرتبطة به. سجّل الدخول بالبريد الإلكتروني وكلمة المرور الخاصة بحساب YOYO LIVE، ثم أكّد الحذف النهائي.</p>
+  <form id="delete-form">
+    <label for="email">البريد الإلكتروني</label>
+    <input id="email" type="email" autocomplete="username" required>
+    <label for="password">كلمة المرور</label>
+    <input id="password" type="password" autocomplete="current-password" required>
+    <label class="confirm"><input id="confirm" type="checkbox" required><span>أفهم أن حذف الحساب نهائي، وسيتم حذف الملف الشخصي والصور والرسائل وبيانات المحفظة والاتصالات المرتبطة بالحساب.</span></label>
+    <button id="submit" type="submit">حذف الحساب نهائيًا</button>
+  </form>
+  <div id="status" role="status" aria-live="polite"></div>
+  <p class="small">لن نطلب منك كلمة المرور إلا لتسجيل الدخول مباشرة إلى خدمة YOYO LIVE الآمنة. لا تشارك كلمة المرور مع أي شخص.</p>
+  <a class="back" href="./">العودة إلى YOYO LIVE</a>
+</main>
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/+esm';
+
+  const supabase = createClient(
+    'https://wpvcecxkpoldhdhooszb.supabase.co',
+    'sb_publishable_QmTBI7SNQBJxiQxXMStX8A_HDOzDR5Q',
+    { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
+  );
+
+  const form = document.getElementById('delete-form');
+  const button = document.getElementById('submit');
+  const status = document.getElementById('status');
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!document.getElementById('confirm').checked) return;
+    button.disabled = true;
+    status.textContent = 'جارٍ التحقق من الحساب...';
+
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: document.getElementById('email').value.trim(),
+        password: document.getElementById('password').value,
+      });
+      if (signInError) throw new Error('تعذر تسجيل الدخول. راجع البريد الإلكتروني وكلمة المرور.');
+
+      status.textContent = 'جارٍ حذف الحساب والبيانات المرتبطة به...';
+      const { data, error } = await supabase.functions.invoke('delete-account', {
+        body: { confirm: true },
+      });
+      if (error || !data?.deleted) {
+        throw new Error(data?.error || 'تعذر حذف الحساب الآن. حاول مرة أخرى.');
+      }
+
+      await supabase.auth.signOut({ scope: 'local' });
+      form.reset();
+      status.textContent = 'تم حذف حسابك والبيانات المرتبطة به بنجاح.';
+    } catch (error) {
+      status.textContent = error?.message || 'حدث خطأ. حاول مرة أخرى.';
+    } finally {
+      button.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
