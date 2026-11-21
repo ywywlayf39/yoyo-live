@@ -105,7 +105,10 @@ Deno.serve(async (req: Request) => {
       const serviceUrl = livekitUrl.replace(/^wss:/, "https:").replace(/^ws:/, "http:");
       try {
         const roomService = new RoomServiceClient(serviceUrl, apiKey, apiSecret);
-        await roomService.deleteRoom(roomName);
+        const activeRooms = await roomService.listRooms([roomName]);
+        if (activeRooms.length > 0) {
+          await roomService.deleteRoom(roomName);
+        }
       } catch (error) {
         console.error("LiveKit room deletion failed:", error instanceof Error ? error.message : "Unknown error");
         return json({ error: "Unable to disconnect viewers from the live room" }, 502);
