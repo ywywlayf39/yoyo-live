@@ -103,12 +103,7 @@ export default function ProfileScreen({ userId, onComplete }) {
         placeholderTextColor="#999"
         value={birthDate}
         onChangeText={(value) => {
-          const digits = value.replace(/\D/g, "").slice(0, 8);
-          const formatted = digits.length <= 2 ? digits : digits.length <= 4 ? digits.slice(0, 2) + "/" + digits.slice(2) : digits.slice(0, 2) + "/" + digits.slice(2, 4) + "/" + digits.slice(4);
-          setBirthDate(formatted);
-        }}
-        onChangeText={(value) => {
-          const digits = value.replace(/\\D/g, '').slice(0, 8);
+          const digits = value.replace(/\D/g, '').slice(0, 8);
           const formatted = digits.length <= 2
             ? digits
             : digits.length <= 4
