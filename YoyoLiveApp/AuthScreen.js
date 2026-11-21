@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { supabase } from './supabase';
 
@@ -15,15 +14,25 @@ export default function AuthScreen({ onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [feedback, setFeedback] = useState('');
+  const [feedbackType, setFeedbackType] = useState('error');
+
+  function showFeedback(message, type = 'error') {
+    setFeedback(message);
+    setFeedbackType(type);
+  }
 
   async function submit() {
-    if (!email.trim() || !password) {
-      Alert.alert('تنبيه', 'اكتب البريد الإلكتروني وكلمة المرور');
+    setFeedback('');
+
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !password) {
+      showFeedback('اكتب البريد الإلكتروني وكلمة المرور أولاً.');
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert('تنبيه', 'كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+      showFeedback('كلمة المرور يجب أن تكون 6 أحرف على الأقل.');
       return;
     }
 
@@ -31,29 +40,53 @@ export default function AuthScreen({ onLogin }) {
     try {
       const result = isLogin
         ? await supabase.auth.signInWithPassword({
-            email: email.trim(),
+            email: cleanEmail,
             password,
           })
         : await supabase.auth.signUp({
-            email: email.trim(),
+            email: cleanEmail,
             password,
           });
 
       if (result.error) throw result.error;
 
       if (!isLogin && !result.data.session) {
-        Alert.alert(
-          'تم إنشاء الحساب',
-          'راجع بريدك الإلكتروني واضغط رابط التأكيد، ثم سجّل الدخول.'
+        showFeedback(
+          'تم إرسال طلب إنشاء الحساب. افتح بريدك الإلكتروني واضغط رابط التأكيد، ثم ارجع وسجّل الدخول.',
+          'success'
         );
       } else if (result.data.session) {
         onLogin?.(result.data.session);
+      } else {
+        showFeedback('لم يكتمل تسجيل الدخول. حاول مرة أخرى.');
       }
     } catch (error) {
-      Alert.alert('تعذر إتمام العملية', error.message);
+      const rawMessage = String(error?.message || 'حدث خطأ غير معروف.');
+      let message = rawMessage;
+
+      if (/already registered|user already exists/i.test(rawMessage)) {
+        message = 'هذا البريد مسجل بالفعل. ارجع إلى تسجيل الدخول أو استخدم استعادة كلمة المرور.';
+      } else if (/invalid login credentials/i.test(rawMessage)) {
+        message = 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
+      } else if (/email not confirmed/i.test(rawMessage)) {
+        message = 'أكد بريدك الإلكتروني من الرسالة التي وصلتك، ثم حاول تسجيل الدخول.';
+      } else if (/password.*(6|short|characters)/i.test(rawMessage)) {
+        message = 'كلمة المرور يجب أن تكون 6 أحرف على الأقل.';
+      } else if (/rate limit|too many requests/i.test(rawMessage)) {
+        message = 'محاولات كثيرة في وقت قصير. انتظر قليلاً ثم حاول مرة أخرى.';
+      } else if (/network|fetch failed|failed to fetch/i.test(rawMessage)) {
+        message = 'تعذر الاتصال بالإنترنت أو بخدمة التسجيل. تأكد من الاتصال وحاول مرة أخرى.';
+      }
+
+      showFeedback(message);
     } finally {
       setLoading(false);
     }
+  }
+
+  function switchMode() {
+    setIsLogin(!isLogin);
+    setFeedback('');
   }
 
   return (
@@ -71,8 +104,10 @@ export default function AuthScreen({ onLogin }) {
         placeholderTextColor="#AAA1B8"
         keyboardType="email-address"
         autoCapitalize="none"
+        autoCorrect={false}
         value={email}
-        onChangeText={setEmail}
+        onChangeText={(value) => { setEmail(value); setFeedback(''); }}
+        editable={!loading}
       />
 
       <TextInput
@@ -81,10 +116,17 @@ export default function AuthScreen({ onLogin }) {
         placeholderTextColor="#AAA1B8"
         secureTextEntry
         value={password}
-        onChangeText={setPassword}
+        onChangeText={(value) => { setPassword(value); setFeedback(''); }}
+        editable={!loading}
       />
 
-      <TouchableOpacity style={styles.button} onPress={submit} disabled={loading}>
+      {!!feedback && (
+        <View style={[styles.feedback, feedbackType === 'success' ? styles.successBox : styles.errorBox]}>
+          <Text style={styles.feedbackText}>{feedback}</Text>
+        </View>
+      )}
+
+      <TouchableOpacity style={[styles.button, loading && styles.buttonDisabled]} onPress={submit} disabled={loading}>
         {loading ? (
           <ActivityIndicator color="#FFFFFF" />
         ) : (
@@ -94,7 +136,7 @@ export default function AuthScreen({ onLogin }) {
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
+      <TouchableOpacity onPress={switchMode} disabled={loading}>
         <Text style={styles.switchText}>
           {isLogin ? 'ليس لديك حساب؟ إنشاء حساب جديد' : 'لديك حساب بالفعل؟ تسجيل الدخول'}
         </Text>
@@ -138,13 +180,36 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     textAlign: 'right',
   },
+  feedback: {
+    borderRadius: 12,
+    padding: 13,
+    marginBottom: 12,
+    borderWidth: 1,
+  },
+  errorBox: {
+    backgroundColor: '#351820',
+    borderColor: '#B94B68',
+  },
+  successBox: {
+    backgroundColor: '#173126',
+    borderColor: '#3C9B6A',
+  },
+  feedbackText: {
+    color: '#FFFFFF',
+    textAlign: 'right',
+    lineHeight: 23,
+    fontSize: 14,
+  },
   button: {
     backgroundColor: '#8655F5',
     padding: 16,
     borderRadius: 13,
     alignItems: 'center',
     marginTop: 8,
+    minHeight: 54,
+    justifyContent: 'center',
   },
+  buttonDisabled: { opacity: 0.65 },
   buttonText: {
     color: '#FFFFFF',
     fontSize: 17,
