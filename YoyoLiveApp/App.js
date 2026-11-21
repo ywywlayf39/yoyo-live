@@ -4,6 +4,7 @@ import AuthScreen from './AuthScreen';
 import ProfileScreen from './ProfileScreen';
 import WalletScreen from './WalletScreen';
 import AccountScreen from './AccountScreen';
+import AdminScreen from './AdminScreen';
 import ChatScreen from './ChatScreen';
 import InboxScreen from './InboxScreen';
 import './registerLiveKit';
@@ -54,6 +55,8 @@ import {
   const [logoutMessage, setLogoutMessage] = useState('');
   const [showWallet, setShowWallet] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
+  const isAdmin = session?.user?.app_metadata?.role === 'admin';
   const [selectedMember, setSelectedMember] = useState(null);
   const [chatMember, setChatMember] = useState(null);
   const [showInbox, setShowInbox] = useState(false);
@@ -441,6 +444,10 @@ import {
   }
 
 
+  if (showAdmin && isAdmin) {
+    return <AdminScreen onBack={() => setShowAdmin(false)} />;
+  }
+
   if (showAccount) {
     return (
       <AccountScreen
@@ -632,6 +639,7 @@ import {
         </TouchableOpacity>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                             </View>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       <View style={styles.headerIcons}>
+          {isAdmin && <TouchableOpacity onPress={() => setShowAdmin(true)}><Text style={styles.coins}>🛡️ الإدارة</Text></TouchableOpacity>}
 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     <TouchableOpacity onPress={() => setShowWallet(true)}><Text style={styles.coins}>🪙 المحفظة</Text></TouchableOpacity>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               <TouchableOpacity onPress={() => Alert.alert('الإشعارات', 'لا توجد إشعارات جديدة حاليًا.')}><Text style={styles.notification}>🔔</Text></TouchableOpacity>
@@ -742,7 +750,7 @@ import {
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               <View style={styles.bottomNav}>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       {['الرئيسية', 'اكتشف', 'البث', 'الرسائل', 'حسابي'].map((item, i) => (
 <TouchableOpacity key={i} style={styles.navItem} accessibilityLabel={item} onPress={() => {
-if (i === 0) { setSelectedLive(null); setShowWallet(false); setShowAccount(false); }
+if (i === 0) { setSelectedLive(null); setShowWallet(false); setShowAccount(false); setShowAdmin(false); }
 else if (i === 1) Alert.alert('اكتشف', 'قسم اكتشف والمحتوى الحقيقي قيد التجهيز.');
 else if (i === 2) startLive();
 else if (i === 3) setShowInbox(true);
