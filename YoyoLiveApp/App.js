@@ -40,6 +40,7 @@ import {
                                               export default function App() {
                                                 const [selectedLive, setSelectedLive] = useState(null);
   const [session, setSession] = useState(null);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [profileReady, setProfileReady] = useState(false);
   const [currentProfile, setCurrentProfile] = useState(null);
@@ -147,7 +148,10 @@ import {
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => setSession(newSession)
+      (event, newSession) => {
+        setSession(newSession);
+        if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true);
+      }
     );
 
     return () => listener.subscription.unsubscribe();
@@ -180,6 +184,10 @@ import {
         </Text>
       </SafeAreaView>
     );
+  }
+
+  if (passwordRecovery) {
+    return <AuthScreen recoveryMode onPasswordUpdated={() => setPasswordRecovery(false)} />;
   }
 
   if (!session) {
