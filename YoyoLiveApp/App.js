@@ -6,6 +6,7 @@ import WalletScreen from './WalletScreen';
 import AccountScreen from './AccountScreen';
 import ChatScreen from './ChatScreen';
 import InboxScreen from './InboxScreen';
+import './registerLiveKit';
 import LiveRoomScreen from './LiveRoomScreen';
 import { supabase } from './supabase';
 import {
