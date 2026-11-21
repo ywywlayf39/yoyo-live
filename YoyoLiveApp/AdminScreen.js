@@ -348,7 +348,7 @@ export default function AdminScreen({ onBack }) {
               <Text style={styles.person}>العضو المُبلّغ عنه: {report.reported_name}</Text>
               {report.live_room_id ? (
                 <View style={styles.linkedLiveBox}>
-                  <Text style={styles.linkedLiveTitle}>📺 البث المرتبط بآخر نشاط لهذا العضو</Text>
+                  <Text style={styles.linkedLiveTitle}>📺 بيانات البث المرتبط بالبلاغ أو بالعضو</Text>
                   <Text style={styles.person}>عنوان البث: {report.live_room_title || 'بث مباشر'}</Text>
                   <Text style={styles.person}>حالة البث: {report.live_room_status === 'live' ? 'مباشر الآن' : 'انتهى'}</Text>
                   <Text style={styles.date}>بدأ: {report.live_room_started_at ? new Date(report.live_room_started_at).toLocaleString('ar-EG') : 'غير متاح'}</Text>
