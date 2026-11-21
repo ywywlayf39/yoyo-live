@@ -35,12 +35,15 @@ begin
  if v_admin_id is null or coalesce(auth.jwt() -> 'app_metadata' ->> 'role','') <> 'admin' then
   raise exception 'غير مصرح: هذه العملية للأدمن فقط';
  end if;
- if p_decision not in ('reviewing','approved','rejected') then raise exception 'حالة المراجعة غير صحيحة'; end if;
+ if p_decision is null or p_decision not in ('reviewing','approved','rejected') then raise exception 'حالة المراجعة غير صحيحة'; end if;
  if p_admin_note is not null and length(p_admin_note) > 1000 then raise exception 'ملاحظة الإدارة طويلة جدًا'; end if;
  select * into v_request from public.coin_purchase_requests where id=p_request_id for update;
  if not found then return false; end if;
  if v_request.status in ('approved','rejected') then raise exception 'تمت مراجعة هذا الطلب بالفعل'; end if;
  if p_decision='approved' then
+  if v_request.transfer_reference is null or length(btrim(v_request.transfer_reference)) < 4 then
+   raise exception 'لا يمكن اعتماد الطلب قبل تسجيل مرجع التحويل والتحقق منه';
+  end if;
   insert into public.wallets(user_id,purchased_coins) values(v_request.user_id,v_request.requested_coins)
   on conflict(user_id) do update set purchased_coins=public.wallets.purchased_coins+excluded.purchased_coins,updated_at=now();
   insert into public.wallet_transactions(user_id,transaction_type,coins,amount_egp,reference_id,description)
