@@ -44,7 +44,7 @@ jobs:
       - name: Verify preview output
         run: |
           test -s dist/index.html
-          test -d dist/assets
+          test -d dist/_expo
           echo "Web preview exported successfully."
 
       - name: Upload Pages artifact
