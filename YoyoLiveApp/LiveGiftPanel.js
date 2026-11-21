@@ -29,17 +29,6 @@ const CATEGORIES = [
   { id: 'animals', label: '🐾 عالم الحيوانات' },
 ];
 
-const MEGA_EFFECTS = {
-  'royal-crown': { particles: ['👑', '✨', '💎'], title: 'تاج الملوك', tint: '#F5C451', duration: 6500, shake: false },
-  'ruby-yacht': { particles: ['🛥️', '🌊', '💎'], title: 'يخت الياقوت', tint: '#63D7F2', duration: 6500, shake: false },
-  'royal-castle': { particles: ['🏰', '✨', '🌟'], title: 'قلعة الملوك', tint: '#D7A6FF', duration: 7000, shake: true },
-  'galaxy-rocket': { particles: ['🚀', '☄️', '⭐'], title: 'صاروخ المجرة', tint: '#FF8C62', duration: 7500, shake: true },
-  'mega-galaxy-dragon': { particles: ['🐉', '🔥', '✨'], title: 'تنين المجرة العملاق', tint: '#FF6B6B', duration: 8000, shake: true },
-  'emperor-throne': { particles: ['🪑', '👑', '💫'], title: 'عرش الإمبراطور', tint: '#F5C451', duration: 8500, shake: true },
-  'golden-yoyo-planet': { particles: ['🌍', '🪐', '✨'], title: 'كوكب YOYO الذهبي', tint: '#7BE0C3', duration: 9000, shake: true },
-  'yoyo-legendary-galaxy': { particles: ['🌌', '🌠', '💜', '✨'], title: 'مجرة YOYO الأسطورية', tint: '#C39BFF', duration: 10000, shake: true },
-};
-
 const GIFT_ANIMATION_EFFECTS = {
   'heart-pulse': { particles: ["💗","💕","✨"], tint: '#F34E9B', duration: 5200, shake: false },
   'rose-bloom': { particles: ["🌹","🌸","✨"], tint: '#F08BAA', duration: 5200, shake: false },
