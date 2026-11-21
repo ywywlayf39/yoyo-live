@@ -9,13 +9,14 @@ import {
 } from 'react-native';
 import { supabase } from './supabase';
 
-export default function AuthScreen({ onLogin }) {
+export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUpdated }) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [feedbackType, setFeedbackType] = useState('error');
+  const [forgotMode, setForgotMode] = useState(false);
 
   function showFeedback(message, type = 'error') {
     setFeedback(message);
@@ -25,7 +26,50 @@ export default function AuthScreen({ onLogin }) {
   async function submit() {
     setFeedback('');
 
+    if (recoveryMode) {
+      if (password.length < 6) {
+        showFeedback('كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل.');
+        return;
+      }
+      setLoading(true);
+      try {
+        const { error } = await supabase.auth.updateUser({ password });
+        if (error) throw error;
+        setPassword('');
+        showFeedback('تم تغيير كلمة المرور بنجاح. يمكنك الآن استخدام كلمة المرور الجديدة.', 'success');
+        onPasswordUpdated?.();
+      } catch (error) {
+        showFeedback(error?.message || 'تعذر تغيير كلمة المرور. افتح رابط الاستعادة مرة أخرى.');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     const cleanEmail = email.trim().toLowerCase();
+    if (forgotMode) {
+      if (!cleanEmail) {
+        showFeedback('اكتب البريد الإلكتروني أولاً.');
+        return;
+      }
+      setLoading(true);
+      try {
+        const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+          redirectTo: 'https://ywywlayf39.github.io/yoyo-live/',
+        });
+        if (error) throw error;
+        showFeedback('لو البريد مسجل عندنا، هتوصلك رسالة فيها رابط آمن لإعادة تعيين كلمة المرور. راجع الوارد والرسائل غير المرغوب فيها.', 'success');
+      } catch (error) {
+        const raw = String(error?.message || '');
+        showFeedback(/rate limit|too many requests/i.test(raw)
+          ? 'طلبت روابط كثيرة في وقت قصير. انتظر قليلاً ثم حاول مرة أخرى.'
+          : raw || 'تعذر إرسال رابط الاستعادة. حاول مرة أخرى.');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     if (!cleanEmail || !password) {
       showFeedback('اكتب البريد الإلكتروني وكلمة المرور أولاً.');
       return;
@@ -86,7 +130,9 @@ export default function AuthScreen({ onLogin }) {
 
   function switchMode() {
     setIsLogin(!isLogin);
+    setForgotMode(false);
     setFeedback('');
+    setPassword('');
   }
 
   return (
@@ -95,10 +141,10 @@ export default function AuthScreen({ onLogin }) {
       <Text style={styles.subtitle}>عالمك .. لحظتك .. جمهورك</Text>
 
       <Text style={styles.title}>
-        {isLogin ? 'أهلاً بعودتك 💗' : 'انضم إلى YOYO LIVE 💗'}
+        {recoveryMode ? 'تعيين كلمة مرور جديدة 🔐' : forgotMode ? 'استعادة كلمة المرور' : isLogin ? 'أهلاً بعودتك 💗' : 'انضم إلى YOYO LIVE 💗'}
       </Text>
 
-      <TextInput
+      {!recoveryMode && <TextInput
         style={styles.input}
         placeholder="البريد الإلكتروني"
         placeholderTextColor="#AAA1B8"
@@ -108,17 +154,17 @@ export default function AuthScreen({ onLogin }) {
         value={email}
         onChangeText={(value) => { setEmail(value); setFeedback(''); }}
         editable={!loading}
-      />
+      />}
 
-      <TextInput
+      {!forgotMode && <TextInput
         style={styles.input}
-        placeholder="كلمة المرور"
+        placeholder={recoveryMode ? "كلمة المرور الجديدة" : "كلمة المرور"}
         placeholderTextColor="#AAA1B8"
         secureTextEntry
         value={password}
         onChangeText={(value) => { setPassword(value); setFeedback(''); }}
         editable={!loading}
-      />
+      />}
 
       {!!feedback && (
         <View style={[styles.feedback, feedbackType === 'success' ? styles.successBox : styles.errorBox]}>
@@ -131,16 +177,24 @@ export default function AuthScreen({ onLogin }) {
           <ActivityIndicator color="#FFFFFF" />
         ) : (
           <Text style={styles.buttonText}>
-            {isLogin ? 'تسجيل الدخول' : 'إنشاء حساب'}
+            {recoveryMode ? 'حفظ كلمة المرور الجديدة' : forgotMode ? 'إرسال رابط الاستعادة' : isLogin ? 'تسجيل الدخول' : 'إنشاء حساب'}
           </Text>
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={switchMode} disabled={loading}>
-        <Text style={styles.switchText}>
-          {isLogin ? 'ليس لديك حساب؟ إنشاء حساب جديد' : 'لديك حساب بالفعل؟ تسجيل الدخول'}
-        </Text>
-      </TouchableOpacity>
+      {!recoveryMode && isLogin && !forgotMode && (
+        <TouchableOpacity onPress={() => { setForgotMode(true); setFeedback(''); setPassword(''); }} disabled={loading}>
+          <Text style={styles.switchText}>نسيت كلمة المرور؟</Text>
+        </TouchableOpacity>
+      )}
+
+      {!recoveryMode && (
+        <TouchableOpacity onPress={() => { setForgotMode(false); switchMode(); }} disabled={loading}>
+          <Text style={styles.switchText}>
+            {forgotMode ? 'العودة إلى تسجيل الدخول' : isLogin ? 'ليس لديك حساب؟ إنشاء حساب جديد' : 'لديك حساب بالفعل؟ تسجيل الدخول'}
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
