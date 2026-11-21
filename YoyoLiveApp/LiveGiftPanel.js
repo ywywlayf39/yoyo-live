@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View,
+  ActivityIndicator, Alert, Animated, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View,
 } from 'react-native';
 import { supabase } from './supabase';
 
@@ -25,6 +25,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [incoming, setIncoming] = useState(null);
+  const pulse = useRef(new Animated.Value(0.86)).current;
 
   const refreshBalance = async () => {
     if (!userId) return;
@@ -75,6 +76,16 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
     return () => { supabase.removeChannel(channel); };
   }, [isHost, userId, gifts]);
 
+  useEffect(() => {
+    if (!incoming) return;
+    const animation = Animated.loop(Animated.sequence([
+      Animated.timing(pulse, { toValue: 1.08, duration: 420, useNativeDriver: true }),
+      Animated.timing(pulse, { toValue: 0.96, duration: 420, useNativeDriver: true }),
+    ]));
+    animation.start();
+    return () => animation.stop();
+  }, [incoming, pulse]);
+
   const visibleGifts = useMemo(
     () => gifts.filter((gift) => gift.category === selectedCategory),
     [gifts, selectedCategory],
@@ -105,13 +116,13 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
 
   if (isHost) {
     return incoming ? (
-      <View pointerEvents="none" style={styles.overlay}>
+      <Animated.View pointerEvents="none" style={[styles.overlay, { transform: [{ scale: pulse }] }]}>
         <Text style={styles.overlayEmoji}>{incoming.emoji}</Text>
         <Text style={styles.overlayTitle}>{incoming.name}</Text>
         <Text style={styles.overlaySubtitle}>
           {incoming.sender} أرسل الهدية {incoming.quantity > 1 ? '× ' + incoming.quantity : ''}
         </Text>
-      </View>
+      </Animated.View>
     ) : null;
   }
 
@@ -138,6 +149,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
               ))}
             </ScrollView>
             {loading ? <ActivityIndicator color={COLORS.pink} /> : (
+              <ScrollView style={styles.giftScroll} showsVerticalScrollIndicator={false}>
               <View style={styles.grid}>
                 {visibleGifts.map((gift) => (
                   <TouchableOpacity key={gift.id}
@@ -149,6 +161,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
                   </TouchableOpacity>
                 ))}
               </View>
+              </ScrollView>
             )}
             {!!selectedGift && (
               <View style={styles.footer}>
@@ -175,7 +188,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
 }
 
 const styles = StyleSheet.create({
-  openButton: { position: 'absolute', right: 16, bottom: 18, backgroundColor: COLORS.pink, borderRadius: 24, paddingVertical: 12, paddingHorizontal: 18, zIndex: 20, elevation: 8 },
+  openButton: { position: 'absolute', right: 16, bottom: 88, backgroundColor: COLORS.pink, borderRadius: 24, paddingVertical: 12, paddingHorizontal: 18, zIndex: 20, elevation: 8 },
   openButtonText: { color: '#fff', fontWeight: '900', fontSize: 15 },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
   sheet: { backgroundColor: COLORS.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, maxHeight: '76%', borderWidth: 1, borderColor: '#45375B' },
@@ -188,6 +201,7 @@ const styles = StyleSheet.create({
   tabActive: { backgroundColor: COLORS.pink },
   tabText: { color: COLORS.muted, fontWeight: 'bold' },
   tabTextActive: { color: '#fff' },
+  giftScroll: { maxHeight: 300 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8 },
   gift: { width: '31%', backgroundColor: COLORS.card, borderRadius: 14, padding: 10, alignItems: 'center', borderWidth: 1, borderColor: COLORS.card2, marginBottom: 2 },
   giftSelected: { borderColor: COLORS.gold, backgroundColor: '#30243A' },
