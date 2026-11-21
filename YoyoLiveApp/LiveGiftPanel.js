@@ -89,6 +89,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [giftFeedReady, setGiftFeedReady] = useState(false);
   const [incoming, setIncoming] = useState(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const soundEnabledRef = useRef(true);
@@ -189,12 +190,15 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
           setTimeout(() => setIncoming((current) => current?.id === row.id ? null : current),
             effect?.duration || 4500);
         })
-        .subscribe();
+        .subscribe((status) => {
+          if (active) setGiftFeedReady(status === 'SUBSCRIBED');
+        });
     };
 
     joinAndListen().catch((error) => console.warn('YOYO gift realtime:', error?.message || error));
     return () => {
       active = false;
+      setGiftFeedReady(false);
       if (channel) supabase.removeChannel(channel);
       supabase.from('live_room_viewers')
         .delete().eq('room_name', roomName).eq('user_id', userId)
@@ -238,7 +242,11 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
   );
 
   const sendGift = async () => {
-    if (!selectedGift || !receiverId || sending) return;
+    if (!selectedGift || !receiverId || !roomName || sending) return;
+    if (!giftFeedReady) {
+      Alert.alert('جارٍ الاتصال', 'انتظر لحظة حتى يكتمل الاتصال بغرفة الهدايا.');
+      return;
+    }
     const total = Number(selectedGift.coin_cost) * quantity;
     if (balance < total) {
       Alert.alert('رصيدك غير كافٍ', 'اشحن عملاتك أولاً من المحفظة.');
@@ -349,9 +357,10 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
                     </TouchableOpacity>
                   ))}
                 </View>
-                <TouchableOpacity style={[styles.sendButton, sending && { opacity: 0.6 }]}
-                  onPress={sendGift} disabled={sending}>
-                  {sending ? <ActivityIndicator color="#fff" /> :
+                <TouchableOpacity style={[styles.sendButton, (sending || !giftFeedReady) && { opacity: 0.6 }]}
+                  onPress={sendGift} disabled={sending || !giftFeedReady}>
+                  {sending ? <ActivityIndicator color="#fff" /> : !giftFeedReady ?
+                    <Text style={styles.sendText}>جاري الاتصال بغرفة الهدايا...</Text> :
                     <Text style={styles.sendText}>إرسال {selectedGift.emoji} — {(Number(selectedGift.coin_cost) * quantity).toLocaleString('ar-EG')} عملة</Text>}
                 </TouchableOpacity>
               </View>
