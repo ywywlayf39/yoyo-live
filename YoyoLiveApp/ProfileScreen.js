@@ -17,6 +17,7 @@ const countries = [
 export default function ProfileScreen({ userId, onComplete }) {
   const [name, setName] = useState('');
   const [country, setCountry] = useState('مصر');
+  const [gender, setGender] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [showCountries, setShowCountries] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -27,6 +28,11 @@ export default function ProfileScreen({ userId, onComplete }) {
 
     if (!name.trim()) {
       setError('اكتب اسمك من فضلك');
+      return;
+    }
+
+    if (!gender) {
+      setError('اختار النوع: ذكر أو أنثى');
       return;
     }
 
@@ -60,6 +66,7 @@ export default function ProfileScreen({ userId, onComplete }) {
           id: userId,
           display_name: name.trim(),
           country,
+          gender,
           birth_date: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
         });
 
@@ -88,6 +95,21 @@ export default function ProfileScreen({ userId, onComplete }) {
         onChangeText={setName}
         textAlign="right"
       />
+
+      <Text style={styles.label}>النوع</Text>
+      <View style={styles.genderRow}>
+        {['ذكر', 'أنثى'].map(item => (
+          <TouchableOpacity
+            key={item}
+            style={[styles.genderOption, gender === item && styles.genderOptionSelected]}
+            onPress={() => setGender(item)}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: gender === item }}
+          >
+            <Text style={[styles.genderText, gender === item && styles.genderTextSelected]}>{item}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       <Text style={styles.label}>بلدك</Text>
       <TouchableOpacity
@@ -202,6 +224,31 @@ const styles = StyleSheet.create({
     padding: 15,
     fontSize: 16,
     color: '#24152b'
+  },
+  genderRow: {
+    flexDirection: 'row',
+    gap: 12
+  },
+  genderOption: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#d9cbdc',
+    borderRadius: 12,
+    padding: 15,
+    alignItems: 'center'
+  },
+  genderOptionSelected: {
+    backgroundColor: '#8c2456',
+    borderColor: '#e8b85c'
+  },
+  genderText: {
+    color: '#24152b',
+    fontSize: 16,
+    fontWeight: '600'
+  },
+  genderTextSelected: {
+    color: '#fff'
   },
   value: {
     color: '#24152b',
