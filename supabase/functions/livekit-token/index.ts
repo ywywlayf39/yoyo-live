@@ -207,6 +207,8 @@ Deno.serve(async (req: Request) => {
       serverUrl: livekitUrl,
       roomName,
       isHost,
+      isCall,
+      callType,
       expiresIn: 3600,
     });
   } catch (error) {
