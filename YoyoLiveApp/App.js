@@ -4,7 +4,6 @@ import AuthScreen from './AuthScreen';
 import ProfileScreen from './ProfileScreen';
 import WalletScreen from './WalletScreen';
 import AccountScreen from './AccountScreen';
-import AccountScreen from './AccountScreen';
 import { supabase } from './supabase';
 import {
   View,
@@ -51,7 +50,6 @@ import {
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutMessage, setLogoutMessage] = useState('');
   const [showWallet, setShowWallet] = useState(false);
-  const [showAccount, setShowAccount] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
 
   useEffect(() => {
@@ -152,10 +150,6 @@ import {
         onBack={() => setShowAccount(false)}
       />
     );
-  }
-
-  if (showAccount) {
-    return <AccountScreen userId={session.user.id} email={session.user.email} onBack={() => setShowAccount(false)} />;
   }
 
   if (showWallet) {
