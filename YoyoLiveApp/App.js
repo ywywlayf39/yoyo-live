@@ -360,6 +360,7 @@ import {
             return;
           }
           setMembers((current) => current.filter((item) => item.id !== member.id));
+          setLiveRooms((current) => current.filter((room) => room.host_id !== member.id));
           if (selectedMember?.id === member.id) setSelectedMember(null);
           if (chatMember?.id === member.id) setChatMember(null);
           Alert.alert('تم الحظر', 'تم حظر العضو بنجاح.');
