@@ -9,6 +9,8 @@ export default function AccountScreen({ userId, email, onBack }) {
   const [profile, setProfile] = useState(null);
   const [name, setName] = useState('');
   const [country, setCountry] = useState('مصر');
+  const [gender, setGender] = useState('');
+  const [birthDateInput, setBirthDateInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -25,6 +27,8 @@ export default function AccountScreen({ userId, email, onBack }) {
       setProfile(data);
       setName(data?.display_name || '');
       setCountry(data?.country || 'مصر');
+      setGender(data?.gender || '');
+      setBirthDateInput(data?.birth_date ? data.birth_date.split('-').reverse().join('/') : '');
       setError('');
     }
     setLoading(false);
@@ -34,13 +38,22 @@ export default function AccountScreen({ userId, email, onBack }) {
 
   const saveProfile = async () => {
     if (!name.trim()) { setError('اكتب اسمك الأول.'); return; }
+    const match = birthDateInput.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!match) { setError('اكتب تاريخ الميلاد بالشكل يوم/شهر/سنة.'); return; }
+    const day = Number(match[1]), month = Number(match[2]), year = Number(match[3]);
+    const parsedDate = new Date(year, month - 1, day);
+    if (parsedDate.getFullYear() !== year || parsedDate.getMonth() !== month - 1 || parsedDate.getDate() !== day || parsedDate > new Date()) {
+      setError('تاريخ الميلاد غير صحيح.'); return;
+    }
+    if (!gender) { setError('اختار النوع من فضلك.'); return; }
+    const formattedBirthDate = year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
     setSaving(true); setError('');
     const { error: saveError } = await supabase.from('profiles')
-      .update({ display_name: name.trim(), country, updated_at: new Date().toISOString() })
+      .update({ display_name: name.trim(), country, gender, birth_date: formattedBirthDate, updated_at: new Date().toISOString() })
       .eq('id', userId);
     if (saveError) setError('تعذر حفظ التعديلات: ' + saveError.message);
     else {
-      setProfile(current => ({ ...current, display_name: name.trim(), country }));
+      setProfile(current => ({ ...current, display_name: name.trim(), country, gender, birth_date: formattedBirthDate }));
       Alert.alert('تم الحفظ', 'تم تحديث بيانات حسابك بنجاح.');
     }
     setSaving(false);
@@ -99,15 +112,17 @@ export default function AccountScreen({ userId, email, onBack }) {
             <Text style={styles.label}>البلد</Text>
             <TouchableOpacity style={styles.input} onPress={() => setShowCountries(!showCountries)}><Text style={styles.value}>{country}　⌄</Text></TouchableOpacity>
             {showCountries && <View style={styles.countryList}>{countries.map(item => <TouchableOpacity key={item} style={styles.countryItem} onPress={() => { setCountry(item); setShowCountries(false); }}><Text style={styles.value}>{item}</Text></TouchableOpacity>)}</View>}
-            <Text style={styles.label}>النوع</Text><Text style={styles.value}>{profile?.gender || 'غير مسجل'}</Text>
-            <Text style={styles.label}>تاريخ الميلاد</Text><Text style={styles.value}>{birthDate}</Text>
+            <Text style={styles.label}>النوع</Text>
+            <View style={styles.genderRow}>{['ذكر','أنثى'].map(item => <TouchableOpacity key={item} onPress={() => setGender(item)} style={[styles.genderOption, gender === item && styles.genderSelected]}><Text style={[styles.genderText, gender === item && styles.genderTextSelected]}>{item}</Text></TouchableOpacity>)}</View>
+            <Text style={styles.label}>تاريخ الميلاد</Text>
+            <TextInput style={styles.input} value={birthDateInput} onChangeText={value => { const digits = value.replace(/\D/g, '').slice(0, 8); setBirthDateInput(digits.length <= 2 ? digits : digits.length <= 4 ? digits.slice(0,2) + '/' + digits.slice(2) : digits.slice(0,2) + '/' + digits.slice(2,4) + '/' + digits.slice(4)); }} placeholder="يوم/شهر/سنة مثال 15/08/2000" placeholderTextColor="#8e8798" keyboardType="numeric" textAlign="right" />
             <Text style={styles.note}>تاريخ الميلاد لا يظهر للأعضاء الآخرين.</Text>
           </View>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <TouchableOpacity onPress={saveProfile} style={[styles.button, saving && styles.disabled]} disabled={saving || uploading}>
             {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>حفظ التعديلات</Text>}
           </TouchableOpacity>
-          <Text style={styles.hint}>تغيير الصورة يتم فور رفعها، وتعديل الاسم والبلد يتم عند الضغط على حفظ التعديلات.</Text>
+          <Text style={styles.hint}>تغيير الصورة يتم فور رفعها، وتعديل الاسم والبلد والنوع وتاريخ الميلاد يتم عند الضغط على حفظ التعديلات.</Text>
         </>
       )}
     </ScrollView>
@@ -126,6 +141,11 @@ const styles = StyleSheet.create({
   changePhoto: { color: '#F5C451', fontWeight: 'bold', marginTop: 12, fontSize: 15 },
   label: { color: '#AAA1B8', textAlign: 'right', marginTop: 14, fontSize: 13 },
   value: { color: '#fff', textAlign: 'right', fontSize: 16, marginTop: 5 },
+  genderRow: { flexDirection: 'row', gap: 10, marginTop: 8 },
+  genderOption: { flex: 1, borderWidth: 1, borderColor: '#59476b', borderRadius: 10, padding: 12, alignItems: 'center', backgroundColor: '#30243e' },
+  genderSelected: { backgroundColor: '#8655F5', borderColor: '#F5C451' },
+  genderText: { color: '#ddd', fontWeight: '600' },
+  genderTextSelected: { color: '#fff' },
   input: { backgroundColor: '#30243e', color: '#fff', borderRadius: 10, padding: 13, marginTop: 7, textAlign: 'right', fontSize: 16 },
   countryList: { backgroundColor: '#30243e', borderRadius: 10, marginTop: 5, maxHeight: 190 },
   countryItem: { padding: 11, borderBottomWidth: 1, borderBottomColor: '#493b58' },
