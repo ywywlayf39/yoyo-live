@@ -38,6 +38,8 @@ const keys = [
   "romantic-chime",
   "royal-fanfare",
   "royal-hit",
+  "royal-tiger-roar",
+  "mega-dragon-roar",
   "soft-chime",
   "star-ding",
   "thunder-lion-roar",
