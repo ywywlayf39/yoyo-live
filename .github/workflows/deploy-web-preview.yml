@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - wallet-screen-implementation
+      - feature/livekit-live-stream
     paths:
       - "YoyoLiveApp/**"
       - ".github/workflows/deploy-web-preview.yml"
