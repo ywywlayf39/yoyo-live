@@ -6,6 +6,7 @@ import WalletScreen from './WalletScreen';
 import AccountScreen from './AccountScreen';
 import ChatScreen from './ChatScreen';
 import InboxScreen from './InboxScreen';
+import LiveRoomScreen from './LiveRoomScreen';
 import { supabase } from './supabase';
 import {
   Alert,
@@ -56,6 +57,37 @@ import {
   const [chatMember, setChatMember] = useState(null);
   const [showInbox, setShowInbox] = useState(false);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [liveRooms, setLiveRooms] = useState([]);
+
+
+  useEffect(() => {
+    if (!session?.user?.id) {
+      setLiveRooms([]);
+      return;
+    }
+
+    let active = true;
+    const refreshLiveRooms = async () => {
+      const { data, error } = await supabase
+        .from('live_rooms')
+        .select('id, room_name, host_id, host_name, title, created_at')
+        .eq('status', 'live')
+        .order('created_at', { ascending: false });
+      if (!error && active) setLiveRooms(data || []);
+      if (error) console.error('YOYO LIVE live rooms failed:', error);
+    };
+
+    refreshLiveRooms();
+    const channel = supabase
+      .channel('live-rooms-feed-' + session.user.id)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_rooms' }, refreshLiveRooms)
+      .subscribe();
+
+    return () => {
+      active = false;
+      supabase.removeChannel(channel);
+    };
+  }, [session?.user?.id]);
 
   useEffect(() => {
     if (!session?.user?.id) {
@@ -299,39 +331,52 @@ import {
     );
   }
 
+
+  const startLive = async () => {
+    if (!session?.user?.id) {
+      Alert.alert('تسجيل الدخول مطلوب', 'سجّل الدخول أولاً لبدء البث.');
+      return;
+    }
+
+    const existingRoom = liveRooms.find((room) => room.host_id === session.user.id);
+    if (existingRoom) {
+      setSelectedLive({
+        roomName: existingRoom.room_name,
+        isHost: true,
+        name: existingRoom.host_name,
+      });
+      return;
+    }
+
+    const hostName = (currentProfile?.display_name || 'عضو YOYO LIVE').trim().slice(0, 80);
+    const roomName = `yoyo_${session.user.id.replace(/-/g, '').slice(0, 12)}_${Date.now()}`;
+    const { error } = await supabase.from('live_rooms').insert({
+      room_name: roomName,
+      host_id: session.user.id,
+      host_name: hostName,
+      title: 'بث مباشر',
+      status: 'live',
+    });
+
+    if (error) {
+      console.error('YOYO LIVE start live failed:', error);
+      Alert.alert('تعذر بدء البث', 'لم نتمكن من إنشاء غرفة البث. حاول مرة أخرى.');
+      return;
+    }
+
+    setSelectedLive({ roomName, isHost: true, name: hostName });
+  };
+
   if (selectedLive) {
-                                                      return (
-                                                            <SafeAreaView style={styles.container}>
-                                                                    <StatusBar barStyle="light-content" backgroundColor={C.bg} />
-                                                                            <View style={styles.roomHeader}>
-                                                                                      <TouchableOpacity onPress={() => setSelectedLive(null)}>
-                                                                                                  <Text style={styles.back}>رجوع ←</Text>
-                                                                                                            </TouchableOpacity>
-                                                                                                                      <Text style={styles.live}>● LIVE</Text>
-                                                                                                                              </View>
-                                                                                                                                      <View style={styles.room}>
-                                                                                                                                                <Text style={styles.roomEmoji}>{selectedLive.emoji}</Text>
-                                                                                                                                                          <Text style={styles.roomName}>{selectedLive.name}</Text>
-                                                                                                                                                                    <Text style={styles.roomDesc}>
-                                                                                                                                                                                مرحباً بك في بث {selectedLive.name} 💗
-                                                                                                                                                                                          </Text>
-                                                                                                                                                                                                    <Text style={styles.roomViewers}>👥 250 مشاهد</Text>
-                                                                                                                                                                                                              <Text style={styles.demo}>غرفة بث تجريبية</Text>
-                                                                                                                                                                                                                      </View>
-                                                                                                                                                                                                                              <View style={styles.roomActions}>
-                                                                                                                                                                                                                                        <TouchableOpacity style={styles.action}>
-                                                                                                                                                                                                                                                    <Text style={styles.actionText}>💬 الدردشة</Text>
-                                                                                                                                                                                                                                                              </TouchableOpacity>
-                                                                                                                                                                                                                                                                        <TouchableOpacity style={styles.action}>
-                                                                                                                                                                                                                                                                                    <Text style={styles.actionText}>🎁 هدية</Text>
-                                                                                                                                                                                                                                                                                              </TouchableOpacity>
-                                                                                                                                                                                                                                                                                                        <TouchableOpacity style={styles.action}>
-                                                                                                                                                                                                                                                                                                                    <Text style={styles.actionText}>❤️ إعجاب</Text>
-                                                                                                                                                                                                                                                                                                                              </TouchableOpacity>
-                                                                                                                                                                                                                                                                                                                                      </View>
-                                                                                                                                                                                                                                                                                                                                            </SafeAreaView>
-                                                                                                                                                                                                                                                                                                                                                );
-                                                                                                                                                                                                                                                                                                                                                  }
+    return (
+      <LiveRoomScreen
+        roomName={selectedLive.roomName}
+        isHost={selectedLive.isHost}
+        hostName={selectedLive.name}
+        onClose={() => setSelectedLive(null)}
+      />
+    );
+  }
 
                                                                                                                                                                                                                                                                                                                                                     return (
                                                                                                                                                                                                                                                                                                                                                         <SafeAreaView style={styles.container}>
@@ -403,7 +448,43 @@ import {
               </ScrollView>
             )}
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      <TouchableOpacity style={styles.arena} onPress={() => Alert.alert('YOYO ARENA', 'التحديات لم يتم تفعيلها بعد، وسيتم فتحها عند تجهيز نظام النقاط والمنافسات.')}>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
+<View style={{ marginTop: 22, marginHorizontal: 18 }}>
+  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+    <Text style={styles.sectionTitle}>البث المباشر 🔴</Text>
+    <TouchableOpacity
+      onPress={startLive}
+      style={{ backgroundColor: C.pink, borderRadius: 12, paddingVertical: 9, paddingHorizontal: 14 }}
+      activeOpacity={0.85}
+    >
+      <Text style={{ color: C.white, fontWeight: 'bold', fontSize: 13 }}>＋ ابدأ بثك</Text>
+    </TouchableOpacity>
+  </View>
+  {liveRooms.length === 0 ? (
+    <Text style={styles.memberStatus}>لا توجد بثوث مباشرة الآن. ابدأ أول بث في YOYO LIVE.</Text>
+  ) : (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      {liveRooms.map((room) => (
+        <TouchableOpacity
+          key={room.id}
+          onPress={() => setSelectedLive({
+            roomName: room.room_name,
+            isHost: room.host_id === session?.user?.id,
+            name: room.host_name,
+          })}
+          style={{ backgroundColor: C.card, borderWidth: 1, borderColor: '#E53965', borderRadius: 15, padding: 14, marginRight: 10, minWidth: 145 }}
+          activeOpacity={0.85}
+        >
+          <Text style={{ color: '#FF718B', fontWeight: 'bold', marginBottom: 6 }}>● LIVE</Text>
+          <Text style={{ color: C.white, fontWeight: 'bold' }} numberOfLines={1}>{room.host_name}</Text>
+          <Text style={{ color: C.muted, fontSize: 12, marginTop: 4 }} numberOfLines={1}>{room.title}</Text>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+  )}
+</View>
+
+<TouchableOpacity style={styles.arena} onPress={() => Alert.alert('YOYO ARENA', 'التحديات لم يتم تفعيلها بعد، وسيتم فتحها عند تجهيز نظام النقاط والمنافسات.')}>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 <Text style={styles.arenaEmoji}>🏆</Text>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           <Text style={styles.arenaTitle}>YOYO ARENA</Text>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     <Text style={styles.arenaDesc}>
@@ -434,7 +515,7 @@ import {
 <TouchableOpacity key={i} style={styles.navItem} accessibilityLabel={item} onPress={() => {
 if (i === 0) { setSelectedLive(null); setShowWallet(false); setShowAccount(false); }
 else if (i === 1) Alert.alert('اكتشف', 'قسم اكتشف والمحتوى الحقيقي قيد التجهيز.');
-else if (i === 2) Alert.alert('البث المباشر', 'البث المباشر الحقيقي لم يتم تفعيله بعد.');
+else if (i === 2) startLive();
 else if (i === 3) setShowInbox(true);
 else if (i === 4) setShowAccount(true);
 }}>
