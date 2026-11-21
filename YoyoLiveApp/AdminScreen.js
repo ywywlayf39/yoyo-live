@@ -35,12 +35,15 @@ export default function AdminScreen({ onBack }) {
   const [suspensionReason, setSuspensionReason] = useState('');
   const [suspensionDuration, setSuspensionDuration] = useState('24h');
   const [suspensionBusyId, setSuspensionBusyId] = useState(null);
+  const [coinPurchaseRequests, setCoinPurchaseRequests] = useState([]);
+  const [coinReviewNote, setCoinReviewNote] = useState('');
+  const [coinReviewBusyId, setCoinReviewBusyId] = useState(null);
 
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
     setError('');
-    const [summaryResult, reportsResult, membersResult, suspensionsResult, auditResult, liveRoomsResult] = await Promise.all([
+    const [summaryResult, reportsResult, membersResult, suspensionsResult, auditResult, liveRoomsResult, coinRequestsResult] = await Promise.all([
       supabase.rpc('yoyo_admin_summary'),
       supabase.rpc('yoyo_admin_list_reports_with_live', { p_limit: 100 }),
       supabase.from('profiles')
@@ -59,6 +62,9 @@ export default function AdminScreen({ onBack }) {
         .eq('status', 'live')
         .order('created_at', { ascending: false })
         .limit(50),
+      supabase.from('coin_purchase_requests')
+        .select('id,user_id,requested_amount_egp,requested_coins,payment_method,transfer_reference,proof_storage_path,status,admin_note,created_at')
+        .order('created_at', { ascending: false }).limit(100),
     ]);
 
     if (summaryResult.error || reportsResult.error || membersResult.error) {
@@ -69,6 +75,8 @@ export default function AdminScreen({ onBack }) {
     setReports(reportsResult.error ? [] : (reportsResult.data || []));
     setMembers(membersResult.error ? [] : (membersResult.data || []));
     setLiveRooms(liveRoomsResult.error ? [] : (liveRoomsResult.data || []));
+    setCoinPurchaseRequests(coinRequestsResult.error ? [] : (coinRequestsResult.data || []));
+    if (coinRequestsResult.error) console.error('YOYO coin purchase requests failed:', coinRequestsResult.error);
     if (liveRoomsResult.error) console.error('YOYO admin live rooms failed:', liveRoomsResult.error);
     setSuspensions(suspensionsResult.error ? [] : (suspensionsResult.data || []));
     if (suspensionsResult.error) console.error('YOYO admin suspensions failed:', suspensionsResult.error);
@@ -167,6 +175,22 @@ export default function AdminScreen({ onBack }) {
             : 'تم فصل غرفة البث وتحديث حالتها وحفظ الإجراء في سجل الإدارة.');
         }
         setLiveActionBusyId(null);
+      }},
+    ]);
+  };
+
+  const reviewCoinPurchase = (request, decision) => {
+    const label = decision === 'approved' ? 'اعتماد الطلب وإضافة العملات إلى محفظة العضو' : decision === 'rejected' ? 'رفض طلب شراء العملات' : 'نقل الطلب إلى قيد المراجعة';
+    Alert.alert('تأكيد مراجعة طلب الشراء', label, [
+      { text: 'إلغاء', style: 'cancel' },
+      { text: 'تأكيد', onPress: async () => {
+        setCoinReviewBusyId(request.id);
+        const { data, error: reviewError } = await supabase.rpc('yoyo_admin_review_coin_purchase', {
+          p_request_id: request.id, p_decision: decision, p_admin_note: coinReviewNote.trim() || null,
+        });
+        if (reviewError || data !== true) Alert.alert('تعذر تحديث الطلب', reviewError?.message || 'لم يتم العثور على الطلب.');
+        else { setCoinReviewNote(''); await loadDashboard(); Alert.alert('تم', decision === 'approved' ? 'تم اعتماد الطلب وإضافة العملات وتسجيل الحركة.' : 'تم تحديث حالة الطلب.'); }
+        setCoinReviewBusyId(null);
       }},
     ]);
   };
@@ -328,6 +352,37 @@ export default function AdminScreen({ onBack }) {
               <TouchableOpacity disabled={!!liveActionBusyId} style={styles.dismissButton} onPress={() => endLiveRoom(room)}>
                 <Text style={styles.actionText}>{liveActionBusyId === room.id ? 'جارٍ إنهاء البث...' : 'إنهاء البث بعد المراجعة'}</Text>
               </TouchableOpacity>
+            </View>
+          ))}
+
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>🪙 طلبات شراء العملات</Text>
+            <TouchableOpacity onPress={loadDashboard}><Text style={styles.refresh}>تحديث ↻</Text></TouchableOpacity>
+          </View>
+          <Text style={styles.memberHint}>لا تعتمد أي طلب إلا بعد التحقق من وصول التحويل فعليًا. الاعتماد يضيف العملات مرة واحدة ويسجل الحركة.</Text>
+          <TextInput value={coinReviewNote} onChangeText={setCoinReviewNote}
+            placeholder="ملاحظة للأدمن (اختياري)" placeholderTextColor="#8F849F" style={styles.searchInput} multiline maxLength={1000} />
+          {coinPurchaseRequests.length === 0 ? (
+            <View style={styles.empty}><Text style={styles.emptyText}>لا توجد طلبات شراء عملات حتى الآن.</Text></View>
+          ) : coinPurchaseRequests.map(request => (
+            <View key={request.id} style={styles.reportCard}>
+              <View style={styles.reportTop}>
+                <Text style={styles.status}>{({pending:'جديد',reviewing:'قيد المراجعة',approved:'معتمد',rejected:'مرفوض'})[request.status] || request.status}</Text>
+                <Text style={styles.reason}>{request.payment_method === 'vodafone_cash' ? 'فودافون كاش' : 'إنستاباي'}</Text>
+              </View>
+              <Text style={styles.person}>المبلغ: {Number(request.requested_amount_egp || 0).toLocaleString('ar-EG')} جنيه</Text>
+              <Text style={styles.person}>العملات المطلوبة: {Number(request.requested_coins || 0).toLocaleString('ar-EG')}</Text>
+              <Text style={styles.person}>مرجع التحويل: {request.transfer_reference || 'غير مضاف'}</Text>
+              <Text style={styles.memberId}>معرّف العضو: {request.user_id}</Text>
+              <Text style={styles.date}>{new Date(request.created_at).toLocaleString('ar-EG')}</Text>
+              {request.status !== 'approved' && request.status !== 'rejected' && (
+                <View style={styles.actions}>
+                  <TouchableOpacity disabled={!!coinReviewBusyId} style={styles.reviewButton} onPress={() => reviewCoinPurchase(request,'reviewing')}><Text style={styles.actionText}>قيد المراجعة</Text></TouchableOpacity>
+                  <TouchableOpacity disabled={!!coinReviewBusyId} style={styles.doneButton} onPress={() => reviewCoinPurchase(request,'approved')}><Text style={styles.actionText}>{coinReviewBusyId === request.id ? 'جارٍ...' : 'اعتماد وإضافة العملات'}</Text></TouchableOpacity>
+                  <TouchableOpacity disabled={!!coinReviewBusyId} style={styles.dismissButton} onPress={() => reviewCoinPurchase(request,'rejected')}><Text style={styles.actionText}>رفض الطلب</Text></TouchableOpacity>
+                </View>
+              )}
+              {!!request.admin_note && <Text style={styles.details}>ملاحظة الإدارة: {request.admin_note}</Text>}
             </View>
           ))}
 
