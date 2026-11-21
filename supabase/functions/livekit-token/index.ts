@@ -74,22 +74,59 @@ Deno.serve(async (req: Request) => {
       return json({ error: "A valid roomName is required" }, 400);
     }
 
-    const { data: room, error: roomError } = await supabase
+    const { data: liveRoom, error: liveRoomError } = await supabase
       .from("live_rooms")
       .select("host_id, status")
       .eq("room_name", roomName)
       .maybeSingle();
 
-    if (roomError) {
-      console.error("Live room lookup failed:", roomError.message);
+    if (liveRoomError) {
+      console.error("Live room lookup failed:", liveRoomError.message);
       return json({ error: "Unable to verify live room access" }, 500);
     }
 
-    if (!room || room.status !== "live") {
-      return json({ error: "Live room not found or already ended" }, 404);
+    let isHost = false;
+    let isCall = false;
+    let callType: string | null = null;
+    let callId: string | null = null;
+
+    if (liveRoom) {
+      if (liveRoom.status !== "live") {
+        return json({ error: "Live room not found or already ended" }, 404);
+      }
+      isHost = liveRoom.host_id === user.id;
+    } else {
+      const { data: call, error: callError } = await supabase
+        .from("live_calls")
+        .select("id, caller_id, receiver_id, call_type, status")
+        .eq("room_name", roomName)
+        .maybeSingle();
+
+      if (callError) {
+        console.error("Live call lookup failed:", callError.message);
+        return json({ error: "Unable to verify call access" }, 500);
+      }
+
+      if (!call) return json({ error: "Live room or call not found" }, 404);
+
+      const isCaller = call.caller_id === user.id;
+      const isReceiver = call.receiver_id === user.id;
+      if (!isCaller && !isReceiver) return json({ error: "You are not a participant in this call" }, 403);
+      if (call.status === "rejected" || call.status === "ended") {
+        return json({ error: "This call has ended" }, 404);
+      }
+      if (isReceiver && call.status !== "accepted") {
+        return json({ error: "Accept the call before joining" }, 403);
+      }
+      if (isCaller && call.status !== "ringing" && call.status !== "accepted") {
+        return json({ error: "This call is no longer active" }, 404);
+      }
+
+      isCall = true;
+      callType = call.call_type;
+      callId = call.id;
     }
 
-    const isHost = room.host_id === user.id;
     const apiKey = Deno.env.get("LIVEKIT_API_KEY");
     const apiSecret = Deno.env.get("LIVEKIT_API_SECRET");
     const livekitUrl = Deno.env.get("LIVEKIT_URL");
@@ -100,7 +137,9 @@ Deno.serve(async (req: Request) => {
     }
 
     if (action === "end") {
-      if (!isHost) return json({ error: "Only the room host can end this live stream" }, 403);
+      if (!isHost && !isCall) {
+        return json({ error: "Only the room host can end this live stream" }, 403);
+      }
 
       const serviceUrl = livekitUrl.replace(/^wss:/, "https:").replace(/^ws:/, "http:");
       try {
@@ -111,7 +150,24 @@ Deno.serve(async (req: Request) => {
         }
       } catch (error) {
         console.error("LiveKit room deletion failed:", error instanceof Error ? error.message : "Unknown error");
-        return json({ error: "Unable to disconnect viewers from the live room" }, 502);
+        return json({ error: "Unable to disconnect participants from this room" }, 502);
+      }
+
+      if (isCall && callId) {
+        const { data: endedCall, error: endError } = await supabase
+          .from("live_calls")
+          .update({ status: "ended" })
+          .eq("id", callId)
+          .in("status", ["ringing", "accepted"])
+          .select("id")
+          .maybeSingle();
+
+        if (endError || !endedCall) {
+          console.error("Live call end update failed:", endError?.message ?? "Call was not updated");
+          return json({ error: "Call could not be marked as ended" }, 500);
+        }
+
+        return json({ ended: true, isCall: true, roomName });
       }
 
       const { data: endedRoom, error: endError } = await supabase
@@ -128,7 +184,7 @@ Deno.serve(async (req: Request) => {
         return json({ error: "Live room could not be marked as ended" }, 500);
       }
 
-      return json({ ended: true, roomName });
+      return json({ ended: true, isCall: false, roomName });
     }
 
     const accessToken = new AccessToken(apiKey, apiSecret, {
@@ -139,7 +195,7 @@ Deno.serve(async (req: Request) => {
     accessToken.addGrant({
       roomJoin: true,
       room: roomName,
-      canPublish: isHost,
+      canPublish: isCall || isHost,
       canSubscribe: true,
       canPublishData: true,
     });
