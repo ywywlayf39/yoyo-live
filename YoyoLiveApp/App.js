@@ -29,14 +29,6 @@ import {
                               gold: '#F5C451',
                               };
 
-                              const people = [
-                                { name: 'سارة', emoji: '👩🏻' },
-                                  { name: 'أحمد', emoji: '🧔🏻' },
-                                    { name: 'نور', emoji: '👩🏼' },
-                                      { name: 'محمد', emoji: '👨🏻' },
-                                        { name: 'ليلى', emoji: '👩🏽' },
-                                        ];
-
                                         const videos = [
                                           { emoji: '🎬', name: 'ياسمين', desc: 'أجمل لحظات اليوم ✨', views: '12.5K' },
                                             { emoji: '🎤', name: 'عمر', desc: 'مين صاحي معانا؟ 🔥', views: '8.2K' },
@@ -49,6 +41,9 @@ import {
   const [authLoading, setAuthLoading] = useState(true);
   const [profileReady, setProfileReady] = useState(false);
   const [currentProfile, setCurrentProfile] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [membersError, setMembersError] = useState('');
   const [profileLoading, setProfileLoading] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutMessage, setLogoutMessage] = useState('');
@@ -80,6 +75,34 @@ import {
     return () => { active = false; };
   }, [session]);
 
+
+  useEffect(() => {
+    let active = true;
+    async function loadMembers() {
+      if (!session?.user?.id) {
+        setMembers([]);
+        return;
+      }
+      setMembersLoading(true);
+      setMembersError('');
+      const { data, error } = await supabase
+        .from('member_directory')
+        .select('id, display_name, avatar_url, country')
+        .order('display_name', { ascending: true })
+        .limit(30);
+      if (!active) return;
+      if (error) {
+        console.error('YOYO LIVE member directory failed:', error);
+        setMembersError('تعذر تحميل الأعضاء حاليًا');
+        setMembers([]);
+      } else {
+        setMembers(data || []);
+      }
+      setMembersLoading(false);
+    }
+    loadMembers();
+    return () => { active = false; };
+  }, [session]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -232,26 +255,38 @@ import {
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         </View>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 </View>
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        <View style={styles.sectionHeader}>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  <TouchableOpacity onPress={() => Alert.alert('المباشر الآن', 'لا توجد بثوث مباشرة حقيقية متاحة حاليًا. الأسماء الظاهرة للتجربة فقط.') }><Text style={styles.more}>← عرض الكل</Text></TouchableOpacity>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            <Text style={styles.sectionTitle}>المباشر الآن 🔴</Text>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    </View>
+                                                                                                                                                                                                                                                                               <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>الأعضاء 👥</Text>
+              <Text style={styles.more}>أعضاء YOYO LIVE</Text>
+            </View>
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      {people.map((person, i) => (
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  <TouchableOpacity
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                key={i}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              style={styles.story}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            onPress={() => setSelectedLive(person)}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        >
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      <View style={styles.storyCircle}>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      <Text style={styles.storyEmoji}>{person.emoji}</Text>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    </View>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  <Text style={styles.storyName}>{person.name}</Text>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                <Text style={styles.live}>● LIVE</Text>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            </TouchableOpacity>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      ))}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              </ScrollView>
+            {membersLoading ? (
+              <Text style={styles.memberStatus}>جارٍ تحميل الأعضاء...</Text>
+            ) : membersError ? (
+              <Text style={styles.memberStatus}>{membersError}</Text>
+            ) : members.length === 0 ? (
+              <Text style={styles.memberStatus}>لا يوجد أعضاء آخرون مسجلون حتى الآن</Text>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {members.map((member) => (
+                  <View key={member.id} style={styles.story}>
+                    <View style={styles.memberCircle}>
+                      {member.avatar_url ? (
+                        <Image source={{ uri: member.avatar_url }} style={styles.memberAvatar} />
+                      ) : (
+                        <Text style={styles.storyEmoji}>👤</Text>
+                      )}
+                    </View>
+                    <Text style={styles.storyName} numberOfLines={1}>
+                      {member.display_name}
+                    </Text>
+                    {!!member.country && (
+                      <Text style={styles.memberCountry} numberOfLines={1}>{member.country}</Text>
+                    )}
+                  </View>
+                ))}
+              </ScrollView>
+            )}
 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       <TouchableOpacity style={styles.arena} onPress={() => Alert.alert('YOYO ARENA', 'التحديات لم يتم تفعيلها بعد، وسيتم فتحها عند تجهيز نظام النقاط والمنافسات.')}>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 <Text style={styles.arenaEmoji}>🏆</Text>
@@ -359,7 +394,34 @@ const styles = StyleSheet.create({
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               marginHorizontal: 10,
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   paddingVertical: 8,
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     },
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      storyCircle: {
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      memberCircle: {
+width: 68,
+height: 68,
+borderRadius: 34,
+borderWidth: 1,
+borderColor: '#45375B',
+backgroundColor: C.card2,
+alignItems: 'center',
+justifyContent: 'center',
+overflow: 'hidden',
+},
+memberAvatar: {
+width: '100%',
+height: '100%',
+borderRadius: 34,
+},
+memberCountry: {
+color: C.muted,
+fontSize: 11,
+marginTop: 3,
+maxWidth: 82,
+},
+memberStatus: {
+color: C.muted,
+textAlign: 'center',
+paddingVertical: 24,
+},
+storyCircle: {
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           width: 68,
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               height: 68,
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   borderRadius: 34,
