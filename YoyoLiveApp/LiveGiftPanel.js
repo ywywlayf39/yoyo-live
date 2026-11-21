@@ -4,6 +4,28 @@ import {
   TouchableOpacity, Vibration, View,
 } from 'react-native';
 import { supabase } from './supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createAudioPlayer } from 'expo-audio';
+
+const GIFT_SOUND_PLAYERS = {
+  common: createAudioPlayer(require('./assets/gift-sounds/common.wav')),
+  premium: createAudioPlayer(require('./assets/gift-sounds/premium.wav')),
+  legendary: createAudioPlayer(require('./assets/gift-sounds/legendary.wav')),
+  animal: createAudioPlayer(require('./assets/gift-sounds/animal.wav')),
+  mega: createAudioPlayer(require('./assets/gift-sounds/mega.wav')),
+};
+function playGiftSound(tier) {
+  const player = GIFT_SOUND_PLAYERS[tier] || GIFT_SOUND_PLAYERS.common;
+  try { player.seekTo(0); player.play(); } catch (error) { console.warn('Gift audio:', error?.message || error); }
+}
+function soundTier(gift) {
+  if (Number(gift?.coinCost || gift?.coin_cost || 0) >= 100000) return 'mega';
+  if (gift?.category === 'animals' || gift?.sound_key?.includes('animal')) return 'animal';
+  if (gift?.category === 'legendary' || gift?.sound_key?.includes('legend')) return 'legendary';
+  if (gift?.category === 'premium' || gift?.sound_key?.includes('premium')) return 'premium';
+  return 'common';
+}
+
 
 const COLORS = {
   bg: '#0B0912', card: '#191424', card2: '#241B35',
@@ -43,11 +65,30 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [incoming, setIncoming] = useState(null);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const soundEnabledRef = useRef(true);
   const pulse = useRef(new Animated.Value(0.86)).current;
   const entrance = useRef(new Animated.Value(0)).current;
   const glow = useRef(new Animated.Value(0.35)).current;
   const drift = useRef(new Animated.Value(0)).current;
   const shake = useRef(new Animated.Value(0)).current;
+
+
+  useEffect(() => {
+    let active = true;
+    AsyncStorage.getItem('yoyo_gift_sounds_enabled').then((value) => {
+      const enabled = value !== 'false';
+      if (active) { soundEnabledRef.current = enabled; setSoundEnabled(enabled); }
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  const toggleGiftSounds = async () => {
+    const next = !soundEnabledRef.current;
+    soundEnabledRef.current = next;
+    setSoundEnabled(next);
+    try { await AsyncStorage.setItem('yoyo_gift_sounds_enabled', String(next)); } catch (error) {}
+  };
 
   const refreshBalance = async () => {
     if (!userId) return;
@@ -94,7 +135,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
           animationKey: gift?.animation_key || '',
         };
         setIncoming(receivedGift);
-        // Tactile alert only; no prerecorded sound asset is bundled yet.
+        if (soundEnabledRef.current) playGiftSound(soundTier({ ...gift, coinCost: Number(gift?.coin_cost || 0) }));
         Vibration.vibrate(receivedGift.coinCost >= 100000 ? [0, 220, 90, 220, 90, 320] : [0, 100, 70, 100]);
         const effect = effectFor({ animation_key: receivedGift.animationKey });
         setTimeout(() => setIncoming((current) => current?.id === row.id ? null : current),
@@ -212,6 +253,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
               <TouchableOpacity onPress={() => setVisible(false)}><Text style={styles.close}>إغلاق ✕</Text></TouchableOpacity>
             </View>
             <Text style={styles.balance}>رصيدك: 🪙 {balance.toLocaleString('ar-EG')}</Text>
+            <TouchableOpacity style={styles.soundSetting} onPress={toggleGiftSounds}><Text style={styles.soundToggleText}>{soundEnabled ? '🔊 كتم أصوات الهدايا' : '🔇 تشغيل أصوات الهدايا'}</Text></TouchableOpacity>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
               {CATEGORIES.map((item) => (
                 <TouchableOpacity key={item.id}
@@ -263,6 +305,8 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
 }
 
 const styles = StyleSheet.create({
+  soundSetting: { alignSelf: 'flex-end', paddingVertical: 7, paddingHorizontal: 12, borderRadius: 12, backgroundColor: COLORS.card2, marginBottom: 8 },
+  soundToggleText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   openButton: { position: 'absolute', right: 16, bottom: 88, backgroundColor: COLORS.pink, borderRadius: 24, paddingVertical: 12, paddingHorizontal: 18, zIndex: 20, elevation: 8 },
   openButtonText: { color: '#fff', fontWeight: '900', fontSize: 15 },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
