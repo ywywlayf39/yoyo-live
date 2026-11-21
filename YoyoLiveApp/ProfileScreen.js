@@ -57,6 +57,14 @@ export default function ProfileScreen({ userId, onComplete }) {
       return;
     }
 
+    const today = new Date();
+    let age = today.getFullYear() - year;
+    if (today.getMonth() < month - 1 || (today.getMonth() === month - 1 && today.getDate() < day)) age -= 1;
+    if (age < 18) {
+      setError('YOYO LIVE متاح لمن بلغوا 18 عامًا فقط.');
+      return;
+    }
+
     setSaving(true);
 
     try {
