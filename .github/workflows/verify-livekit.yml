@@ -63,7 +63,11 @@ jobs:
       - name: Verify external account deletion page is exported
         run: |
           test -f dist/delete-account.html
+          test -f dist/privacy-policy.html
+          test -f dist/terms.html
           grep -q "delete-account" dist/delete-account.html
+          grep -q "YOYO LIVE" dist/privacy-policy.html
+          grep -q "شروط الاستخدام" dist/terms.html
 
       - name: Generate Android native project and apply LiveKit config plugins
         run: npx expo prebuild --platform android --no-install
@@ -85,7 +89,7 @@ jobs:
 
       - name: Type-check account deletion Edge Function
         working-directory: .
-        run: deno check supabase/functions/delete-account/index.ts
+        run: deno check supabase/functions/delete-account/index.ts supabase/functions/livekit-token/index.ts
 
       - name: Commit the generated dependency lockfile
         working-directory: .
