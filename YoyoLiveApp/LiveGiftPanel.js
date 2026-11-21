@@ -5,25 +5,15 @@ import {
 } from 'react-native';
 import { supabase } from './supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createAudioPlayer } from 'expo-audio';
+import { GIFT_SOUND_PLAYERS } from './giftSoundPlayers';
 
-const GIFT_SOUND_PLAYERS = {
-  common: createAudioPlayer(require('./assets/gift-sounds/common.wav')),
-  premium: createAudioPlayer(require('./assets/gift-sounds/premium.wav')),
-  legendary: createAudioPlayer(require('./assets/gift-sounds/legendary.wav')),
-  animal: createAudioPlayer(require('./assets/gift-sounds/animal.wav')),
-  mega: createAudioPlayer(require('./assets/gift-sounds/mega.wav')),
-};
-function playGiftSound(tier) {
-  const player = GIFT_SOUND_PLAYERS[tier] || GIFT_SOUND_PLAYERS.common;
-  try { player.seekTo(0); player.play(); } catch (error) { console.warn('Gift audio:', error?.message || error); }
-}
-function soundTier(gift) {
-  if (Number(gift?.coinCost || gift?.coin_cost || 0) >= 100000) return 'mega';
-  if (gift?.category === 'animals' || gift?.sound_key?.includes('animal')) return 'animal';
-  if (gift?.category === 'legendary' || gift?.sound_key?.includes('legend')) return 'legendary';
-  if (gift?.category === 'premium' || gift?.sound_key?.includes('premium')) return 'premium';
-  return 'common';
+function playGiftSound(soundKey) {
+  const player = GIFT_SOUND_PLAYERS[soundKey] || GIFT_SOUND_PLAYERS['soft-chime'];
+  try {
+    Object.values(GIFT_SOUND_PLAYERS).forEach((item) => { if (item !== player) item.pause(); });
+    player.seekTo(0);
+    player.play();
+  } catch (error) { console.warn('Gift audio:', error?.message || error); }
 }
 
 
@@ -133,9 +123,10 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false }) {
           quantity: row.quantity || 1,
           coinCost: Number(gift?.coin_cost || 0),
           animationKey: gift?.animation_key || '',
+          soundKey: gift?.sound_key || 'soft-chime',
         };
         setIncoming(receivedGift);
-        if (soundEnabledRef.current) playGiftSound(soundTier({ ...gift, coinCost: Number(gift?.coin_cost || 0) }));
+        if (soundEnabledRef.current) playGiftSound(receivedGift.soundKey);
         Vibration.vibrate(receivedGift.coinCost >= 100000 ? [0, 220, 90, 220, 90, 320] : [0, 100, 70, 100]);
         const effect = effectFor({ animation_key: receivedGift.animationKey });
         setTimeout(() => setIncoming((current) => current?.id === row.id ? null : current),
