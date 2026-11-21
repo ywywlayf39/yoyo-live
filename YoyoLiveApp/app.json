@@ -26,8 +26,7 @@
         "MODIFY_AUDIO_SETTINGS"
       ],
       "package": "com.yoyolive.app",
-      "versionCode": 1,
-      "label": "YOYO LIVE"
+      "versionCode": 1
     },
     "web": {
       "output": "single",
