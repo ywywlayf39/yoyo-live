@@ -88,6 +88,7 @@ import {
       const { data, error } = await supabase
         .from('member_public_profiles')
         .select('id, display_name, avatar_url, country')
+        .neq('id', session.user.id)
         .order('display_name', { ascending: true })
         .limit(30);
       if (!active) return;
