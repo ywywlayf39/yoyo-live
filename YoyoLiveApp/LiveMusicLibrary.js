@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Directory, File, Paths } from 'expo-file-system';
 import { createAudioPlayer } from 'expo-audio';
+import { supabase } from './supabase';
 
 const STORAGE_KEY = '@yoyo_live_music_library_v1';
 const MUSIC_FOLDER = new Directory(Paths.document, 'yoyo-music-library');
@@ -12,13 +13,14 @@ function safeFileName(name) {
   return String(name || 'music.mp3').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-100) || 'music.mp3';
 }
 
-export default function LiveMusicLibrary() {
+export default function LiveMusicLibrary({ roomName, userId }) {
   const [songs, setSongs] = useState([]);
   const [busy, setBusy] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [selectedSongId, setSelectedSongId] = useState(null);
   const [playingSongId, setPlayingSongId] = useState(null);
+  const [sharingSongId, setSharingSongId] = useState(null);
   const playerRef = useRef(null);
 
   const saveSongs = useCallback(async (nextSongs) => {
@@ -133,6 +135,66 @@ export default function LiveMusicLibrary() {
     }
   };
 
+  const shareSongWithRoom = async (song) => {
+    if (!roomName || !userId || sharingSongId) return;
+    const file = new File(song.uri);
+    const maxShareSize = 20 * 1024 * 1024;
+    if (!file.exists) {
+      Alert.alert('ملف الأغنية غير موجود', 'أضف الأغنية مرة أخرى من هاتفك.');
+      return;
+    }
+    if (file.size > maxShareSize) {
+      Alert.alert('حجم الأغنية كبير', 'مشاركة الأغاني متاحة للملفات حتى 20 ميجابايت.');
+      return;
+    }
+    const extension = String(song.name || '').split('.').pop().toLowerCase();
+    const mimeTypes = {
+      mp3: 'audio/mpeg',
+      m4a: 'audio/mp4',
+      mp4: 'audio/mp4',
+      aac: 'audio/aac',
+      wav: 'audio/wav',
+      ogg: 'audio/ogg',
+      oga: 'audio/ogg',
+    };
+    const contentType = mimeTypes[extension];
+    if (!contentType) {
+      Alert.alert('صيغة غير مدعومة للمشاركة', 'استخدم MP3 أو M4A أو AAC أو WAV أو OGG.');
+      return;
+    }
+
+    setSharingSongId(song.id);
+    try {
+      await stopPlayback();
+      const bytes = await file.bytes();
+      const arrayBuffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+      const storagePath = userId + '/' + Date.now() + '-' + safeFileName(song.name);
+      const { error: uploadError } = await supabase.storage.from('live-music').upload(storagePath, arrayBuffer, {
+        contentType,
+        cacheControl: '3600',
+        upsert: false,
+      });
+      if (uploadError) throw uploadError;
+
+      const { error: controlError } = await supabase.rpc('yoyo_live_music_control', {
+        p_room_name: roomName,
+        p_action: 'play',
+        p_storage_path: storagePath,
+        p_track_name: song.name.slice(0, 140),
+      });
+      if (controlError) {
+        await supabase.storage.from('live-music').remove([storagePath]);
+        throw controlError;
+      }
+      Alert.alert('الموسيقى بدأت مع الجمهور 🎵', 'الأغنية هتشتغل عندك وعند المشاهدين المتصلين بالبث. شارك فقط ملفات تملك حق استخدامها.');
+    } catch (error) {
+      console.warn('YOYO shared music upload:', error?.message || error);
+      Alert.alert('تعذر مشاركة الأغنية', 'راجع اتصال الإنترنت وصيغة الملف ثم حاول مرة أخرى.');
+    } finally {
+      setSharingSongId(null);
+    }
+  };
+
   const filteredSongs = songs.filter((song) => song.name.toLowerCase().includes(searchText.trim().toLowerCase()));
 
   const removeSong = (song) => {
@@ -202,6 +264,15 @@ export default function LiveMusicLibrary() {
               {selectedSongId ? (
                 <Text style={styles.selectedLabel}>الأغنية المحددة: {songs.find((song) => song.id === selectedSongId)?.name || ''}</Text>
               ) : null}
+              {!!roomName && !!userId && selectedSongId ? (
+                <TouchableOpacity
+                  onPress={() => shareSongWithRoom(songs.find((song) => song.id === selectedSongId))}
+                  disabled={!!sharingSongId}
+                  style={[styles.shareButton, !!sharingSongId && { opacity: 0.6 }]}
+                >
+                  <Text style={styles.shareText}>{sharingSongId ? 'جارٍ رفع الأغنية...' : '📡 مشاركة الأغنية مع جمهور البث'}</Text>
+                </TouchableOpacity>
+              ) : null}
             </>
           ) : (
             <Text style={styles.empty}>مكتبتك فارغة. أضف ملفات الأغاني من هاتفك لتظل محفوظة داخل التطبيق.</Text>
@@ -236,6 +307,8 @@ const styles = StyleSheet.create({
   playText: { color: '#FFFFFF', fontSize: 11, fontWeight: 'bold' },
   stopButton: { minHeight: 40, borderRadius: 10, backgroundColor: '#612A39', alignItems: 'center', justifyContent: 'center', marginTop: 10 },
   stopText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 12 },
+  shareButton: { minHeight: 44, borderRadius: 11, backgroundColor: '#245A48', borderWidth: 1, borderColor: '#3E9B78', alignItems: 'center', justifyContent: 'center', marginTop: 11, paddingHorizontal: 10 },
+  shareText: { color: '#FFFFFF', fontSize: 13, fontWeight: 'bold' },
   selectedLabel: { color: '#F5C451', fontSize: 12, marginTop: 8, textAlign: 'left' },
   songRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#35283D' },
   songIcon: { color: '#F5C451', fontSize: 22, width: 32, textAlign: 'center' },
