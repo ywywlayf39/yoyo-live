@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Directory, File, Paths } from 'expo-file-system';
+import { createAudioPlayer } from 'expo-audio';
 
 const STORAGE_KEY = '@yoyo_live_music_library_v1';
 const MUSIC_FOLDER = new Directory(Paths.document, 'yoyo-music-library');
@@ -17,6 +18,8 @@ export default function LiveMusicLibrary() {
   const [expanded, setExpanded] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [selectedSongId, setSelectedSongId] = useState(null);
+  const [playingSongId, setPlayingSongId] = useState(null);
+  const playerRef = useRef(null);
 
   const saveSongs = useCallback(async (nextSongs) => {
     setSongs(nextSongs);
@@ -44,6 +47,53 @@ export default function LiveMusicLibrary() {
     })();
     return () => { mounted = false; };
   }, []);
+
+  useEffect(() => () => {
+    try {
+      playerRef.current?.pause();
+      playerRef.current?.remove();
+    } catch (error) {
+      console.warn('YOYO music player cleanup:', error?.message || error);
+    }
+    playerRef.current = null;
+  }, []);
+
+  const stopPlayback = async () => {
+    try {
+      if (playerRef.current) {
+        playerRef.current.pause();
+        await playerRef.current.seekTo(0);
+      }
+    } catch (error) {
+      console.warn('YOYO music stop:', error?.message || error);
+    }
+    setPlayingSongId(null);
+  };
+
+  const togglePlayback = async (song) => {
+    try {
+      if (playingSongId === song.id && playerRef.current) {
+        playerRef.current.pause();
+        setPlayingSongId(null);
+        return;
+      }
+      if (playerRef.current) {
+        playerRef.current.pause();
+        playerRef.current.remove();
+        playerRef.current = null;
+      }
+      const player = createAudioPlayer(song.uri);
+      playerRef.current = player;
+      await player.seekTo(0);
+      player.play();
+      setSelectedSongId(song.id);
+      setPlayingSongId(song.id);
+    } catch (error) {
+      setPlayingSongId(null);
+      Alert.alert('تعذر تشغيل الأغنية', 'تأكد أن الملف الصوتي ما زال موجودًا وبصيغة مدعومة.');
+      console.warn('YOYO music playback:', error?.message || error);
+    }
+  };
 
   const importSongs = async () => {
     if (busy) return;
@@ -94,6 +144,7 @@ export default function LiveMusicLibrary() {
         onPress: async () => {
           try {
             const file = new File(song.uri);
+            if (playingSongId === song.id) await stopPlayback();
             if (file.exists) file.delete();
             await saveSongs(songs.filter((item) => item.id !== song.id));
           } catch {
@@ -140,6 +191,9 @@ export default function LiveMusicLibrary() {
                   <TouchableOpacity onPress={() => setSelectedSongId(song.id)} style={styles.chooseButton}>
                     <Text style={styles.chooseText}>{selectedSongId === song.id ? 'تم الاختيار' : 'اختيار'}</Text>
                   </TouchableOpacity>
+                  <TouchableOpacity onPress={() => togglePlayback(song)} style={styles.playButton}>
+                    <Text style={styles.playText}>{playingSongId === song.id ? 'إيقاف مؤقت' : '▶ تشغيل'}</Text>
+                  </TouchableOpacity>
                   <TouchableOpacity onPress={() => removeSong(song)} style={styles.removeButton}>
                     <Text style={styles.removeText}>حذف</Text>
                   </TouchableOpacity>
@@ -152,6 +206,11 @@ export default function LiveMusicLibrary() {
           ) : (
             <Text style={styles.empty}>مكتبتك فارغة. أضف ملفات الأغاني من هاتفك لتظل محفوظة داخل التطبيق.</Text>
           )}
+          {playingSongId ? (
+            <TouchableOpacity onPress={stopPlayback} style={styles.stopButton}>
+              <Text style={styles.stopText}>■ إيقاف الأغنية وإرجاعها للبداية</Text>
+            </TouchableOpacity>
+          ) : null}
           <Text style={styles.notice}>الأغاني محفوظة محليًا على هاتفك. تشغيلها وإرسال صوتها للمشاهدين يحتاج استكمال مسار الصوت المباشر في LiveKit؛ هذه المكتبة وحدها لا تبث الموسيقى.</Text>
         </View>
       ) : null}
@@ -173,6 +232,10 @@ const styles = StyleSheet.create({
   selectedSongRow: { backgroundColor: '#30233A', borderRadius: 8, paddingHorizontal: 4 },
   chooseButton: { paddingHorizontal: 9, paddingVertical: 7, backgroundColor: '#3F704E', borderRadius: 8 },
   chooseText: { color: '#FFFFFF', fontSize: 11, fontWeight: 'bold' },
+  playButton: { paddingHorizontal: 9, paddingVertical: 7, backgroundColor: '#3E527B', borderRadius: 8, marginLeft: 6 },
+  playText: { color: '#FFFFFF', fontSize: 11, fontWeight: 'bold' },
+  stopButton: { minHeight: 40, borderRadius: 10, backgroundColor: '#612A39', alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+  stopText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 12 },
   selectedLabel: { color: '#F5C451', fontSize: 12, marginTop: 8, textAlign: 'left' },
   songRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#35283D' },
   songIcon: { color: '#F5C451', fontSize: 22, width: 32, textAlign: 'center' },
