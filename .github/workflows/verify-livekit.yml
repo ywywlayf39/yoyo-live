@@ -20,6 +20,8 @@ on:
       - "YoyoLiveApp/eas.json"
       - "YoyoLiveApp/LiveGiftPanel.js"
       - "YoyoLiveApp/LiveBattlePanel.js"
+      - "YoyoLiveApp/LiveQuizPanel.js"
+      - "YoyoLiveApp/scripts/test-yoyo-quiz.cjs"
       - "YoyoLiveApp/giftSoundPlayers.js"
       - "YoyoLiveApp/financialCalculator.js"
       - "YoyoLiveApp/scripts/test-financial-calculator.cjs"
@@ -77,6 +79,9 @@ jobs:
 
       - name: Test YOYO Battle safety and UI wiring
         run: node scripts/test-yoyo-battle.cjs
+
+      - name: Test YOYO Quiz safety and UI wiring
+        run: node scripts/test-yoyo-quiz.cjs
 
       - name: Check Expo dependency compatibility
         run: npx expo install --check
