@@ -26,6 +26,7 @@ on:
       - "YoyoLiveApp/scripts/generate-gift-sounds.cjs"
       - "YoyoLiveApp/scripts/test-gift-sounds.cjs"
       - "YoyoLiveApp/scripts/test-live-gift-room.cjs"
+      - "YoyoLiveApp/scripts/test-yoyo-battle.cjs"
       - "YoyoLiveApp/LiveRoomScreen.native.js"
       - "YoyoLiveApp/LiveRoomScreen.web.js"
       - "YoyoLiveApp/registerLiveKit.native.js"
@@ -73,6 +74,9 @@ jobs:
 
       - name: Test room-scoped live gift delivery
         run: node scripts/test-live-gift-room.cjs
+
+      - name: Test YOYO Battle safety and UI wiring
+        run: node scripts/test-yoyo-battle.cjs
 
       - name: Check Expo dependency compatibility
         run: npx expo install --check
