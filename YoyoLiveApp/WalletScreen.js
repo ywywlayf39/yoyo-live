@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { supabase } from './supabase';
 
+const MIN_WITHDRAWAL_POINTS = 100000;
+
 const C = {
   bg: '#0B0912',
   card: '#191424',
@@ -76,7 +78,7 @@ export default function WalletScreen({ userId, onBack, onOpenPackages }) {
           .limit(20),
         supabase
           .from('withdrawal_requests')
-          .select('id,amount_egp,status,created_at')
+          .select('id,amount_egp,points_requested,status,created_at')
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
           .limit(10),
@@ -146,29 +148,26 @@ export default function WalletScreen({ userId, onBack, onOpenPackages }) {
           ) : (
             <>
               <View style={styles.balanceCard}>
-                <Text style={styles.balanceLabel}>العملات المتاحة</Text>
+                <Text style={styles.balanceLabel}>عملات الشراء المتاحة</Text>
                 <Text style={styles.balanceValue}>🪙 {coins(wallet.purchased_coins)}</Text>
                 <View style={styles.balanceDivider} />
-                <View style={styles.balanceRow}>
-                  <View style={styles.balanceItem}>
-                    <Text style={styles.balanceLabel}>الأرباح المتاحة</Text>
-                    <Text style={styles.moneyValue}>{money(wallet.earned_balance_egp)} ج.م</Text>
-                  </View>
-                  <View style={styles.balanceItem}>
-                    <Text style={styles.balanceLabel}>أرباح قيد التسوية</Text>
-                    <Text style={styles.pendingValue}>{money(wallet.pending_balance_egp)} ج.م</Text>
-                  </View>
+                <Text style={styles.balanceLabel}>نقاطك القابلة للسحب</Text>
+                <Text style={styles.withdrawPoints}>{coins(wallet.earned_points)} نقطة</Text>
+                <Text style={styles.balanceLabel}>الحد الأدنى للسحب: {coins(MIN_WITHDRAWAL_POINTS)} نقطة</Text>
+                <View style={styles.progressTrack}>
+                  <View style={[styles.progressFill, { width: Math.min(100, (Number(wallet.earned_points || 0) / MIN_WITHDRAWAL_POINTS) * 100) + '%' }]} />
                 </View>
+                <Text style={styles.progressCaption}>
+                  {Number(wallet.earned_points || 0) >= MIN_WITHDRAWAL_POINTS
+                    ? 'وصلت للحد الأدنى للنقاط.'
+                    : 'متبقي ' + coins(MIN_WITHDRAWAL_POINTS - Number(wallet.earned_points || 0)) + ' نقطة للوصول إلى الحد الأدنى.'}
+                </Text>
               </View>
 
               <View style={styles.statsRow}>
                 <View style={styles.statCard}>
-                  <Text style={styles.statValue}>{coins(wallet.earned_points)}</Text>
-                  <Text style={styles.muted}>نقاط مكتسبة</Text>
-                </View>
-                <View style={styles.statCard}>
                   <Text style={styles.statValue}>{coins(wallet.pending_points)}</Text>
-                  <Text style={styles.muted}>نقاط معلّقة</Text>
+                  <Text style={styles.muted}>نقاط قيد التسوية</Text>
                 </View>
                 <View style={styles.statCard}>
                   <Text style={styles.statValue}>{coins(wallet.lifetime_points)}</Text>
@@ -181,7 +180,7 @@ export default function WalletScreen({ userId, onBack, onOpenPackages }) {
           <View style={styles.noticeCard}>
             <Text style={styles.cardTitle}>معلومات مهمة</Text>
             <Text style={styles.muted}>
-              الحد الأدنى المخطط لطلب السحب هو 500 جنيه. شراء العملات متاح من قسم الباقات بطلب تحويل يدوي، ولا تُضاف العملات إلا بعد مراجعة الأدمن. صرف الأرباح يظل غير مفعّل حتى تجهيز مسار سحب آمن.
+              السحب يبدأ من 100,000 نقطة مكتسبة. النقاط هي وحدة عرض الأرباح داخل المحفظة، وليست جنيهات. قيمة تحويل النقاط إلى مبلغ نقدي وطريقة تقديم طلب السحب ستُحددان قبل تفعيل السحب. شراء العملات متاح بطلب تحويل يدوي، ولا تُضاف العملات إلا بعد مراجعة الأدمن.
             </Text>
             <Text style={styles.noticeFoot}>نسبة توزيع الهدايا المعتمدة: 70٪ للمضيف و30٪ للمنصة.</Text>
           </View>
@@ -210,7 +209,7 @@ export default function WalletScreen({ userId, onBack, onOpenPackages }) {
           ) : withdrawals.map((item) => (
             <View key={item.id} style={styles.listCard}>
               <View style={styles.listText}>
-                <Text style={styles.cardTitle}>طلب سحب — {money(item.amount_egp)} ج.م</Text>
+                <Text style={styles.cardTitle}>طلب سحب — {coins(item.points_requested)} نقطة</Text>
                 <Text style={styles.muted}>{statusLabel(item.status)}</Text>
                 <Text style={styles.dateText}>
                   {item.created_at ? new Date(item.created_at).toLocaleDateString('ar-EG') : ''}
@@ -272,6 +271,10 @@ const styles = StyleSheet.create({
   balanceLabel: { color: '#D6CBE5', fontSize: 13, textAlign: 'right' },
   balanceValue: { color: C.gold, fontSize: 30, fontWeight: '900', textAlign: 'right', marginTop: 8 },
   balanceDivider: { height: 1, backgroundColor: '#FFFFFF22', marginVertical: 17 },
+  withdrawPoints: { color: C.gold, fontSize: 27, fontWeight: '900', textAlign: 'right', marginVertical: 8 },
+  progressTrack: { height: 9, borderRadius: 9, backgroundColor: '#FFFFFF20', overflow: 'hidden', marginTop: 10 },
+  progressFill: { height: 9, borderRadius: 9, backgroundColor: '#8FE0B0' },
+  progressCaption: { color: C.muted, fontSize: 12, textAlign: 'right', marginTop: 7 },
   balanceRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
   balanceItem: { flex: 1 },
   moneyValue: { color: '#8FE0B0', fontSize: 19, fontWeight: 'bold', textAlign: 'right', marginTop: 7 },
