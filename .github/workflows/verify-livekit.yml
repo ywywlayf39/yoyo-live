@@ -93,6 +93,11 @@ jobs:
           grep -q "YOYO LIVE" dist/privacy-policy.html
           grep -q "شروط الاستخدام" dist/terms.html
 
+      - name: Generate the Android app icon asset
+        run: |
+          npm install --no-save --package-lock=false sharp
+          node -e "require('sharp')('assets/yoyo-live-icon.svg').resize(1024, 1024).png().toFile('assets/yoyo-live-icon.png')"
+
       - name: Generate Android native project and apply LiveKit config plugins
         run: npx expo prebuild --platform android --no-install
 
