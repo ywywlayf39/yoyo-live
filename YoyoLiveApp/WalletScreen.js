@@ -42,6 +42,7 @@ const transactionLabel = (type) => ({
   gift_received: 'استلام هدية',
   withdrawal_request: 'طلب سحب',
   withdrawal_paid: 'صرف أرباح',
+  withdrawal_rejected: 'إعادة نقاط طلب مرفوض',
   refund: 'استرداد',
   admin_adjustment: 'تسوية رصيد',
 }[type] || 'حركة رصيد');
@@ -282,7 +283,13 @@ export default function WalletScreen({ userId, onBack, onOpenPackages }) {
                 </Text>
               </View>
               <Text style={styles.transactionValue}>
-                {Number(item.coins || 0) > 0 ? `🪙 ${coins(item.coins)}` : `${money(item.amount_egp)} ج.م`}
+                {Number(item.coins || 0) > 0
+                  ? `🪙 ${coins(item.coins)}`
+                  : ['withdrawal_request','withdrawal_paid'].includes(item.transaction_type)
+                    ? `${money(item.amount_egp)} ج.م`
+                    : Number(item.points || 0) !== 0
+                      ? `${coins(Math.abs(Number(item.points)))} نقطة`
+                      : `${money(item.amount_egp)} ج.م`}
               </Text>
             </View>
           ))}
