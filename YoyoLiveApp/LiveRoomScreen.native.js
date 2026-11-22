@@ -9,7 +9,6 @@ import {
   Text,
   TouchableOpacity,
   View,
-  useWindowDimensions,
 } from 'react-native';
 import {
   AudioSession,
@@ -69,7 +68,6 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
     return () => { active = false; supabase.removeChannel(channel); };
   }, [roomName, isCall, isHost, onStandbyChange]);
   const videoTracks = tracks.filter(isTrackReference);
-  const { height: windowHeight } = useWindowDimensions();
 
   const reportLiveRoom = () => {
     if (!userId || isHost || isCall) return;
