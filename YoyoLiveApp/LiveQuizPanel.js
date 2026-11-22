@@ -142,6 +142,9 @@ export default function LiveQuizPanel({ roomName, userId, isHost }) {
           {CATEGORIES.map((item) => (
             <TouchableOpacity key={item.id}
               onPress={() => setCategory(item.id)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityState={{ selected: category === item.id }}
               style={[styles.category, category === item.id && styles.categoryActive]}>
               <Text style={[styles.categoryText, category === item.id && styles.categoryTextActive]}>{item.label}</Text>
             </TouchableOpacity>
@@ -186,6 +189,9 @@ export default function LiveQuizPanel({ roomName, userId, isHost }) {
               return (
                 <TouchableOpacity key={index}
                   disabled={isHost || answered || secondsLeft <= 0 || revealed || busy}
+                  hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: isHost || answered || secondsLeft <= 0 || revealed || busy, selected: isSelected }}
                   onPress={() => answer(index)}
                   style={[styles.answerOption, isSelected && styles.answerSelected, isCorrect && styles.answerCorrect]}>
                   <Text style={[styles.answerLetter, isCorrect && styles.answerCorrectText]}>{['أ','ب','ج','د'][index]}</Text>
@@ -196,6 +202,9 @@ export default function LiveQuizPanel({ roomName, userId, isHost }) {
               );
             })}
           </View>
+          {isHost ? (
+            <Text style={styles.viewerStatus}>أنت صاحب البث: دورك إدارة المسابقة، والإجابة متاحة للمشاهدين من حساباتهم.</Text>
+          ) : null}
           {isHost ? (
             <TouchableOpacity style={styles.nextButton} onPress={nextQuestion} disabled={busy}>
               <Text style={styles.nextText}>{busy ? 'لحظة...' : question.position === 10 ? '🏁 إعلان النتيجة النهائية' : revealed || secondsLeft === 0 ? 'السؤال التالي ←' : 'إنهاء السؤال وكشف الإجابة ←'}</Text>
