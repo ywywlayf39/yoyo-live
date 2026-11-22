@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Platform,
   SafeAreaView,
   ScrollView,
@@ -34,8 +35,33 @@ function formatBroadcastDuration(totalSeconds) {
   return [hours, minutes, remainder].map((value) => String(value).padStart(2, '0')).join(':');
 }
 
-function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userId, receiverId, roomName, broadcastDuration }) {
+function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userId, receiverId, roomName, broadcastDuration, isStandby, onStandbyChange }) {
   const tracks = useTracks([Track.Source.Camera]);
+  const [roomStandby, setRoomStandby] = useState(false);
+  const [hostAvatar, setHostAvatar] = useState(null);
+  const showStandby = isHost ? isStandby : roomStandby;
+
+  useEffect(() => {
+    if (isCall || !roomName) return undefined;
+    let active = true;
+    const loadRoomHost = async () => {
+      const { data: room } = await supabase.from('live_rooms')
+        .select('is_standby,host_id').eq('room_name', roomName).eq('status', 'live').maybeSingle();
+      if (!active || !room) return;
+      setRoomStandby(room.is_standby === true);
+      if (room.host_id) {
+        const { data: profile } = await supabase.from('profiles')
+          .select('avatar_url').eq('id', room.host_id).maybeSingle();
+        if (active && profile?.avatar_url) setHostAvatar(profile.avatar_url);
+      }
+    };
+    loadRoomHost();
+    const channel = supabase.channel('live-standby-' + roomName)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'live_rooms', filter: 'room_name=eq.' + roomName },
+        (payload) => setRoomStandby(payload.new?.is_standby === true))
+      .subscribe();
+    return () => { active = false; supabase.removeChannel(channel); };
+  }, [roomName, isCall]);
   const videoTracks = tracks.filter(isTrackReference);
 
   const reportLiveRoom = () => {
@@ -89,8 +115,35 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
+      {isHost && !isCall ? (
+        <TouchableOpacity
+          style={[styles.standbyButton, showStandby && styles.standbyButtonActive]}
+          onPress={async () => {
+            const next = !showStandby;
+            const { error: standbyError } = await supabase.rpc('yoyo_set_live_standby', {
+              p_room_name: roomName, p_enabled: next,
+            });
+            if (standbyError) {
+              Alert.alert('تعذر تغيير وضع البث', standbyError.message || 'حاول مرة أخرى.');
+              return;
+            }
+            onStandbyChange?.(next);
+          }}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.standbyButtonText}>{showStandby ? '▶ العودة للبث بالكاميرا' : '⏸ وضع الانتظار'}</Text>
+        </TouchableOpacity>
+      ) : null}
+
       <ScrollView contentContainerStyle={styles.videoList}>
-        {videoTracks.length > 0 ? videoTracks.map((track, index) => (
+        {showStandby && !isCall ? (
+          <View style={styles.standbyView}>
+            {hostAvatar ? <Image source={{ uri: hostAvatar }} style={styles.standbyAvatar} /> : <View style={styles.standbyAvatarFallback}><Text style={styles.standbyAvatarEmoji}>👤</Text></View>}
+            <Text style={styles.standbyTitle}>{hostName || 'صاحب البث'}</Text>
+            <Text style={styles.standbyText}>في وضع الانتظار</Text>
+            <Text style={styles.standbySubtext}>الصوت مستمر ويمكنك الاستماع للبث</Text>
+          </View>
+        ) : videoTracks.length > 0 ? videoTracks.map((track, index) => (
           <VideoTrack
             key={track.publication.trackSid || `${track.participant.identity}-${index}`}
             trackRef={track}
@@ -135,6 +188,7 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
   const [error, setError] = useState('');
   const [broadcastStartedAt, setBroadcastStartedAt] = useState(null);
   const [clockNow, setClockNow] = useState(Date.now());
+  const [isStandby, setIsStandby] = useState(false);
   useEffect(() => {
     if (isCall || isHost || !roomName || !userId) return undefined;
     let active = true;
@@ -310,7 +364,7 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
           token={connection.token}
           connect={true}
           audio={connection.isCall || !!isHost}
-          video={connection.isCall ? connection.callType === 'video' : !!isHost}
+          video={connection.isCall ? connection.callType === 'video' : !!isHost && !isStandby}
           options={{ adaptiveStream: { pixelDensity: 'screen' } }}
           onDisconnected={() => setError('انقطع اتصال غرفة البث. لم نغلق الشاشة تلقائيًا حتى تتمكن من رؤية الخطأ ومحاولة التشخيص.')}
           onError={(roomError) => setError(roomError?.message || 'فشل الاتصال بغرفة LiveKit. ابقَ في الشاشة لعرض التشخيص.')}
@@ -326,6 +380,8 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
             receiverId={receiverId}
             roomName={roomName}
             broadcastDuration={broadcastDuration}
+            isStandby={isStandby}
+            onStandbyChange={setIsStandby}
           />
         </LiveKitRoom>
       )}
@@ -344,6 +400,16 @@ const styles = StyleSheet.create({
   livePillText: { color: '#FFFFFF', fontWeight: 'bold' },
   videoList: { flexGrow: 1, justifyContent: 'center', gap: 12 },
   video: { width: '100%', height: 420, backgroundColor: '#191424', borderRadius: 16, overflow: 'hidden' },
+  standbyButton: { backgroundColor: '#34263F', borderWidth: 1, borderColor: '#8A5578', borderRadius: 12, padding: 12, alignItems: 'center', marginBottom: 10 },
+  standbyButtonActive: { backgroundColor: '#245A48', borderColor: '#3E9B78' },
+  standbyButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: 'bold' },
+  standbyView: { minHeight: 300, alignItems: 'center', justifyContent: 'center', backgroundColor: '#191424', borderRadius: 16, padding: 20 },
+  standbyAvatar: { width: 126, height: 126, borderRadius: 63, borderWidth: 3, borderColor: '#F5C451', marginBottom: 14 },
+  standbyAvatarFallback: { width: 126, height: 126, borderRadius: 63, backgroundColor: '#34263F', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  standbyAvatarEmoji: { fontSize: 58 },
+  standbyTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold' },
+  standbyText: { color: '#F5C451', fontSize: 15, fontWeight: 'bold', marginTop: 7 },
+  standbySubtext: { color: '#AAA1B8', fontSize: 12, marginTop: 8 },
   waiting: { minHeight: 260, alignItems: 'center', justifyContent: 'center', backgroundColor: '#191424', borderRadius: 16, padding: 20 },
   waitingEmoji: { fontSize: 44, marginBottom: 12 },
   waitingText: { color: '#FFFFFF', fontSize: 15, textAlign: 'center' },
