@@ -20,6 +20,7 @@ import {
 import { Track } from 'livekit-client';
 import { supabase } from './supabase';
 import LiveGiftPanel from './LiveGiftPanel';
+import LiveBattlePanel from './LiveBattlePanel';
 
 function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userId, receiverId, roomName }) {
   const tracks = useTracks([Track.Source.Camera]);
@@ -91,6 +92,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
       </ScrollView>
 
       {!isCall && userId ? <LiveGiftPanel userId={userId} receiverId={receiverId} isHost={isHost} roomName={roomName} /> : null}
+      {!isCall && isHost && userId ? <LiveBattlePanel userId={userId} roomName={roomName} isHost={isHost} /> : null}
 
       {!isCall && !isHost && userId ? (
         <TouchableOpacity style={styles.reportButton} onPress={reportLiveRoom} activeOpacity={0.85}>
