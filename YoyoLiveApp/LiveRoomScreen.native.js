@@ -328,7 +328,12 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
     let cleanupWarning = '';
 
     if (isHost && !isCall) {
+      const { data: sharedMusic } = await supabase.from('live_room_music')
+        .select('storage_path').eq('room_name', roomName).maybeSingle();
       await supabase.rpc('yoyo_live_music_control', { p_room_name: roomName, p_action: 'stop' }).catch(() => {});
+      if (sharedMusic?.storage_path) {
+        await supabase.storage.from('live-music').remove([sharedMusic.storage_path]).catch(() => {});
+      }
     }
 
     if (isHost) {
