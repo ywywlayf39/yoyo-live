@@ -44,7 +44,7 @@ export default function LiveBattlePanel({ userId, roomName, isHost = false }) {
 
     const [battleResult, inviteResult, recentResult] = await Promise.all([
       supabase.from('yoyo_battles')
-        .select('id,host_a_id,host_b_id,room_a,room_b,host_a_name,host_b_name,status,result,score_a,score_b,starts_at,ends_at,created_at,expires_at')
+        .select('id,host_a_id,host_b_id,room_a,room_b,host_a_name,host_b_name,status,result,score_a,score_b,starts_at,ends_at,duration_minutes,created_at,expires_at')
         .or('host_a_id.eq.' + userId + ',host_b_id.eq.' + userId)
         .in('status', ['pending', 'active'])
         .order('created_at', { ascending: false })
@@ -204,7 +204,7 @@ export default function LiveBattlePanel({ userId, roomName, isHost = false }) {
       {incoming.map((item) => (
         <View key={item.id} style={styles.inviteCard}>
           <Text style={styles.inviteTitle}>🔥 دعوة تحدي جديدة</Text>
-          <Text style={styles.inviteBody}>{item.host_a_name} يتحداك في جولة مدتها 5 دقائق.</Text>
+          <Text style={styles.inviteBody}>{item.host_a_name} يتحداك في جولة. المدة يحددها تصويت المشاهدين (والافتراضي 30 دقيقة).</Text>
           <View style={styles.actions}>
             <TouchableOpacity
               disabled={!!busyId}
