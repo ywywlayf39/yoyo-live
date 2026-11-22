@@ -14,7 +14,9 @@ function safeFileName(name) {
 export default function LiveMusicLibrary() {
   const [songs, setSongs] = useState([]);
   const [busy, setBusy] = useState(false);
-  const [expanded, setExpanded] = useState(false);\n  const [searchText, setSearchText] = useState('');\n  const [selectedSongId, setSelectedSongId] = useState(null);
+  const [expanded, setExpanded] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [selectedSongId, setSelectedSongId] = useState(null);
 
   const saveSongs = useCallback(async (nextSongs) => {
     setSongs(nextSongs);
@@ -81,7 +83,9 @@ export default function LiveMusicLibrary() {
     }
   };
 
-  const filteredSongs = songs.filter((song) => song.name.toLowerCase().includes(searchText.trim().toLowerCase()));\n\n  const removeSong = (song) => {
+  const filteredSongs = songs.filter((song) => song.name.toLowerCase().includes(searchText.trim().toLowerCase()));
+
+  const removeSong = (song) => {
     Alert.alert('حذف الأغنية', `هل تريد حذف "${song.name}" من مكتبتك؟`, [
       { text: 'إلغاء', style: 'cancel' },
       {
@@ -165,7 +169,12 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: 12, paddingBottom: 12 },
   addButton: { minHeight: 44, borderRadius: 10, backgroundColor: '#8C285B', alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
   addButtonText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 14 },
-  searchInput: { minHeight: 42, borderRadius: 10, borderWidth: 1, borderColor: '#594565', color: '#FFFFFF', paddingHorizontal: 12, marginBottom: 8, textAlign: 'left', backgroundColor: '#241B2D' },\n  selectedSongRow: { backgroundColor: '#30233A', borderRadius: 8, paddingHorizontal: 4 },\n  chooseButton: { paddingHorizontal: 9, paddingVertical: 7, backgroundColor: '#3F704E', borderRadius: 8 },\n  chooseText: { color: '#FFFFFF', fontSize: 11, fontWeight: 'bold' },\n  selectedLabel: { color: '#F5C451', fontSize: 12, marginTop: 8, textAlign: 'left' },\n  songRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#35283D' },
+  searchInput: { minHeight: 42, borderRadius: 10, borderWidth: 1, borderColor: '#594565', color: '#FFFFFF', paddingHorizontal: 12, marginBottom: 8, textAlign: 'left', backgroundColor: '#241B2D' },
+  selectedSongRow: { backgroundColor: '#30233A', borderRadius: 8, paddingHorizontal: 4 },
+  chooseButton: { paddingHorizontal: 9, paddingVertical: 7, backgroundColor: '#3F704E', borderRadius: 8 },
+  chooseText: { color: '#FFFFFF', fontSize: 11, fontWeight: 'bold' },
+  selectedLabel: { color: '#F5C451', fontSize: 12, marginTop: 8, textAlign: 'left' },
+  songRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#35283D' },
   songIcon: { color: '#F5C451', fontSize: 22, width: 32, textAlign: 'center' },
   songInfo: { flex: 1, paddingHorizontal: 8 },
   songName: { color: '#FFFFFF', fontSize: 13, textAlign: 'left' },
