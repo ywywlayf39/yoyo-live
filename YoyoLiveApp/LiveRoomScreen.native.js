@@ -162,13 +162,9 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
         </View>
       ) : null}
 
-      <ScrollView
-        style={styles.roomContentScroll}
-        contentContainerStyle={styles.videoList}
-        showsVerticalScrollIndicator={false}
-      >
+      <View pointerEvents="none" style={styles.videoStage}>
         {showStandby && !isCall ? (
-          <View style={[styles.standbyView, { height: windowHeight }]}>
+          <View style={styles.standbyView}>
             {hostAvatar ? <Image source={{ uri: hostAvatar }} style={styles.standbyAvatar} /> : <View style={styles.standbyAvatarFallback}><Text style={styles.standbyAvatarEmoji}>👤</Text></View>}
             <Text style={styles.standbyTitle}>{hostName || 'صاحب البث'}</Text>
             <Text style={styles.standbyText}>في وضع الانتظار</Text>
@@ -178,27 +174,32 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
           <VideoTrack
             key={track.publication.trackSid || `${track.participant.identity}-${index}`}
             trackRef={track}
-            style={[styles.video, { height: windowHeight }]}
+            style={styles.video}
           />
         )) : (
-          <View style={[styles.waiting, { height: windowHeight }]}>
+          <View style={styles.waiting}>
             <Text style={styles.waitingEmoji}>{isCall && callType === 'audio' ? '📞' : '📹'}</Text>
             <Text style={styles.waitingText}>{isCall && callType === 'audio' ? 'المكالمة الصوتية جاهزة. يمكنك التحدث الآن.' : 'جاري الاتصال بالبث واستقبال الصورة...'}</Text>
           </View>
         )}
+      </View>
 
+      <ScrollView
+        style={styles.overlayPanelsScroll}
+        contentContainerStyle={styles.overlayPanelsContent}
+        showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
+      >
         {!isCall && isHost && userId ? <LiveMusicLibrary roomName={roomName} userId={userId} /> : null}
         {!isCall && userId && (isHost || viewerPresenceReady) ? <LiveMusicSync roomName={roomName} userId={userId} isHost={isHost} /> : null}
         {!isCall && isHost && userId ? <LiveBattlePanel userId={userId} roomName={roomName} isHost={isHost} /> : null}
         {!isCall && userId && (isHost || viewerPresenceReady) ? <LiveQuizPanel roomName={roomName} userId={userId} isHost={isHost} /> : null}
         {!isCall && userId ? <LiveBattleVote roomName={roomName} userId={userId} /> : null}
-
         {!isCall && !isHost && userId ? (
           <TouchableOpacity style={styles.reportButton} onPress={reportLiveRoom} activeOpacity={0.85}>
             <Text style={styles.reportButtonText}>🚩 إبلاغ عن البث</Text>
           </TouchableOpacity>
         ) : null}
-
       </ScrollView>
 
       <TouchableOpacity style={styles.leaveButton} onPress={() => Alert.alert(
@@ -435,29 +436,30 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0B0912' },
   room: { flex: 1, padding: 0, backgroundColor: '#05040A' },
-  roomHeader: { position: 'absolute', top: 12, left: 16, right: 16, zIndex: 60, elevation: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 0 },
+  roomHeader: { position: 'absolute', top: 14, left: 16, right: 16, zIndex: 60, elevation: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 0 },
   hostName: { color: '#FFFFFF', fontSize: 20, fontWeight: 'bold', textAlign: 'left' },
-  roomStatus: { color: '#AAA1B8', fontSize: 13, marginTop: 5, textAlign: 'left' },
-  durationText: { color: '#F5C451', fontSize: 13, fontWeight: 'bold', marginTop: 6, textAlign: 'left', fontVariant: ['tabular-nums'] },
+  roomStatus: { color: '#AAA1B8', fontSize: 12, marginTop: 3, textAlign: 'left' },
+  durationText: { color: '#F5C451', fontSize: 12, fontWeight: 'bold', marginTop: 4, textAlign: 'left', fontVariant: ['tabular-nums'] },
   livePill: { backgroundColor: '#E53965', borderRadius: 9, paddingHorizontal: 12, paddingVertical: 7 },
   livePillText: { color: '#FFFFFF', fontWeight: 'bold' },
-  roomContentScroll: { flex: 1 },
-  videoList: { flexGrow: 1, justifyContent: 'flex-start', gap: 12, paddingBottom: 90 },
-  video: { width: '100%', height: '100%', backgroundColor: '#05040A', borderRadius: 0, overflow: 'hidden' },
+  videoStage: { ...StyleSheet.absoluteFillObject, backgroundColor: '#05040A', zIndex: 0, elevation: 0 },
+  video: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%', backgroundColor: '#05040A', borderRadius: 0 },
+  overlayPanelsScroll: { position: 'absolute', top: 164, left: 10, right: 10, bottom: 174, zIndex: 35, elevation: 8 },
+  overlayPanelsContent: { paddingBottom: 12, gap: 10 },
   hostControls: { position: 'absolute', top: 100, left: 12, right: 12, zIndex: 55, elevation: 18, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 0 },
   standbyButton: { flex: 1, backgroundColor: '#34263F', borderWidth: 1, borderColor: '#8A5578', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 8, alignItems: 'center' },
   micButton: { flex: 1, backgroundColor: '#245A48', borderWidth: 1, borderColor: '#3E9B78', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 8, alignItems: 'center' },
   micButtonMuted: { backgroundColor: '#733347', borderColor: '#C45C78' },
   standbyButtonActive: { backgroundColor: '#245A48', borderColor: '#3E9B78' },
   standbyButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: 'bold' },
-  standbyView: { minHeight: 300, alignItems: 'center', justifyContent: 'center', backgroundColor: '#191424', borderRadius: 16, padding: 20 },
+  standbyView: { ...StyleSheet.absoluteFillObject, minHeight: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: '#191424', borderRadius: 16, padding: 20 },
   standbyAvatar: { width: 126, height: 126, borderRadius: 63, borderWidth: 3, borderColor: '#F5C451', marginBottom: 14 },
   standbyAvatarFallback: { width: 126, height: 126, borderRadius: 63, backgroundColor: '#34263F', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   standbyAvatarEmoji: { fontSize: 58 },
   standbyTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold' },
   standbyText: { color: '#F5C451', fontSize: 15, fontWeight: 'bold', marginTop: 7 },
   standbySubtext: { color: '#AAA1B8', fontSize: 12, marginTop: 8 },
-  waiting: { minHeight: 260, alignItems: 'center', justifyContent: 'center', backgroundColor: '#191424', borderRadius: 16, padding: 20 },
+  waiting: { ...StyleSheet.absoluteFillObject, minHeight: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: '#191424', borderRadius: 16, padding: 20 },
   waitingEmoji: { fontSize: 44, marginBottom: 12 },
   waitingText: { color: '#FFFFFF', fontSize: 15, textAlign: 'center' },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 18 },
@@ -465,6 +467,6 @@ const styles = StyleSheet.create({
   error: { color: '#FF9EAD', textAlign: 'center', marginVertical: 12, lineHeight: 22 },
   reportButton: { backgroundColor: '#34263F', borderWidth: 1, borderColor: '#8A5578', borderRadius: 12, padding: 12, alignItems: 'center', marginTop: 12 },
   reportButtonText: { color: '#F4C5D8', fontSize: 14, fontWeight: 'bold' },
-  leaveButton: { position: 'absolute', bottom: 12, left: 16, right: 16, zIndex: 80, elevation: 24, backgroundColor: '#E53965', borderRadius: 14, paddingVertical: 13, paddingHorizontal: 16, alignItems: 'center', marginTop: 0 },
+  leaveButton: { position: 'absolute', bottom: 28, left: 16, right: 16, zIndex: 80, elevation: 24, backgroundColor: '#E53965', borderRadius: 14, paddingVertical: 13, paddingHorizontal: 16, alignItems: 'center', marginTop: 0 },
   leaveButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
 });
