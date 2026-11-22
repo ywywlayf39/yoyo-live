@@ -10,6 +10,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import {
   AudioSession,
@@ -68,6 +69,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
     return () => { active = false; supabase.removeChannel(channel); };
   }, [roomName, isCall, isHost, onStandbyChange]);
   const videoTracks = tracks.filter(isTrackReference);
+  const { height: windowHeight } = useWindowDimensions();
 
   const reportLiveRoom = () => {
     if (!userId || isHost || isCall) return;
@@ -197,17 +199,18 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
           </TouchableOpacity>
         ) : null}
 
-        <TouchableOpacity style={styles.leaveButton} onPress={() => Alert.alert(
-          isCall ? 'إنهاء المكالمة' : isHost ? 'إنهاء البث المباشر' : 'مغادرة البث',
-          isCall ? 'هل أنت متأكد أنك تريد إنهاء المكالمة؟' : isHost ? 'هل أنت متأكد؟ سيتم إنهاء البث وفصل جميع المشاهدين، وإنهاء أي تحدٍ نشط دون إعلان فائز.' : 'هل تريد مغادرة البث؟',
-          [
-            { text: 'استمرار', style: 'cancel' },
-            { text: isHost ? 'إنهاء البث' : isCall ? 'إنهاء المكالمة' : 'مغادرة', style: 'destructive', onPress: onLeave },
-          ],
-        )} activeOpacity={0.85}>
-          <Text style={styles.leaveButtonText}>{isCall ? 'إنهاء المكالمة' : isHost ? 'إنهاء البث' : 'مغادرة البث'}</Text>
-        </TouchableOpacity>
       </ScrollView>
+
+      <TouchableOpacity style={styles.leaveButton} onPress={() => Alert.alert(
+        isCall ? 'إنهاء المكالمة' : isHost ? 'إنهاء البث المباشر' : 'مغادرة البث',
+        isCall ? 'هل أنت متأكد أنك تريد إنهاء المكالمة؟' : isHost ? 'هل أنت متأكد؟ سيتم إنهاء البث وفصل جميع المشاهدين، وإنهاء أي تحدٍ نشط دون إعلان فائز.' : 'هل تريد مغادرة البث؟',
+        [
+          { text: 'استمرار', style: 'cancel' },
+          { text: isHost ? 'إنهاء البث' : isCall ? 'إنهاء المكالمة' : 'مغادرة', style: 'destructive', onPress: onLeave },
+        ],
+      )} activeOpacity={0.85}>
+        <Text style={styles.leaveButtonText}>{isCall ? 'إنهاء المكالمة' : isHost ? 'إنهاء البث' : 'مغادرة البث'}</Text>
+      </TouchableOpacity>
 
       {!isCall && userId ? <LiveRoomChat roomName={roomName} userId={userId} isHost={isHost} /> : null}
       {!isCall && userId ? <LiveGiftPanel userId={userId} receiverId={receiverId} isHost={isHost} roomName={roomName} onOpenPackages={onOpenPackages} /> : null}
@@ -339,45 +342,29 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
   }, [roomName, isCall]);
 
   const leaveRoom = async () => {
-    let cleanupWarning = '';
-
-    if (isHost && !isCall) {
-      const { data: sharedMusic } = await supabase.from('live_room_music')
-        .select('storage_path').eq('room_name', roomName).maybeSingle();
-      await supabase.rpc('yoyo_live_music_control', { p_room_name: roomName, p_action: 'stop' }).catch(() => {});
-      if (sharedMusic?.storage_path) {
-        await supabase.storage.from('live-music').remove([sharedMusic.storage_path]).catch(() => {});
-      }
-    }
-
-    if (isHost) {
-      // Best-effort interruption: navigation must not be blocked by a server cleanup error.
-      const { error: battleError } = await supabase.rpc('yoyo_battle_interrupt_for_host', {
-        p_room_name: roomName,
-      });
-      if (battleError) {
-        cleanupWarning = 'تعذر تأكيد إيقاف التحدي على الخادم.';
-      }
-    }
-
-    if (isHost || isCall) {
-      const { data, error: endError } = await supabase.functions.invoke('livekit-token', {
-        body: { roomName, action: 'end' },
-      });
-
-      if (endError || !data?.ended) {
-        cleanupWarning = [cleanupWarning, 'تعذر تأكيد إنهاء الغرفة على الخادم. قد تحتاج إعدادات LiveKit إلى مراجعة.']
-          .filter(Boolean)
-          .join(' ');
-      }
-    }
-
-    // Always leave the live screen locally, even if server-side cleanup fails.
-    // Unmounting LiveKitRoom disconnects this device; the warning explains any remote cleanup issue.
+    // Close this screen immediately; server cleanup must never keep the leave button waiting.
     onClose?.();
 
-    if (cleanupWarning) {
-      Alert.alert('تم الرجوع من شاشة البث', cleanupWarning + ' تأكد من إصلاح اتصال LiveKit قبل بدء بث جديد.');
+    const cleanupTasks = [];
+    if (isHost && !isCall) {
+      cleanupTasks.push((async () => {
+        const { data: sharedMusic } = await supabase.from('live_room_music')
+          .select('storage_path').eq('room_name', roomName).maybeSingle();
+        await supabase.rpc('yoyo_live_music_control', { p_room_name: roomName, p_action: 'stop' });
+        if (sharedMusic?.storage_path) {
+          await supabase.storage.from('live-music').remove([sharedMusic.storage_path]);
+        }
+      })());
+      cleanupTasks.push(supabase.rpc('yoyo_battle_interrupt_for_host', { p_room_name: roomName }));
+    }
+    if (isHost || isCall) {
+      cleanupTasks.push(supabase.functions.invoke('livekit-token', { body: { roomName, action: 'end' } }));
+    }
+
+    const results = await Promise.allSettled(cleanupTasks);
+    const failed = results.some((result) => result.status === 'rejected' || result.value?.error || (result.value?.data && result.value.data.ended === false));
+    if (failed) {
+      Alert.alert('تنبيه إنهاء البث', 'تم إغلاق الشاشة على جهازك، لكن تعذر تأكيد بعض خطوات الإنهاء على الخادم. راجع حالة الغرفة قبل بدء بث جديد.');
     }
   };
 
@@ -443,17 +430,17 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0B0912' },
-  room: { flex: 1, padding: 16 },
-  roomHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 },
+  room: { flex: 1, padding: 0, backgroundColor: '#05040A' },
+  roomHeader: { position: 'absolute', top: 12, left: 16, right: 16, zIndex: 60, elevation: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 0 },
   hostName: { color: '#FFFFFF', fontSize: 20, fontWeight: 'bold', textAlign: 'left' },
   roomStatus: { color: '#AAA1B8', fontSize: 13, marginTop: 5, textAlign: 'left' },
   durationText: { color: '#F5C451', fontSize: 13, fontWeight: 'bold', marginTop: 6, textAlign: 'left', fontVariant: ['tabular-nums'] },
   livePill: { backgroundColor: '#E53965', borderRadius: 9, paddingHorizontal: 12, paddingVertical: 7 },
   livePillText: { color: '#FFFFFF', fontWeight: 'bold' },
   roomContentScroll: { flex: 1 },
-  videoList: { flexGrow: 1, justifyContent: 'flex-start', gap: 12, paddingBottom: 24 },
-  video: { width: '100%', height: 420, backgroundColor: '#191424', borderRadius: 16, overflow: 'hidden' },
-  hostControls: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  videoList: { flexGrow: 1, justifyContent: 'flex-start', gap: 12, paddingBottom: 90 },
+  video: { width: '100%', height: '100%', minHeight: 560, backgroundColor: '#05040A', borderRadius: 0, overflow: 'hidden' },
+  hostControls: { position: 'absolute', top: 100, left: 12, right: 12, zIndex: 55, elevation: 18, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 0 },
   standbyButton: { flex: 1, backgroundColor: '#34263F', borderWidth: 1, borderColor: '#8A5578', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 8, alignItems: 'center' },
   micButton: { flex: 1, backgroundColor: '#245A48', borderWidth: 1, borderColor: '#3E9B78', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 8, alignItems: 'center' },
   micButtonMuted: { backgroundColor: '#733347', borderColor: '#C45C78' },
@@ -474,6 +461,6 @@ const styles = StyleSheet.create({
   error: { color: '#FF9EAD', textAlign: 'center', marginVertical: 12, lineHeight: 22 },
   reportButton: { backgroundColor: '#34263F', borderWidth: 1, borderColor: '#8A5578', borderRadius: 12, padding: 12, alignItems: 'center', marginTop: 12 },
   reportButtonText: { color: '#F4C5D8', fontSize: 14, fontWeight: 'bold' },
-  leaveButton: { backgroundColor: '#E53965', borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 16 },
+  leaveButton: { position: 'absolute', bottom: 12, left: 16, right: 16, zIndex: 80, elevation: 24, backgroundColor: '#E53965', borderRadius: 14, paddingVertical: 13, paddingHorizontal: 16, alignItems: 'center', marginTop: 0 },
   leaveButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
 });
