@@ -101,6 +101,7 @@ export default function LiveMusicSync({ roomName, userId, isHost }) {
         if (processingRef.current !== operation) return;
 
         const player = createAudioPlayer(data.signedUrl, { updateInterval: 500 });
+        player.muted = muted;
         playerRef.current = player;
         playerPathRef.current = sharedMusic.storage_path;
         playerKeyRef.current = playbackKey;
