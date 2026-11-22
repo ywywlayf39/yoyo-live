@@ -552,6 +552,7 @@ import {
       <WalletScreen
         userId={session.user.id}
         onBack={() => setShowWallet(false)}
+        onOpenPackages={() => { setShowWallet(false); setShowPackages(true); }}
       />
     );
   }
