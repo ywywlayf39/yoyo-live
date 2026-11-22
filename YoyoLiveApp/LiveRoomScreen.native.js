@@ -37,7 +37,7 @@ function formatBroadcastDuration(totalSeconds) {
   return [hours, minutes, remainder].map((value) => String(value).padStart(2, '0')).join(':');
 }
 
-function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userId, receiverId, roomName, broadcastDuration, isStandby, onStandbyChange, onOpenPackages }) {
+function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userId, receiverId, roomName, broadcastDuration, isStandby, onStandbyChange, onOpenPackages, viewerPresenceReady }) {
   const tracks = useTracks([Track.Source.Camera]);
   const { localParticipant, isMicrophoneEnabled } = useLocalParticipant();
   const [micBusy, setMicBusy] = useState(false);
@@ -186,9 +186,9 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
         )}
 
         {!isCall && isHost && userId ? <LiveMusicLibrary roomName={roomName} userId={userId} /> : null}
-        {!isCall && userId ? <LiveMusicSync roomName={roomName} userId={userId} isHost={isHost} /> : null}
+        {!isCall && userId && (isHost || viewerPresenceReady) ? <LiveMusicSync roomName={roomName} userId={userId} isHost={isHost} /> : null}
         {!isCall && isHost && userId ? <LiveBattlePanel userId={userId} roomName={roomName} isHost={isHost} /> : null}
-        {!isCall && userId ? <LiveQuizPanel roomName={roomName} userId={userId} isHost={isHost} /> : null}
+        {!isCall && userId && (isHost || viewerPresenceReady) ? <LiveQuizPanel roomName={roomName} userId={userId} isHost={isHost} /> : null}
         {!isCall && userId ? <LiveBattleVote roomName={roomName} userId={userId} /> : null}
 
         {!isCall && !isHost && userId ? (
@@ -222,14 +222,22 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
   const [broadcastStartedAt, setBroadcastStartedAt] = useState(null);
   const [clockNow, setClockNow] = useState(Date.now());
   const [isStandby, setIsStandby] = useState(false);
+  const [viewerPresenceReady, setViewerPresenceReady] = useState(false);
   useEffect(() => {
-    if (isCall || isHost || !roomName || !userId) return undefined;
+    if (isCall || isHost || !roomName || !userId) {
+      setViewerPresenceReady(true);
+      return undefined;
+    }
+    setViewerPresenceReady(false);
     let active = true;
     supabase.from('live_room_viewers')
       .insert({ room_name: roomName, user_id: userId })
       .then(({ error: joinError }) => {
-        if (active && joinError && !String(joinError.code || '').includes('23505')) {
-          console.warn('YOYO LIVE viewer presence:', joinError.message);
+        if (active) {
+          if (joinError && !String(joinError.code || '').includes('23505')) {
+            console.warn('YOYO LIVE viewer presence:', joinError.message);
+          }
+          setViewerPresenceReady(true);
         }
       });
     return () => {
@@ -425,6 +433,7 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
             isStandby={isStandby}
             onStandbyChange={setIsStandby}
             onOpenPackages={onOpenPackages}
+            viewerPresenceReady={viewerPresenceReady}
           />
         </LiveKitRoom>
       )}
