@@ -32,6 +32,7 @@ export default function LiveBattlePanel({ userId, roomName, isHost = false }) {
   const [visible, setVisible] = useState(false);
   const [rooms, setRooms] = useState([]);
   const [battle, setBattle] = useState(null);
+  const [lastResult, setLastResult] = useState(null);
   const [incoming, setIncoming] = useState([]);
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState('');
@@ -41,7 +42,7 @@ export default function LiveBattlePanel({ userId, roomName, isHost = false }) {
     if (!userId || !roomName || !isHost) return;
     await supabase.rpc('yoyo_battle_refresh');
 
-    const [battleResult, inviteResult] = await Promise.all([
+    const [battleResult, inviteResult, recentResult] = await Promise.all([
       supabase.from('yoyo_battles')
         .select('id,host_a_id,host_b_id,room_a,room_b,host_a_name,host_b_name,status,result,score_a,score_b,starts_at,ends_at,created_at,expires_at')
         .or('host_a_id.eq.' + userId + ',host_b_id.eq.' + userId)
@@ -55,10 +56,18 @@ export default function LiveBattlePanel({ userId, roomName, isHost = false }) {
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
         .limit(5),
+      supabase.from('yoyo_battles')
+        .select('id,host_a_id,host_b_id,host_a_name,host_b_name,status,result,score_a,score_b,finished_at')
+        .or('host_a_id.eq.' + userId + ',host_b_id.eq.' + userId)
+        .in('status', ['completed', 'interrupted'])
+        .order('finished_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
 
     if (!battleResult.error) setBattle(battleResult.data || null);
     if (!inviteResult.error) setIncoming(inviteResult.data || []);
+    if (!recentResult.error) setLastResult(recentResult.data || null);
   }, [userId, roomName, isHost]);
 
   useEffect(() => {
@@ -184,6 +193,14 @@ export default function LiveBattlePanel({ userId, roomName, isHost = false }) {
 
       {loading && !battle ? <ActivityIndicator color={C.gold} style={{ marginVertical: 12 }} /> : null}
 
+      {!battle && lastResult ? (
+        <View style={styles.resultCard}>
+          <Text style={styles.resultTitle}>{lastResult.status === 'interrupted' ? 'انتهى التحدي دون نتيجة' : lastResult.result === 'draw' ? '🤝 تعادل في آخر تحدي' : '🏆 نتيجة آخر تحدي'}</Text>
+          <Text style={styles.resultScore}>{lastResult.host_a_name}  {Number(lastResult.score_a || 0).toLocaleString('ar-EG')}  -  {Number(lastResult.score_b || 0).toLocaleString('ar-EG')}  {lastResult.host_b_name}</Text>
+          {lastResult.status === 'completed' && lastResult.result !== 'draw' ? <Text style={styles.resultWinner}>الفائز: {lastResult.result === 'host_a' ? lastResult.host_a_name : lastResult.host_b_name} 👑</Text> : null}
+        </View>
+      ) : null}
+
       {incoming.map((item) => (
         <View key={item.id} style={styles.inviteCard}>
           <Text style={styles.inviteTitle}>🔥 دعوة تحدي جديدة</Text>
@@ -282,6 +299,10 @@ const styles = StyleSheet.create({
   inviteButton: { backgroundColor: C.pink, borderRadius: 11, paddingHorizontal: 15, paddingVertical: 9 },
   inviteText: { color: C.white, fontWeight: 'bold' },
   inviteCard: { marginTop: 12, backgroundColor: C.card2, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: C.gold },
+  resultCard: { marginTop: 12, backgroundColor: C.card2, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#765A36' },
+  resultTitle: { color: C.gold, fontWeight: 'bold', textAlign: 'center' },
+  resultScore: { color: C.white, textAlign: 'center', marginTop: 8, fontSize: 12 },
+  resultWinner: { color: C.green, textAlign: 'center', marginTop: 6, fontWeight: 'bold' },
   inviteTitle: { color: C.gold, fontWeight: 'bold', fontSize: 15 },
   inviteBody: { color: C.white, marginTop: 6, lineHeight: 21 },
   actions: { flexDirection: 'row', gap: 9, marginTop: 12 },
