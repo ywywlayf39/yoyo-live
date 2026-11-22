@@ -47,7 +47,15 @@ const soundKeys = [
   "rocket-launch",
   "imperial-hit",
   "planet-boom",
-  "galaxy-finale"
+  "galaxy-finale",
+  "yoyo-soft-extra-01",
+  "yoyo-soft-extra-02",
+  "yoyo-soft-extra-03",
+  "yoyo-soft-extra-04",
+  "yoyo-soft-extra-05",
+  "yoyo-soft-extra-06",
+  "yoyo-soft-extra-07",
+  "yoyo-soft-extra-08"
 ];
 function hash(text) {
   let value = 2166136261;
