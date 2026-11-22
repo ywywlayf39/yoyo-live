@@ -160,7 +160,11 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
         </View>
       ) : null}
 
-      <ScrollView contentContainerStyle={styles.videoList}>
+      <ScrollView
+        style={styles.roomContentScroll}
+        contentContainerStyle={styles.videoList}
+        showsVerticalScrollIndicator={false}
+      >
         {showStandby && !isCall ? (
           <View style={styles.standbyView}>
             {hostAvatar ? <Image source={{ uri: hostAvatar }} style={styles.standbyAvatar} /> : <View style={styles.standbyAvatarFallback}><Text style={styles.standbyAvatarEmoji}>👤</Text></View>}
@@ -180,32 +184,34 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
             <Text style={styles.waitingText}>{isCall && callType === 'audio' ? 'المكالمة الصوتية جاهزة. يمكنك التحدث الآن.' : 'جاري الاتصال بالبث واستقبال الصورة...'}</Text>
           </View>
         )}
+
+        {!isCall && isHost && userId ? <LiveMusicLibrary roomName={roomName} userId={userId} /> : null}
+        {!isCall && userId ? <LiveMusicSync roomName={roomName} userId={userId} isHost={isHost} /> : null}
+        {!isCall && isHost && userId ? <LiveBattlePanel userId={userId} roomName={roomName} isHost={isHost} /> : null}
+        {!isCall && userId ? <LiveQuizPanel roomName={roomName} userId={userId} isHost={isHost} /> : null}
+        {!isCall && userId ? <LiveBattleVote roomName={roomName} userId={userId} /> : null}
+
+        {!isCall && !isHost && userId ? (
+          <TouchableOpacity style={styles.reportButton} onPress={reportLiveRoom} activeOpacity={0.85}>
+            <Text style={styles.reportButtonText}>🚩 إبلاغ عن البث</Text>
+          </TouchableOpacity>
+        ) : null}
+
+        <TouchableOpacity style={styles.leaveButton} onPress={() => Alert.alert(
+          isCall ? 'إنهاء المكالمة' : isHost ? 'إنهاء البث المباشر' : 'مغادرة البث',
+          isCall ? 'هل أنت متأكد أنك تريد إنهاء المكالمة؟' : isHost ? 'هل أنت متأكد؟ سيتم إنهاء البث وفصل جميع المشاهدين، وإنهاء أي تحدٍ نشط دون إعلان فائز.' : 'هل تريد مغادرة البث؟',
+          [
+            { text: 'استمرار', style: 'cancel' },
+            { text: isHost ? 'إنهاء البث' : isCall ? 'إنهاء المكالمة' : 'مغادرة', style: 'destructive', onPress: onLeave },
+          ],
+        )} activeOpacity={0.85}>
+          <Text style={styles.leaveButtonText}>{isCall ? 'إنهاء المكالمة' : isHost ? 'إنهاء البث' : 'مغادرة البث'}</Text>
+        </TouchableOpacity>
       </ScrollView>
 
-      {!isCall && isHost && userId ? <LiveMusicLibrary roomName={roomName} userId={userId} /> : null}
-      {!isCall && userId ? <LiveMusicSync roomName={roomName} userId={userId} isHost={isHost} /> : null}
       {!isCall && userId ? <LiveRoomChat roomName={roomName} userId={userId} isHost={isHost} /> : null}
       {!isCall && userId ? <LiveGiftPanel userId={userId} receiverId={receiverId} isHost={isHost} roomName={roomName} onOpenPackages={onOpenPackages} /> : null}
-      {!isCall && isHost && userId ? <LiveBattlePanel userId={userId} roomName={roomName} isHost={isHost} /> : null}
-      {!isCall && userId ? <LiveQuizPanel roomName={roomName} userId={userId} isHost={isHost} /> : null}
-      {!isCall && userId ? <LiveBattleVote roomName={roomName} userId={userId} /> : null}
 
-      {!isCall && !isHost && userId ? (
-        <TouchableOpacity style={styles.reportButton} onPress={reportLiveRoom} activeOpacity={0.85}>
-          <Text style={styles.reportButtonText}>🚩 إبلاغ عن البث</Text>
-        </TouchableOpacity>
-      ) : null}
-
-      <TouchableOpacity style={styles.leaveButton} onPress={() => Alert.alert(
-        isCall ? 'إنهاء المكالمة' : isHost ? 'إنهاء البث المباشر' : 'مغادرة البث',
-        isCall ? 'هل أنت متأكد أنك تريد إنهاء المكالمة؟' : isHost ? 'هل أنت متأكد؟ سيتم إنهاء البث وفصل جميع المشاهدين، وإنهاء أي تحدٍ نشط دون إعلان فائز.' : 'هل تريد مغادرة البث؟',
-        [
-          { text: 'استمرار', style: 'cancel' },
-          { text: isHost ? 'إنهاء البث' : isCall ? 'إنهاء المكالمة' : 'مغادرة', style: 'destructive', onPress: onLeave },
-        ],
-      )} activeOpacity={0.85}>
-        <Text style={styles.leaveButtonText}>{isCall ? 'إنهاء المكالمة' : isHost ? 'إنهاء البث' : 'مغادرة البث'}</Text>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -435,7 +441,8 @@ const styles = StyleSheet.create({
   durationText: { color: '#F5C451', fontSize: 13, fontWeight: 'bold', marginTop: 6, textAlign: 'left', fontVariant: ['tabular-nums'] },
   livePill: { backgroundColor: '#E53965', borderRadius: 9, paddingHorizontal: 12, paddingVertical: 7 },
   livePillText: { color: '#FFFFFF', fontWeight: 'bold' },
-  videoList: { flexGrow: 1, justifyContent: 'center', gap: 12 },
+  roomContentScroll: { flex: 1 },
+  videoList: { flexGrow: 1, justifyContent: 'flex-start', gap: 12, paddingBottom: 24 },
   video: { width: '100%', height: 420, backgroundColor: '#191424', borderRadius: 16, overflow: 'hidden' },
   hostControls: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   standbyButton: { flex: 1, backgroundColor: '#34263F', borderWidth: 1, borderColor: '#8A5578', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 8, alignItems: 'center' },
