@@ -43,4 +43,12 @@ export const GIFT_SOUND_ASSETS = {
   'whoosh': require('./assets/gift-sounds/whoosh.wav'),
   'yacht-horn': require('./assets/gift-sounds/yacht-horn.wav'),
   'yoyo-epic-stinger': require('./assets/gift-sounds/yoyo-epic-stinger.wav'),
+  'yoyo-soft-extra-01': require('./assets/gift-sounds/yoyo-soft-extra-01.wav'),
+  'yoyo-soft-extra-02': require('./assets/gift-sounds/yoyo-soft-extra-02.wav'),
+  'yoyo-soft-extra-03': require('./assets/gift-sounds/yoyo-soft-extra-03.wav'),
+  'yoyo-soft-extra-04': require('./assets/gift-sounds/yoyo-soft-extra-04.wav'),
+  'yoyo-soft-extra-05': require('./assets/gift-sounds/yoyo-soft-extra-05.wav'),
+  'yoyo-soft-extra-06': require('./assets/gift-sounds/yoyo-soft-extra-06.wav'),
+  'yoyo-soft-extra-07': require('./assets/gift-sounds/yoyo-soft-extra-07.wav'),
+  'yoyo-soft-extra-08': require('./assets/gift-sounds/yoyo-soft-extra-08.wav'),
 };
