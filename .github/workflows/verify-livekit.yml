@@ -32,6 +32,7 @@ on:
       - "YoyoLiveApp/scripts/test-gift-sounds.cjs"
       - "YoyoLiveApp/scripts/test-live-gift-room.cjs"
       - "YoyoLiveApp/scripts/test-yoyo-battle.cjs"
+      - "YoyoLiveApp/PackagesScreen.js"
       - "YoyoLiveApp/LiveRoomScreen.native.js"
       - "YoyoLiveApp/LiveRoomScreen.web.js"
       - "YoyoLiveApp/registerLiveKit.native.js"
