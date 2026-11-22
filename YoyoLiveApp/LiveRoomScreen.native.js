@@ -100,7 +100,14 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
         </TouchableOpacity>
       ) : null}
 
-      <TouchableOpacity style={styles.leaveButton} onPress={onLeave} activeOpacity={0.85}>
+      <TouchableOpacity style={styles.leaveButton} onPress={() => Alert.alert(
+        isCall ? 'إنهاء المكالمة' : isHost ? 'إنهاء البث المباشر' : 'مغادرة البث',
+        isCall ? 'هل أنت متأكد أنك تريد إنهاء المكالمة؟' : isHost ? 'هل أنت متأكد؟ سيتم إنهاء البث وفصل جميع المشاهدين، وإنهاء أي تحدٍ نشط دون إعلان فائز.' : 'هل تريد مغادرة البث؟',
+        [
+          { text: 'استمرار', style: 'cancel' },
+          { text: isHost ? 'إنهاء البث' : isCall ? 'إنهاء المكالمة' : 'مغادرة', style: 'destructive', onPress: onLeave },
+        ],
+      )} activeOpacity={0.85}>
         <Text style={styles.leaveButtonText}>{isCall ? 'إنهاء المكالمة' : isHost ? 'إنهاء البث' : 'مغادرة البث'}</Text>
       </TouchableOpacity>
     </View>
@@ -166,22 +173,19 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
     };
   }, [roomName, isCall]);
 
-  const exitAfterConnectionError = async () => {
-    if (isCall) {
-      await supabase.from('live_calls')
-        .update({ status: 'ended' })
-        .eq('room_name', roomName)
-        .in('status', ['ringing', 'accepted']);
-    } else if (isHost) {
-      await supabase.from('live_rooms')
-        .update({ status: 'ended', ended_at: new Date().toISOString() })
-        .eq('room_name', roomName)
-        .eq('status', 'live');
-    }
-    onClose?.();
-  };
-
   const leaveRoom = async () => {
+    if (isHost) {
+      // Mark any pending/active battle as interrupted before ending the room.
+      // This prevents a false winner if the host leaves mid-round.
+      const { error: battleError } = await supabase.rpc('yoyo_battle_interrupt_for_host', {
+        p_room_name: roomName,
+      });
+      if (battleError) {
+        setError(battleError.message || 'تعذر إنهاء التحدي بأمان. حاول مرة أخرى.');
+        return;
+      }
+    }
+
     if (isHost || isCall) {
       const { data, error: endError } = await supabase.functions.invoke('livekit-token', {
         body: { roomName, action: 'end' },
@@ -193,6 +197,14 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
       }
     }
 
+    onClose?.();
+  };
+
+  const exitAfterConnectionError = async () => {
+    if (isHost || isCall) {
+      await leaveRoom();
+      return;
+    }
     onClose?.();
   };
 
