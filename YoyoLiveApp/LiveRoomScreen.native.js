@@ -240,9 +240,13 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
       .insert({ room_name: roomName, user_id: userId })
       .then(({ error: joinError }) => {
         if (active) {
-          if (joinError && !String(joinError.code || '').includes('23505')) {
+          if (joinError && String(joinError.code || '') !== '23505') {
             console.warn('YOYO LIVE viewer presence:', joinError.message);
+            setViewerPresenceReady(false);
+            Alert.alert('تعذر تسجيل دخول المشاهد', 'لم نتمكن من تسجيل وجودك داخل غرفة البث، لذلك قد لا تظهر المسابقة أو لا تُقبل إجابتك. اخرج من البث وادخل مرة أخرى. ' + (joinError.message || ''));
+            return;
           }
+          // A duplicate row means this viewer is already registered in the room.
           setViewerPresenceReady(true);
         }
       });
