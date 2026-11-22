@@ -575,7 +575,11 @@ import {
     );
   }
 
-  if (showFollowScreen) {\n    return <FollowScreen userId={session.user.id} onBack={() => setShowFollowScreen(false)} onOpenMember={(member) => { setShowFollowScreen(false); setSelectedMember(member); }} />;\n  }\n\n  if (showInbox) {
+  if (showFollowScreen) {
+    return <FollowScreen userId={session.user.id} onBack={() => setShowFollowScreen(false)} onOpenMember={(member) => { setShowFollowScreen(false); setSelectedMember(member); }} />;
+  }
+
+  if (showInbox) {
     return (
       <InboxScreen
         userId={session.user.id}
