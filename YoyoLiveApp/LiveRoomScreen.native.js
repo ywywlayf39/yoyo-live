@@ -168,7 +168,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
         showsVerticalScrollIndicator={false}
       >
         {showStandby && !isCall ? (
-          <View style={styles.standbyView}>
+          <View style={[styles.standbyView, { height: windowHeight }]}>
             {hostAvatar ? <Image source={{ uri: hostAvatar }} style={styles.standbyAvatar} /> : <View style={styles.standbyAvatarFallback}><Text style={styles.standbyAvatarEmoji}>👤</Text></View>}
             <Text style={styles.standbyTitle}>{hostName || 'صاحب البث'}</Text>
             <Text style={styles.standbyText}>في وضع الانتظار</Text>
@@ -178,10 +178,10 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
           <VideoTrack
             key={track.publication.trackSid || `${track.participant.identity}-${index}`}
             trackRef={track}
-            style={styles.video}
+            style={[styles.video, { height: windowHeight }]}
           />
         )) : (
-          <View style={styles.waiting}>
+          <View style={[styles.waiting, { height: windowHeight }]}>
             <Text style={styles.waitingEmoji}>{isCall && callType === 'audio' ? '📞' : '📹'}</Text>
             <Text style={styles.waitingText}>{isCall && callType === 'audio' ? 'المكالمة الصوتية جاهزة. يمكنك التحدث الآن.' : 'جاري الاتصال بالبث واستقبال الصورة...'}</Text>
           </View>
