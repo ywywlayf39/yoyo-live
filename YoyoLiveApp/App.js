@@ -67,6 +67,7 @@ import {
   const [followBusy, setFollowBusy] = useState(false);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [liveRooms, setLiveRooms] = useState([]);
+  const [showDiscover, setShowDiscover] = useState(false);
   const [selectedCall, setSelectedCall] = useState(null);
   const [incomingCall, setIncomingCall] = useState(null);
 
@@ -549,6 +550,49 @@ import {
     );
   }
 
+  if (showDiscover) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={C.bg} />
+        <View style={[styles.header, { alignItems: 'center' }]}>
+          <TouchableOpacity onPress={() => setShowDiscover(false)} style={{ padding: 10 }}>
+            <Text style={{ color: C.pink, fontWeight: 'bold', fontSize: 15 }}>رجوع ←</Text>
+          </TouchableOpacity>
+          <View style={{ flex: 1, alignItems: 'flex-end' }}>
+            <Text style={styles.logo}>اكتشف ✨</Text>
+            <Text style={styles.subtitle}>بثوث YOYO LIVE النشطة الآن</Text>
+          </View>
+        </View>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 28 }}>
+          {liveRooms.length === 0 ? (
+            <View style={{ backgroundColor: C.card, borderRadius: 16, padding: 22, marginTop: 18 }}>
+              <Text style={{ color: C.white, fontSize: 17, fontWeight: 'bold', textAlign: 'center' }}>مفيش بث مباشر حاليًا 🔴</Text>
+              <Text style={{ color: C.muted, textAlign: 'center', marginTop: 9, lineHeight: 22 }}>ارجع بعد شوية أو ابدأ بثك وخلي جمهور YOYO LIVE ينضم ليك.</Text>
+              <TouchableOpacity onPress={() => { setShowDiscover(false); startLive(); }} style={{ backgroundColor: C.pink, borderRadius: 12, padding: 13, marginTop: 16, alignItems: 'center' }}>
+                <Text style={{ color: C.white, fontWeight: 'bold' }}>＋ ابدأ بثك</Text>
+              </TouchableOpacity>
+            </View>
+          ) : liveRooms.map((room) => (
+            <TouchableOpacity
+              key={room.id}
+              onPress={() => {
+                setShowDiscover(false);
+                setSelectedLive({ roomName: room.room_name, isHost: room.host_id === session?.user?.id, hostId: room.host_id, name: room.host_name });
+              }}
+              activeOpacity={0.85}
+              style={{ backgroundColor: C.card, borderWidth: 1, borderColor: '#E53965', borderRadius: 16, padding: 16, marginTop: 12 }}
+            >
+              <Text style={{ color: '#FF718B', fontWeight: 'bold' }}>● LIVE الآن</Text>
+              <Text style={{ color: C.white, fontSize: 17, fontWeight: 'bold', marginTop: 7 }}>{room.host_name || 'مذيع YOYO LIVE'}</Text>
+              <Text style={{ color: C.muted, marginTop: 5 }}>{room.title || 'بث مباشر'}</Text>
+              <Text style={{ color: C.pink, fontWeight: 'bold', marginTop: 12 }}>ادخل البث ←</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
   if (selectedCall) {
     return (
       <LiveRoomScreen
@@ -852,7 +896,7 @@ import {
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       {['الرئيسية', 'اكتشف', 'البث', 'الرسائل', 'حسابي'].map((item, i) => (
 <TouchableOpacity key={i} style={styles.navItem} accessibilityLabel={item} onPress={() => {
 if (i === 0) { setSelectedLive(null); setShowWallet(false); setShowAccount(false); setShowAdmin(false); }
-else if (i === 1) Alert.alert('اكتشف', 'قسم اكتشف والمحتوى الحقيقي قيد التجهيز.');
+else if (i === 1) setShowDiscover(true);
 else if (i === 2) startLive();
 else if (i === 3) setShowInbox(true);
 else if (i === 4) setShowAccount(true);
