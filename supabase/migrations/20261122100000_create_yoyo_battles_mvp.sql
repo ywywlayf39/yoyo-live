@@ -158,6 +158,8 @@ begin
 end;
 $function$;
 
+revoke all on function private.yoyo_battle_count_gift() from public, anon, authenticated;
+
 drop trigger if exists yoyo_battle_score_from_live_gift on public.gift_transfers;
 create trigger yoyo_battle_score_from_live_gift after insert on public.gift_transfers
 for each row execute function private.yoyo_battle_count_gift();
