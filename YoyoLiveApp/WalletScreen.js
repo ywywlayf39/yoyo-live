@@ -11,6 +11,8 @@ import {
 import { supabase } from './supabase';
 
 const MIN_WITHDRAWAL_POINTS = 100000;
+const EGP_PER_100K_POINTS = 500;
+const EGP_PER_POINT = EGP_PER_100K_POINTS / MIN_WITHDRAWAL_POINTS;
 
 const C = {
   bg: '#0B0912',
@@ -153,7 +155,10 @@ export default function WalletScreen({ userId, onBack, onOpenPackages }) {
                 <View style={styles.balanceDivider} />
                 <Text style={styles.balanceLabel}>نقاطك القابلة للسحب</Text>
                 <Text style={styles.withdrawPoints}>{coins(wallet.earned_points)} نقطة</Text>
-                <Text style={styles.balanceLabel}>الحد الأدنى للسحب: {coins(MIN_WITHDRAWAL_POINTS)} نقطة</Text>
+                <Text style={styles.balanceLabel}>الحد الأدنى للسحب: {coins(MIN_WITHDRAWAL_POINTS)} نقطة = {money(EGP_PER_100K_POINTS)} جنيه</Text>
+                <Text style={styles.estimatedValue}>
+                  القيمة التقديرية لرصيدك: {money(Number(wallet.earned_points || 0) * EGP_PER_POINT)} جنيه
+                </Text>
                 <View style={styles.progressTrack}>
                   <View style={[styles.progressFill, { width: Math.min(100, (Number(wallet.earned_points || 0) / MIN_WITHDRAWAL_POINTS) * 100) + '%' }]} />
                 </View>
@@ -180,7 +185,7 @@ export default function WalletScreen({ userId, onBack, onOpenPackages }) {
           <View style={styles.noticeCard}>
             <Text style={styles.cardTitle}>معلومات مهمة</Text>
             <Text style={styles.muted}>
-              السحب يبدأ من 100,000 نقطة مكتسبة. النقاط هي وحدة عرض الأرباح داخل المحفظة، وليست جنيهات. قيمة تحويل النقاط إلى مبلغ نقدي وطريقة تقديم طلب السحب ستُحددان قبل تفعيل السحب. شراء العملات متاح بطلب تحويل يدوي، ولا تُضاف العملات إلا بعد مراجعة الأدمن.
+              سعر التحويل المعتمد داخل التطبيق: كل 100,000 نقطة مكتسبة = 500 جنيه (0.005 جنيه للنقطة). الحد الأدنى للسحب 100,000 نقطة. المبلغ المعروض تقديري، وطلب السحب والصرف الفعلي ما زالا متوقفين حتى تجهيز مراجعة الأدمن ومسار صرف آمن. شراء العملات متاح بطلب تحويل يدوي، ولا تُضاف العملات إلا بعد مراجعة الأدمن.
             </Text>
             <Text style={styles.noticeFoot}>نسبة توزيع الهدايا المعتمدة: 70٪ للمضيف و30٪ للمنصة.</Text>
           </View>
@@ -275,6 +280,7 @@ const styles = StyleSheet.create({
   progressTrack: { height: 9, borderRadius: 9, backgroundColor: '#FFFFFF20', overflow: 'hidden', marginTop: 10 },
   progressFill: { height: 9, borderRadius: 9, backgroundColor: '#8FE0B0' },
   progressCaption: { color: C.muted, fontSize: 12, textAlign: 'right', marginTop: 7 },
+  estimatedValue: { color: '#8FE0B0', fontSize: 15, fontWeight: '800', textAlign: 'right', marginTop: 10 },
   balanceRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
   balanceItem: { flex: 1 },
   moneyValue: { color: '#8FE0B0', fontSize: 19, fontWeight: 'bold', textAlign: 'right', marginTop: 7 },
