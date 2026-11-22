@@ -43,16 +43,13 @@ export default function PackagesScreen({ userId, onBack }) {
       {text:'رجوع',style:'cancel'},
       {text:'إرسال للمراجعة',onPress:async()=>{
         setSending(true);
-        const {error: insertError}=await supabase.from('coin_purchase_requests').insert({
-          user_id:userId,
-          requested_amount_egp:Number(selected.price_egp),
-          requested_coins:Number(selected.coins)+Number(selected.bonus_coins||0),
-          payment_method:methodValue,
-          transfer_reference:reference.trim(),
-          status:'pending',
+        const {data: requestId,error: insertError}=await supabase.rpc('yoyo_create_coin_purchase_request',{
+          p_package_id:selected.id,
+          p_payment_method:methodValue,
+          p_transfer_reference:reference.trim(),
         });
         setSending(false);
-        if(insertError){Alert.alert('تعذر إرسال الطلب',insertError.message || 'حاول مرة أخرى.');return;}
+        if(insertError || !requestId){Alert.alert('تعذر إرسال الطلب',insertError?.message || 'حاول مرة أخرى.');return;}
         setReference('');
         Alert.alert('تم استلام الطلب','طلبك قيد المراجعة. ستضاف العملات بعد التحقق من وصول التحويل.');
       }},
