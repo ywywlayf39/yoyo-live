@@ -92,6 +92,9 @@ jobs:
       - name: Generate Android native project and apply LiveKit config plugins
         run: npx expo prebuild --platform android --no-install
 
+      - name: Bundle Android JavaScript for native screens
+        run: npx expo export --platform android
+
       - name: Check generated Android target API
         run: |
           grep -R "targetSdkVersion" android
