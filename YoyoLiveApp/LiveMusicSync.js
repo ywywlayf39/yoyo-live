@@ -8,6 +8,7 @@ export default function LiveMusicSync({ roomName, userId, isHost }) {
   const [busy, setBusy] = useState(false);
   const [musicError, setMusicError] = useState('');
   const [muted, setMuted] = useState(false);
+  const mutedRef = useRef(false);
   const playerRef = useRef(null);
   const playerPathRef = useRef(null);
   const playerKeyRef = useRef(null);
@@ -101,7 +102,7 @@ export default function LiveMusicSync({ roomName, userId, isHost }) {
         if (processingRef.current !== operation) return;
 
         const player = createAudioPlayer(data.signedUrl, { updateInterval: 500 });
-        player.muted = muted;
+        player.muted = mutedRef.current;
         playerRef.current = player;
         playerPathRef.current = sharedMusic.storage_path;
         playerKeyRef.current = playbackKey;
@@ -146,6 +147,7 @@ export default function LiveMusicSync({ roomName, userId, isHost }) {
   }, [sharedMusic, isHost, roomName, releasePlayer, refresh]);
 
   useEffect(() => {
+    mutedRef.current = muted;
     if (playerRef.current) playerRef.current.muted = muted;
   }, [muted]);
 
