@@ -207,7 +207,7 @@ export default function LiveBattlePanel({ userId, roomName, isHost = false }) {
         </View>
       ))}
 
-      {battle?.status === 'pending' ? (
+      {battle?.status === 'pending' && battle.host_a_id === userId ? (
         <View style={styles.waitingCard}>
           <Text style={styles.waitingTitle}>⏳ الدعوة مرسلة</Text>
           <Text style={styles.waitingBody}>بانتظار رد {battle.host_b_name}.</Text>
