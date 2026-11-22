@@ -68,7 +68,7 @@ export default function PackagesScreen({ userId, onBack }) {
         <Text style={styles.title}>باقات YOYO 🪙</Text>
       </View>
       {loading ? <View style={styles.center}><ActivityIndicator color={C.gold} size="large"/><Text style={styles.muted}>جارٍ تحميل الباقات...</Text></View> : (
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {!!error && <Text style={styles.error}>{error}</Text>}
           <Text style={styles.heading}>اختار باقتك</Text>
           <Text style={styles.muted}>العملات تُضاف بعد مراجعة التحويل واعتماد الطلب من الإدارة.</Text>
@@ -109,7 +109,7 @@ export default function PackagesScreen({ userId, onBack }) {
 
 const styles=StyleSheet.create({
  safe:{flex:1,backgroundColor:C.bg},header:{padding:17,flexDirection:'row',justifyContent:'space-between',alignItems:'center',borderBottomWidth:1,borderBottomColor:C.border},
- title:{color:C.white,fontSize:21,fontWeight:'900'},back:{color:C.pink,fontWeight:'bold'},content:{padding:16,paddingBottom:36},center:{flex:1,alignItems:'center',justifyContent:'center',gap:12},
+ title:{color:C.white,fontSize:21,fontWeight:'900'},back:{color:C.pink,fontWeight:'bold'},content:{padding:16,paddingBottom:52},center:{flex:1,alignItems:'center',justifyContent:'center',gap:12},
  heading:{color:C.white,fontSize:18,fontWeight:'900',textAlign:'right',marginTop:18,marginBottom:8},muted:{color:C.muted,textAlign:'right',fontSize:12,lineHeight:20},
  packageCard:{backgroundColor:C.card,borderRadius:16,borderWidth:1,borderColor:C.border,padding:15,marginTop:10},packageSelected:{borderColor:C.gold,backgroundColor:'#241B31'},packageInactive:{opacity:0.82,borderStyle:'dashed'},
  packageTop:{flexDirection:'row',justifyContent:'space-between',alignItems:'center'},packageName:{color:C.white,fontWeight:'bold',fontSize:16},price:{color:C.gold,fontWeight:'900',fontSize:18},
