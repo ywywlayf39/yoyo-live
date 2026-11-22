@@ -18,6 +18,7 @@ import {
   VideoTrack,
   isTrackReference,
   useTracks,
+  useLocalParticipant,
 } from '@livekit/react-native';
 import { Track } from 'livekit-client';
 import { supabase } from './supabase';
@@ -37,6 +38,8 @@ function formatBroadcastDuration(totalSeconds) {
 
 function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userId, receiverId, roomName, broadcastDuration, isStandby, onStandbyChange, onOpenPackages }) {
   const tracks = useTracks([Track.Source.Camera]);
+  const { localParticipant, isMicrophoneEnabled } = useLocalParticipant();
+  const [micBusy, setMicBusy] = useState(false);
   const [roomStandby, setRoomStandby] = useState(false);
   const [hostAvatar, setHostAvatar] = useState(null);
   const showStandby = isHost ? isStandby : roomStandby;
@@ -117,23 +120,43 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       {isHost && !isCall ? (
-        <TouchableOpacity
-          style={[styles.standbyButton, showStandby && styles.standbyButtonActive]}
-          onPress={async () => {
-            const next = !showStandby;
-            const { error: standbyError } = await supabase.rpc('yoyo_set_live_standby', {
-              p_room_name: roomName, p_enabled: next,
-            });
-            if (standbyError) {
-              Alert.alert('تعذر تغيير وضع البث', standbyError.message || 'حاول مرة أخرى.');
-              return;
-            }
-            onStandbyChange?.(next);
-          }}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.standbyButtonText}>{showStandby ? '▶ العودة للبث بالكاميرا' : '⏸ وضع الانتظار'}</Text>
-        </TouchableOpacity>
+        <View style={styles.hostControls}>
+          <TouchableOpacity
+            style={[styles.standbyButton, showStandby && styles.standbyButtonActive]}
+            onPress={async () => {
+              const next = !showStandby;
+              const { error: standbyError } = await supabase.rpc('yoyo_set_live_standby', {
+                p_room_name: roomName, p_enabled: next,
+              });
+              if (standbyError) {
+                Alert.alert('تعذر تغيير وضع البث', standbyError.message || 'حاول مرة أخرى.');
+                return;
+              }
+              onStandbyChange?.(next);
+            }}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.standbyButtonText}>{showStandby ? '▶ الكاميرا' : '⏸ انتظار'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            disabled={micBusy}
+            style={[styles.micButton, !isMicrophoneEnabled && styles.micButtonMuted, micBusy && { opacity: 0.6 }]}
+            onPress={async () => {
+              if (micBusy) return;
+              setMicBusy(true);
+              try {
+                await localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled);
+              } catch (micError) {
+                Alert.alert('تعذر تغيير الميكروفون', micError?.message || 'تأكد من صلاحية الميكروفون ثم حاول مرة أخرى.');
+              } finally {
+                setMicBusy(false);
+              }
+            }}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.standbyButtonText}>{micBusy ? '...' : isMicrophoneEnabled ? '🎙️ الميكروفون مفتوح' : '🔇 الميكروفون مكتوم'}</Text>
+          </TouchableOpacity>
+        </View>
       ) : null}
 
       <ScrollView contentContainerStyle={styles.videoList}>
@@ -392,7 +415,7 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0B0912', paddingBottom: Platform.OS === 'android' ? 28 : 0 },
+  container: { flex: 1, backgroundColor: '#0B0912' },
   room: { flex: 1, padding: 16 },
   roomHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 },
   hostName: { color: '#FFFFFF', fontSize: 20, fontWeight: 'bold', textAlign: 'left' },
@@ -402,7 +425,10 @@ const styles = StyleSheet.create({
   livePillText: { color: '#FFFFFF', fontWeight: 'bold' },
   videoList: { flexGrow: 1, justifyContent: 'center', gap: 12 },
   video: { width: '100%', height: 420, backgroundColor: '#191424', borderRadius: 16, overflow: 'hidden' },
-  standbyButton: { backgroundColor: '#34263F', borderWidth: 1, borderColor: '#8A5578', borderRadius: 12, padding: 12, alignItems: 'center', marginBottom: 10 },
+  hostControls: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  standbyButton: { flex: 1, backgroundColor: '#34263F', borderWidth: 1, borderColor: '#8A5578', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 8, alignItems: 'center' },
+  micButton: { flex: 1, backgroundColor: '#245A48', borderWidth: 1, borderColor: '#3E9B78', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 8, alignItems: 'center' },
+  micButtonMuted: { backgroundColor: '#733347', borderColor: '#C45C78' },
   standbyButtonActive: { backgroundColor: '#245A48', borderColor: '#3E9B78' },
   standbyButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: 'bold' },
   standbyView: { minHeight: 300, alignItems: 'center', justifyContent: 'center', backgroundColor: '#191424', borderRadius: 16, padding: 20 },
