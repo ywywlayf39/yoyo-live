@@ -68,10 +68,8 @@ export default function LiveQuizPanel({ roomName, userId, isHost }) {
       }, refresh)
       .subscribe((status) => { if (status === 'SUBSCRIBED') refresh(); });
     const clock = setInterval(() => setClockNow(Date.now()), 500);
-    const refreshTimer = setInterval(refresh, 5000);
     return () => {
       clearInterval(clock);
-      clearInterval(refreshTimer);
       supabase.removeChannel(channel);
     };
   }, [roomName, refresh]);
