@@ -1,6 +1,17 @@
 name: Build YOYO LIVE Android APK
 
 on:
+  push:
+    branches:
+      - feature/livekit-live-stream
+    paths:
+      - "YoyoLiveApp/App.js"
+      - "YoyoLiveApp/LiveRoomScreen.native.js"
+      - "YoyoLiveApp/LiveRoomChat.js"
+      - "YoyoLiveApp/LiveQuizPanel.js"
+      - "YoyoLiveApp/package.json"
+      - "YoyoLiveApp/package-lock.json"
+      - ".github/workflows/build-android-apk.yml"
   workflow_dispatch:
 
 permissions:
