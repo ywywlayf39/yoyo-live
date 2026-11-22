@@ -81,6 +81,14 @@ const GIFT_ANIMATION_EFFECTS = {
   'emperor-throne': { particles: ["🪑","👑","💫"], tint: '#F5C451', duration: 7500, shake: true },
   'golden-yoyo-planet': { particles: ["🌍","🪐","✨"], tint: '#7BE0C3', duration: 5200, shake: false },
   'yoyo-legendary-galaxy': { particles: ["🌌","🌠","💜"], tint: '#C39BFF', duration: 7500, shake: true },
+  'yoyo-balloon-rise': { particles: ["🎈","💗","✨"], tint: '#FF9FBA', duration: 4200, shake: false },
+  'love-wave-burst': { particles: ["💝","💞","💗"], tint: '#F34E9B', duration: 4800, shake: false },
+  'yoyo-race-entry': { particles: ["🏎️","💨","⚡"], tint: '#7DD7F2', duration: 5200, shake: true },
+  'golden-horse-gallop': { particles: ["🐎","🌟","👑"], tint: '#D6B15D', duration: 5200, shake: true },
+  'crystal-castle-rise': { particles: ["🏰","💎","✨"], tint: '#9AD7F5', duration: 5600, shake: false },
+  'fire-dragon-arrival': { particles: ["🐉","🔥","✨"], tint: '#FF6B6B', duration: 7500, shake: true },
+  'yoyo-planet-impact': { particles: ["🪐","🌍","🌌"], tint: '#7BE0C3', duration: 6500, shake: true },
+  'yoyo-epic-celebration': { particles: ["🎆","🎇","👑"], tint: '#F5C451', duration: 7500, shake: true },
 };
 
 function effectFor(gift) {
