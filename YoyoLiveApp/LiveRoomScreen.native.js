@@ -309,7 +309,7 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0B0912', paddingBottom: Platform.OS === 'android' ? 28 : 0 },
-  room: { flex: 1, padding: 16, paddingBottom: Platform.OS === 'android' ? 24 : 16 },
+  room: { flex: 1, padding: 16 },
   roomHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 },
   hostName: { color: '#FFFFFF', fontSize: 20, fontWeight: 'bold', textAlign: 'left' },
   roomStatus: { color: '#AAA1B8', fontSize: 13, marginTop: 5, textAlign: 'left' },
