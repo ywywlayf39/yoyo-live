@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -22,7 +23,15 @@ import { supabase } from './supabase';
 import LiveGiftPanel from './LiveGiftPanel';
 import LiveBattlePanel from './LiveBattlePanel';
 
-function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userId, receiverId, roomName }) {
+function formatBroadcastDuration(totalSeconds) {
+  const seconds = Math.max(0, Math.floor(totalSeconds || 0));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainder = seconds % 60;
+  return [hours, minutes, remainder].map((value) => String(value).padStart(2, '0')).join(':');
+}
+
+function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userId, receiverId, roomName, broadcastDuration }) {
   const tracks = useTracks([Track.Source.Camera]);
   const videoTracks = tracks.filter(isTrackReference);
 
@@ -70,6 +79,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
         <View>
           <Text style={styles.hostName}>{hostName || 'بث YOYO LIVE'}</Text>
           <Text style={styles.roomStatus}>{isCall ? (callType === 'audio' ? 'مكالمة صوتية' : 'مكالمة فيديو') : isHost ? 'أنت تبث الآن' : 'أنت تشاهد البث المباشر'} 🔴</Text>
+          {!isCall ? <Text style={styles.durationText}>مدة البث: {broadcastDuration || '00:00:00'}</Text> : null}
         </View>
         <View style={styles.livePill}><Text style={styles.livePillText}>LIVE</Text></View>
       </View>
@@ -117,6 +127,40 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
 export default function LiveRoomScreen({ roomName, isHost, isCall = false, callType = 'video', hostName, onClose, userId, receiverId }) {
   const [connection, setConnection] = useState(null);
   const [error, setError] = useState('');
+  const [broadcastStartedAt, setBroadcastStartedAt] = useState(null);
+  const [clockNow, setClockNow] = useState(Date.now());
+
+  useEffect(() => {
+    if (isCall || !roomName) return undefined;
+    let active = true;
+    const loadBroadcastStart = async () => {
+      const { data, error: startError } = await supabase
+        .from('live_rooms')
+        .select('created_at')
+        .eq('room_name', roomName)
+        .eq('status', 'live')
+        .maybeSingle();
+      if (!active) return;
+      if (!startError && data?.created_at) {
+        setBroadcastStartedAt(new Date(data.created_at).getTime());
+      } else {
+        // Fallback for older live-room rows without a readable start timestamp.
+        setBroadcastStartedAt(Date.now());
+      }
+    };
+    loadBroadcastStart().catch(() => {
+      if (active) setBroadcastStartedAt(Date.now());
+    });
+    const clock = setInterval(() => setClockNow(Date.now()), 1000);
+    return () => {
+      active = false;
+      clearInterval(clock);
+    };
+  }, [roomName, isCall]);
+
+  const broadcastDuration = broadcastStartedAt
+    ? formatBroadcastDuration((clockNow - broadcastStartedAt) / 1000)
+    : '00:00:00';
 
   useEffect(() => {
     let active = true;
@@ -255,6 +299,7 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
             userId={userId}
             receiverId={receiverId}
             roomName={roomName}
+            broadcastDuration={broadcastDuration}
           />
         </LiveKitRoom>
       )}
@@ -263,11 +308,12 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0B0912' },
-  room: { flex: 1, padding: 16 },
+  container: { flex: 1, backgroundColor: '#0B0912', paddingBottom: Platform.OS === 'android' ? 28 : 0 },
+  room: { flex: 1, padding: 16, paddingBottom: Platform.OS === 'android' ? 24 : 16 },
   roomHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 },
   hostName: { color: '#FFFFFF', fontSize: 20, fontWeight: 'bold', textAlign: 'left' },
   roomStatus: { color: '#AAA1B8', fontSize: 13, marginTop: 5, textAlign: 'left' },
+  durationText: { color: '#F5C451', fontSize: 13, fontWeight: 'bold', marginTop: 6, textAlign: 'left', fontVariant: ['tabular-nums'] },
   livePill: { backgroundColor: '#E53965', borderRadius: 9, paddingHorizontal: 12, paddingVertical: 7 },
   livePillText: { color: '#FFFFFF', fontWeight: 'bold' },
   videoList: { flexGrow: 1, justifyContent: 'center', gap: 12 },
