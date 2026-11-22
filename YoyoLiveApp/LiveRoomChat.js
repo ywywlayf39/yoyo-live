@@ -86,7 +86,7 @@ export default function LiveRoomChat({ roomName, userId, isHost }) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginTop: 12, backgroundColor: COLORS.panel, borderRadius: 14, borderWidth: 1, borderColor: '#3A2D4C', padding: 10 },
+  wrap: { position: 'absolute', left: 0, right: 86, bottom: 92, zIndex: 30, elevation: 12, backgroundColor: 'rgba(15,10,25,0.82)', borderRadius: 14, borderWidth: 1, borderColor: '#6A4A70', padding: 8, maxWidth: '82%' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   title: { color: COLORS.gold, fontSize: 14, fontWeight: 'bold' },
   state: { color: COLORS.muted, fontSize: 11 },
@@ -94,14 +94,14 @@ const styles = StyleSheet.create({
   open: { backgroundColor: '#67334F' },
   closed: { backgroundColor: '#287B5B' },
   toggleText: { color: COLORS.white, fontSize: 11, fontWeight: 'bold' },
-  list: { maxHeight: 150, minHeight: 42 },
-  message: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 4, gap: 7 },
+  list: { maxHeight: 108, minHeight: 30 },
+  message: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 2, gap: 6 },
   name: { color: COLORS.gold, fontSize: 12, fontWeight: 'bold' },
   body: { color: COLORS.white, fontSize: 12, flex: 1, lineHeight: 18 },
   empty: { color: COLORS.muted, fontSize: 12, textAlign: 'center', paddingVertical: 12 },
-  composer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
-  input: { flex: 1, color: COLORS.white, backgroundColor: COLORS.panel2, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, textAlign: 'right', fontSize: 13 },
-  send: { backgroundColor: COLORS.pink, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 },
+  composer: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
+  input: { flex: 1, color: COLORS.white, backgroundColor: 'rgba(36,27,53,0.95)', borderRadius: 10, paddingHorizontal: 9, paddingVertical: 7, textAlign: 'right', fontSize: 12, minWidth: 0 },
+  send: { backgroundColor: COLORS.pink, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 9 },
   sendText: { color: COLORS.white, fontWeight: 'bold', fontSize: 12 },
   closedHint: { color: COLORS.muted, fontSize: 11, textAlign: 'center', paddingVertical: 8 },
 });
