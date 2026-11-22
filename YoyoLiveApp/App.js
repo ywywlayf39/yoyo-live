@@ -345,6 +345,51 @@ import {
     return () => listener.subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    const channel = supabase.channel('yoyo-notifications-' + session.user.id)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'user_notifications', filter: 'recipient_id=eq.' + session.user.id }, (payload) => {
+        const notification = payload.new;
+        if (notification?.notification_type === 'new_follower') {
+          Alert.alert(notification.title || 'متابع جديد 💗', notification.body || 'بدأ أحد الأعضاء متابعتك.');
+        }
+      }).subscribe();
+    return () => supabase.removeChannel(channel);
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    let active = true;
+    const loadSelectedFollow = async () => {
+      if (!selectedMember?.id || !session?.user?.id) return;
+      const [status, counts] = await Promise.all([
+        supabase.from('user_follows').select('follower_id').eq('follower_id', session.user.id).eq('following_id', selectedMember.id).maybeSingle(),
+        supabase.rpc('get_follow_counts', { p_user_id: selectedMember.id }),
+      ]);
+      if (active) {
+        setFollowedSelectedMember(!!status.data);
+        const totals = counts.data?.[0] || {};
+        setFollowCounts({ followers: Number(totals.followers_count || 0), following: Number(totals.following_count || 0) });
+      }
+    };
+    loadSelectedFollow();
+    return () => { active = false; };
+  }, [selectedMember?.id, session?.user?.id]);
+
+  const toggleSelectedFollow = async () => {
+    if (!selectedMember?.id || !session?.user?.id || followBusy) return;
+    setFollowBusy(true);
+    const result = followedSelectedMember
+      ? await supabase.from('user_follows').delete().eq('follower_id', session.user.id).eq('following_id', selectedMember.id)
+      : await supabase.from('user_follows').insert({ follower_id: session.user.id, following_id: selectedMember.id });
+    setFollowBusy(false);
+    if (result.error) {
+      Alert.alert('تعذر تحديث المتابعة', 'قد يكون بينكما حظر أو حدث خطأ. حاول مرة أخرى.');
+      return;
+    }
+    setFollowedSelectedMember(!followedSelectedMember);
+    setFollowCounts((current) => ({ ...current, followers: Math.max(0, current.followers + (followedSelectedMember ? -1 : 1)) }));
+  };
+
   const reportMember = (member) => {
     if (!member?.id || member.id === session?.user?.id) return;
     Alert.alert('إبلاغ عن العضو', 'اختار سبب الإبلاغ:', [
