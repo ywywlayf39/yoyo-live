@@ -114,7 +114,7 @@ export default function WalletScreen({ userId, onBack, onOpenPackages }) {
 
   const submitWithdrawal = () => {
     const available = Number(wallet?.earned_points || 0);
-    const points = Math.floor(available / MIN_WITHDRAWAL_POINTS) * MIN_WITHDRAWAL_POINTS;
+    const points = Math.floor(available);
     if (points < MIN_WITHDRAWAL_POINTS) {
       Alert.alert('النقاط غير كافية', 'يمكنك طلب السحب عند الوصول إلى 100,000 نقطة مكتسبة على الأقل.');
       return;
@@ -226,7 +226,7 @@ export default function WalletScreen({ userId, onBack, onOpenPackages }) {
 
               <View style={styles.withdrawPanel}>
                 <Text style={styles.cardTitle}>💸 طلب سحب النقاط</Text>
-                <Text style={styles.muted}>يتم طلب السحب بمضاعفات 100,000 نقطة. سيتم طلب أكبر عدد من المضاعفات المتاح في رصيدك المكتسب، وتظل النقاط محجوزة لحين مراجعة الإدارة.</Text>
+                <Text style={styles.muted}>الحد الأدنى لطلب السحب 100,000 نقطة. يمكنك طلب رصيدك المكتسب بالكامل فوق الحد الأدنى، وتظل النقاط محجوزة لحين مراجعة الإدارة.</Text>
                 <Text style={styles.financialLabel}>طريقة استلام الأرباح</Text>
                 <View style={styles.methodRow}>
                   {[
