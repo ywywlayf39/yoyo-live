@@ -86,7 +86,7 @@ export default function LiveRoomChat({ roomName, userId, isHost }) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { position: 'absolute', left: 0, right: 86, bottom: 92, zIndex: 30, elevation: 12, backgroundColor: 'rgba(15,10,25,0.82)', borderRadius: 14, borderWidth: 1, borderColor: '#6A4A70', padding: 8, maxWidth: '82%' },
+  wrap: { position: 'absolute', left: 10, right: 104, bottom: 92, zIndex: 70, elevation: 22, backgroundColor: 'rgba(15,10,25,0.92)', borderRadius: 14, borderWidth: 1, borderColor: '#6A4A70', padding: 8, maxWidth: '76%' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   title: { color: COLORS.gold, fontSize: 14, fontWeight: 'bold' },
   state: { color: COLORS.muted, fontSize: 11 },
@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
   open: { backgroundColor: '#67334F' },
   closed: { backgroundColor: '#287B5B' },
   toggleText: { color: COLORS.white, fontSize: 11, fontWeight: 'bold' },
-  list: { maxHeight: 108, minHeight: 30 },
+  list: { maxHeight: 150, minHeight: 38 },
   message: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 2, gap: 6 },
   name: { color: COLORS.gold, fontSize: 12, fontWeight: 'bold' },
   body: { color: COLORS.white, fontSize: 12, flex: 1, lineHeight: 18 },
