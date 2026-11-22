@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import AuthScreen from './AuthScreen';
 import ProfileScreen from './ProfileScreen';
 import WalletScreen from './WalletScreen';
+import PackagesScreen from './PackagesScreen';
 import AccountScreen from './AccountScreen';
 import AdminScreen from './AdminScreen';
 import ChatScreen from './ChatScreen';
@@ -55,6 +56,7 @@ import {
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutMessage, setLogoutMessage] = useState('');
   const [showWallet, setShowWallet] = useState(false);
+  const [showPackages, setShowPackages] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const isAdmin = session?.user?.app_metadata?.role === 'admin';
@@ -541,6 +543,10 @@ import {
     );
   }
 
+  if (showPackages) {
+    return <PackagesScreen userId={session.user.id} onBack={() => setShowPackages(false)} />;
+  }
+
   if (showWallet) {
     return (
       <WalletScreen
@@ -785,7 +791,8 @@ import {
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       <View style={styles.headerIcons}>
           {isAdmin && <TouchableOpacity onPress={() => setShowAdmin(true)}><Text style={styles.coins}>🛡️ الإدارة</Text></TouchableOpacity>}
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    <TouchableOpacity onPress={() => setShowWallet(true)}><Text style={styles.coins}>🪙 المحفظة</Text></TouchableOpacity>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    <TouchableOpacity onPress={() => setShowPackages(true)}><Text style={styles.coins}>🎁 الباقات</Text></TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowWallet(true)}><Text style={styles.coins}>🪙 المحفظة</Text></TouchableOpacity>
           <TouchableOpacity onPress={() => setShowFollowScreen(true)}><Text style={styles.coins}>👥 المتابعة</Text></TouchableOpacity>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               <TouchableOpacity onPress={openNotifications}><Text style={styles.notification}>🔔</Text></TouchableOpacity>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         </View>
@@ -893,16 +900,17 @@ import {
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         </ScrollView>
 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               <View style={styles.bottomNav}>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      {['الرئيسية', 'اكتشف', 'البث', 'الرسائل', 'حسابي'].map((item, i) => (
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      {['الرئيسية', 'اكتشف', 'الباقات', 'البث', 'الرسائل', 'حسابي'].map((item, i) => (
 <TouchableOpacity key={i} style={styles.navItem} accessibilityLabel={item} onPress={() => {
-if (i === 0) { setSelectedLive(null); setShowWallet(false); setShowAccount(false); setShowAdmin(false); }
+if (i === 0) { setSelectedLive(null); setShowWallet(false); setShowPackages(false); setShowAccount(false); setShowAdmin(false); setShowDiscover(false); }
 else if (i === 1) setShowDiscover(true);
-else if (i === 2) startLive();
-else if (i === 3) setShowInbox(true);
-else if (i === 4) setShowAccount(true);
+else if (i === 2) setShowPackages(true);
+else if (i === 3) startLive();
+else if (i === 4) setShowInbox(true);
+else if (i === 5) setShowAccount(true);
 }}>
 <View style={{ position: 'relative' }}>
-<Text style={styles.navIcon}>{['🏠', '✨', '🔴', '💬', '👤'][i]}</Text>
+<Text style={styles.navIcon}>{['🏠', '✨', '🎁', '🔴', '💬', '👤'][i]}</Text>
 {i === 3 && unreadMessageCount > 0 && (
   <View style={{ position: 'absolute', top: -7, right: -13, minWidth: 19, height: 19, borderRadius: 10, backgroundColor: '#F34E9B', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1, borderColor: C.bg }}>
     <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: 'bold' }}>{unreadMessageCount > 99 ? '99+' : unreadMessageCount}</Text>
