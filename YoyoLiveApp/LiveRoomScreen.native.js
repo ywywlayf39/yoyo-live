@@ -49,6 +49,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
         .select('is_standby,host_id').eq('room_name', roomName).eq('status', 'live').maybeSingle();
       if (!active || !room) return;
       setRoomStandby(room.is_standby === true);
+      if (isHost) onStandbyChange?.(room.is_standby === true);
       if (room.host_id) {
         const { data: profile } = await supabase.from('profiles')
           .select('avatar_url').eq('id', room.host_id).maybeSingle();
