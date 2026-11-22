@@ -48,6 +48,17 @@ export default function AdminScreen({ onBack }) {
   });
   const [financialResult, setFinancialResult] = useState(null);
   const [financialError, setFinancialError] = useState('');
+  const [paymentSettings, setPaymentSettings] = useState({
+    vodafone_cash_number: '', instapay_identifier: '', bank_name: '',
+    bank_account_name: '', bank_account_number: '',
+  });
+  const [paymentSaving, setPaymentSaving] = useState(false);
+  const [packageRows, setPackageRows] = useState([]);
+  const [packageForm, setPackageForm] = useState({
+    id: null, name: '', price_egp: '', coins: '', bonus_coins: '0', active: false, sort_order: '0',
+  });
+  const [packageSaving, setPackageSaving] = useState(false);
+  const [paymentSettingsError, setPaymentSettingsError] = useState('');
 
 
   const loadDashboard = useCallback(async () => {
@@ -116,6 +127,82 @@ export default function AdminScreen({ onBack }) {
   }, []);
 
   useEffect(() => { loadDashboard(); }, [loadDashboard]);
+
+  useEffect(() => {
+    let active = true;
+    const loadFinancialSettings = async () => {
+      const [{ data, error: settingsError }, { data: rows, error: packagesError }] = await Promise.all([
+        supabase.from('yoyo_payment_settings')
+          .select('vodafone_cash_number,instapay_identifier,bank_name,bank_account_name,bank_account_number')
+          .eq('id', true).maybeSingle(),
+        supabase.rpc('yoyo_admin_list_coin_packages'),
+      ]);
+      if (!active) return;
+      if (settingsError) setPaymentSettingsError('تعذر تحميل بيانات وسائل الدفع.');
+      else if (data) setPaymentSettings(data);
+      if (packagesError) console.error('YOYO admin packages:', packagesError);
+      else setPackageRows(rows || []);
+    };
+    loadFinancialSettings();
+    return () => { active = false; };
+  }, []);
+
+  const savePaymentSettings = async () => {
+    if (paymentSaving) return;
+    setPaymentSaving(true);
+    setPaymentSettingsError('');
+    const { data, error: saveError } = await supabase.rpc('yoyo_admin_update_payment_settings', {
+      p_vodafone_cash_number: paymentSettings.vodafone_cash_number.trim(),
+      p_instapay_identifier: paymentSettings.instapay_identifier.trim(),
+      p_bank_name: paymentSettings.bank_name.trim(),
+      p_bank_account_name: paymentSettings.bank_account_name.trim(),
+      p_bank_account_number: paymentSettings.bank_account_number.trim(),
+    });
+    setPaymentSaving(false);
+    if (saveError || data !== true) {
+      setPaymentSettingsError(saveError?.message || 'تعذر حفظ بيانات الدفع.');
+      return;
+    }
+    Alert.alert('تم الحفظ', 'تم تحديث وسائل الدفع التي تظهر للأعضاء.');
+  };
+
+  const savePackage = async () => {
+    if (packageSaving) return;
+    const price = Number(packageForm.price_egp);
+    const coins = Number(packageForm.coins);
+    const bonus = Number(packageForm.bonus_coins || 0);
+    if (packageForm.name.trim().length < 2 || !Number.isFinite(price) || price <= 0 ||
+        !Number.isInteger(coins) || coins <= 0 || !Number.isInteger(bonus) || bonus < 0) {
+      Alert.alert('راجع بيانات الباقة', 'اكتب اسمًا وسعرًا صحيحًا وعدد عملات صحيحًا.');
+      return;
+    }
+    setPackageSaving(true);
+    const { data, error: saveError } = await supabase.rpc('yoyo_admin_save_coin_package', {
+      p_id: packageForm.id,
+      p_name: packageForm.name.trim(),
+      p_price_egp: price,
+      p_coins: coins,
+      p_bonus_coins: bonus,
+      p_active: !!packageForm.active,
+      p_sort_order: Number(packageForm.sort_order) || 0,
+    });
+    setPackageSaving(false);
+    if (saveError || !data) {
+      Alert.alert('تعذر حفظ الباقة', saveError?.message || 'حاول مرة أخرى.');
+      return;
+    }
+    const { data: rows, error: listError } = await supabase.rpc('yoyo_admin_list_coin_packages');
+    if (!listError) setPackageRows(rows || []);
+    setPackageForm({ id: null, name: '', price_egp: '', coins: '', bonus_coins: '0', active: false, sort_order: '0' });
+    Alert.alert('تم', 'تم حفظ الباقة. لن تظهر للأعضاء إلا إذا فعّلتها.');
+  };
+
+  const editPackage = (item) => setPackageForm({
+    id: item.id, name: item.name, price_egp: String(item.price_egp),
+    coins: String(item.coins), bonus_coins: String(item.bonus_coins || 0),
+    active: !!item.active, sort_order: String(item.sort_order || 0),
+  });
+
 
   const filteredMembers = useMemo(() => {
     const q = memberSearch.trim().toLocaleLowerCase();
@@ -252,6 +339,65 @@ export default function AdminScreen({ onBack }) {
       <Text style={styles.logo}>YOYO LIVE 💗</Text>
       <Text style={styles.title}>لوحة الإدارة</Text>
       <Text style={styles.subtitle}>إدارة الأعضاء ومتابعة البلاغات ونشاط المنصة</Text>
+
+      <View style={styles.financialPanel}>
+        <Text style={styles.sectionTitle}>💳 إعدادات وسائل الدفع</Text>
+        <Text style={styles.memberHint}>حدّث الأرقام وبيانات الحساب هنا. التغييرات تظهر للأعضاء في صفحة الباقات بعد الحفظ.</Text>
+        {[
+          ['vodafone_cash_number','رقم فودافون كاش'],
+          ['instapay_identifier','عنوان أو رقم InstaPay'],
+          ['bank_name','اسم البنك'],
+          ['bank_account_name','اسم صاحب الحساب البنكي'],
+          ['bank_account_number','رقم الحساب البنكي أو IBAN'],
+        ].map(([key,label]) => (
+          <View key={key} style={styles.financialField}>
+            <Text style={styles.financialLabel}>{label}</Text>
+            <TextInput value={paymentSettings[key]} onChangeText={value => setPaymentSettings(current => ({...current,[key]:value}))}
+              placeholder={label} placeholderTextColor="#8F849F" style={styles.financialInput}
+              autoCapitalize="none" />
+          </View>
+        ))}
+        {!!paymentSettingsError && <Text style={styles.financialError}>{paymentSettingsError}</Text>}
+        <TouchableOpacity style={styles.calculateButton} onPress={savePaymentSettings} disabled={paymentSaving}>
+          <Text style={styles.actionText}>{paymentSaving ? 'جارٍ الحفظ...' : 'حفظ بيانات وسائل الدفع'}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={[styles.financialPanel,{marginTop:18}]}>
+        <Text style={styles.sectionTitle}>🪙 إدارة باقات العملات</Text>
+        <Text style={styles.memberHint}>أدخل الأسعار والعملات التي تعتمدها بنفسك. الباقة غير النشطة لا تظهر للمستخدمين.</Text>
+        <TextInput value={packageForm.name} onChangeText={value => setPackageForm(current => ({...current,name:value}))}
+          placeholder="اسم الباقة" placeholderTextColor="#8F849F" style={styles.financialInput} />
+        {[
+          ['price_egp','السعر بالجنيه'],['coins','عدد العملات'],['bonus_coins','عملات إضافية مجانية'],['sort_order','ترتيب العرض'],
+        ].map(([key,label]) => (
+          <View key={key} style={styles.financialField}>
+            <Text style={styles.financialLabel}>{label}</Text>
+            <TextInput value={packageForm[key]} onChangeText={value => setPackageForm(current => ({...current,[key]:value}))}
+              keyboardType="decimal-pad" placeholder={label} placeholderTextColor="#8F849F" style={styles.financialInput} />
+          </View>
+        ))}
+        <TouchableOpacity onPress={() => setPackageForm(current => ({...current,active:!current.active}))}
+          style={[styles.durationChip,{alignSelf:'flex-end',backgroundColor:packageForm.active?'#276B4A':'#30263F'}]}>
+          <Text style={styles.durationText}>{packageForm.active ? '✓ الباقة مفعّلة' : 'الباقة متوقفة'}</Text>
+        </TouchableOpacity>
+        <View style={styles.actions}>
+          <TouchableOpacity style={styles.calculateButton} onPress={savePackage} disabled={packageSaving}>
+            <Text style={styles.actionText}>{packageSaving ? 'جارٍ الحفظ...' : packageForm.id ? 'حفظ تعديل الباقة' : 'إضافة باقة جديدة'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.reviewButton} onPress={() => setPackageForm({id:null,name:'',price_egp:'',coins:'',bonus_coins:'0',active:false,sort_order:'0'})}>
+            <Text style={styles.actionText}>باقة جديدة</Text>
+          </TouchableOpacity>
+        </View>
+        {packageRows.map(item => (
+          <TouchableOpacity key={item.id} onPress={() => editPackage(item)} style={styles.auditCard}>
+            <Text style={styles.memberName}>{item.name} {item.active ? '🟢' : '⚪'}</Text>
+            <Text style={styles.person}>{Number(item.price_egp).toLocaleString('ar-EG')} جنيه · {Number(item.coins).toLocaleString('ar-EG')} عملة + {Number(item.bonus_coins||0).toLocaleString('ar-EG')} إضافية</Text>
+            <Text style={styles.refresh}>اضغط للتعديل</Text>
+          </TouchableOpacity>
+        ))}
+        {packageRows.length === 0 && <Text style={styles.memberHint}>لم تتم إضافة باقات بعد. أضف الأسعار المعتمدة لعرضها للأعضاء.</Text>}
+      </View>
 
       {loading ? <ActivityIndicator color="#F5C451" size="large" style={{ marginTop: 30 }} /> : (
         <>
