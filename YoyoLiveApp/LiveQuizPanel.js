@@ -66,10 +66,12 @@ export default function LiveQuizPanel({ roomName, userId, isHost }) {
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'yoyo_quiz_participants',
       }, refresh)
-      .subscribe();
+      .subscribe((status) => { if (status === 'SUBSCRIBED') refresh(); });
     const clock = setInterval(() => setClockNow(Date.now()), 500);
+    const refreshTimer = setInterval(refresh, 5000);
     return () => {
       clearInterval(clock);
+      clearInterval(refreshTimer);
       supabase.removeChannel(channel);
     };
   }, [roomName, refresh]);
@@ -165,6 +167,9 @@ export default function LiveQuizPanel({ roomName, userId, isHost }) {
         <View style={styles.finished}>
           <Text style={styles.finishedTitle}>🏆 انتهت المسابقة!</Text>
           <Text style={styles.description}>أبطال YOYO QUIZ النهارده</Text>
+          {isHost ? <TouchableOpacity style={styles.startButton} onPress={startQuiz} disabled={busy}>
+            <Text style={styles.startText}>{busy ? 'جارٍ التجهيز...' : '↻ ابدأ مسابقة جديدة'}</Text>
+          </TouchableOpacity> : null}
         </View>
       ) : question ? (
         <>
