@@ -6,6 +6,7 @@ on:
       - feature/livekit-live-stream
     paths:
       - "YoyoLiveApp/App.js"
+      - "YoyoLiveApp/PackagesScreen.js"
       - "YoyoLiveApp/LiveRoomScreen.native.js"
       - "YoyoLiveApp/LiveRoomChat.js"
       - "YoyoLiveApp/LiveQuizPanel.js"
