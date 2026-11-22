@@ -769,7 +769,11 @@ import {
                                                                                                                                                                                                                                                                                                                                                         <SafeAreaView style={styles.container}>
                                                                                                                                                                                                                                                                                                                                                               <StatusBar barStyle="light-content" backgroundColor={C.bg} />
 
-                                                                                                                                                                                                                                                                                                                                                                    <ScrollView showsVerticalScrollIndicator={false}>
+                                                                                                                                                                                                                                                                                                                                                                    <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 14 }}
+        showsVerticalScrollIndicator={false}
+      >
                                                                                                                                                                                                                                                                                                                                                                             <View style={styles.header}>
                                                                                                                                                                                                                                                                                                                                                                                       <View>
                                                                                                                                                                                                                                                                                                                                                                                                   <Text style={styles.logo}>
@@ -1098,31 +1102,39 @@ storyCircle: {
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         },
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           bottomNav: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     alignItems: 'center',
     backgroundColor: C.card,
-    paddingHorizontal: 4,
-    paddingTop: 9,
-    paddingBottom: 8,
-    minHeight: 66,
+    paddingHorizontal: 2,
+    paddingTop: 7,
+    paddingBottom: 9,
+    minHeight: 74,
     width: '100%',
+    flexShrink: 0,
+    zIndex: 100,
+    elevation: 18,
+    borderTopWidth: 1,
+    borderTopColor: '#49344F',
   },
   navItem: {
     flex: 1,
     minWidth: 0,
+    minHeight: 56,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 1,
+    paddingHorizontal: 0,
+    paddingVertical: 3,
   },
   navIcon: {
-    fontSize: 23,
-    lineHeight: 28,
+    fontSize: 25,
+    lineHeight: 31,
     textAlign: 'center',
+    includeFontPadding: false,
   },
   navText: {
     color: C.muted,
-    fontSize: 9,
-    lineHeight: 12,
+    fontSize: 10,
+    lineHeight: 14,
     marginTop: 2,
     textAlign: 'center',
     includeFontPadding: false,
