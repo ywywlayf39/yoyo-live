@@ -204,7 +204,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
 
       </ScrollView>
 
-      <TouchableOpacity style={styles.leaveButton} onPress={() => Alert.alert(
+      {videoOverlaysVisible ? <TouchableOpacity style={styles.leaveButton} onPress={() => Alert.alert(
         isCall ? 'إنهاء المكالمة' : isHost ? 'إنهاء البث المباشر' : 'مغادرة البث',
         isCall ? 'هل أنت متأكد أنك تريد إنهاء المكالمة؟' : isHost ? 'هل أنت متأكد؟ سيتم إنهاء البث وفصل جميع المشاهدين، وإنهاء أي تحدٍ نشط دون إعلان فائز.' : 'هل تريد مغادرة البث؟',
         [
@@ -213,7 +213,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
         ],
       )} activeOpacity={0.85}>
         <Text style={styles.leaveButtonText}>{isCall ? 'إنهاء المكالمة' : isHost ? 'إنهاء البث' : 'مغادرة البث'}</Text>
-      </TouchableOpacity>
+      </TouchableOpacity> : null}
 
       {!isCall && userId && videoOverlaysVisible ? <LiveRoomChat roomName={roomName} userId={userId} isHost={isHost} /> : null}
       {!isCall && userId && videoOverlaysVisible ? <LiveGiftPanel userId={userId} receiverId={receiverId} isHost={isHost} roomName={roomName} onOpenPackages={onOpenPackages} /> : null}
