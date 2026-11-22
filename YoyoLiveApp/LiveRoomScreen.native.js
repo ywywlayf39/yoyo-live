@@ -215,7 +215,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
         <Text style={styles.leaveButtonText}>{isCall ? 'إنهاء المكالمة' : isHost ? 'إنهاء البث' : 'مغادرة البث'}</Text>
       </TouchableOpacity> : null}
 
-      {!isCall && userId && videoOverlaysVisible ? <LiveRoomChat roomName={roomName} userId={userId} isHost={isHost} /> : null}
+      {!isCall && userId ? <LiveRoomChat roomName={roomName} userId={userId} isHost={isHost} /> : null}
       {!isCall && userId && videoOverlaysVisible ? <LiveGiftPanel userId={userId} receiverId={receiverId} isHost={isHost} roomName={roomName} onOpenPackages={onOpenPackages} /> : null}
 
     </View>
