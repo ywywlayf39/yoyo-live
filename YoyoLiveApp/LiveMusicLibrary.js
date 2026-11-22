@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Directory, File, Paths } from 'expo-file-system';
 
@@ -14,7 +14,7 @@ function safeFileName(name) {
 export default function LiveMusicLibrary() {
   const [songs, setSongs] = useState([]);
   const [busy, setBusy] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(false);\n  const [searchText, setSearchText] = useState('');\n  const [selectedSongId, setSelectedSongId] = useState(null);
 
   const saveSongs = useCallback(async (nextSongs) => {
     setSongs(nextSongs);
@@ -81,7 +81,7 @@ export default function LiveMusicLibrary() {
     }
   };
 
-  const removeSong = (song) => {
+  const filteredSongs = songs.filter((song) => song.name.toLowerCase().includes(searchText.trim().toLowerCase()));\n\n  const removeSong = (song) => {
     Alert.alert('حذف الأغنية', `هل تريد حذف "${song.name}" من مكتبتك؟`, [
       { text: 'إلغاء', style: 'cancel' },
       {
@@ -115,18 +115,37 @@ export default function LiveMusicLibrary() {
           <TouchableOpacity style={styles.addButton} onPress={importSongs} disabled={busy} activeOpacity={0.85}>
             {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.addButtonText}>＋ إضافة أغاني من الهاتف</Text>}
           </TouchableOpacity>
-          {songs.length ? songs.map((song) => (
-            <View key={song.id} style={styles.songRow}>
-              <Text style={styles.songIcon}>♫</Text>
-              <View style={styles.songInfo}>
-                <Text numberOfLines={1} style={styles.songName}>{song.name}</Text>
-                <Text style={styles.songSize}>{song.size ? `${(song.size / (1024 * 1024)).toFixed(1)} ميجابايت` : 'ملف صوتي'}</Text>
-              </View>
-              <TouchableOpacity onPress={() => removeSong(song)} style={styles.removeButton}>
-                <Text style={styles.removeText}>حذف</Text>
-              </TouchableOpacity>
-            </View>
-          )) : (
+          {songs.length ? (
+            <>
+              <TextInput
+                value={searchText}
+                onChangeText={setSearchText}
+                placeholder="ابحث باسم الأغنية..."
+                placeholderTextColor="#9D91A8"
+                style={styles.searchInput}
+                autoCapitalize="none"
+                returnKeyType="search"
+              />
+              {filteredSongs.length ? filteredSongs.map((song) => (
+                <View key={song.id} style={[styles.songRow, selectedSongId === song.id && styles.selectedSongRow]}>
+                  <Text style={styles.songIcon}>♫</Text>
+                  <View style={styles.songInfo}>
+                    <Text numberOfLines={1} style={styles.songName}>{song.name}</Text>
+                    <Text style={styles.songSize}>{song.size ? `${(song.size / (1024 * 1024)).toFixed(1)} ميجابايت` : 'ملف صوتي'}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setSelectedSongId(song.id)} style={styles.chooseButton}>
+                    <Text style={styles.chooseText}>{selectedSongId === song.id ? 'تم الاختيار' : 'اختيار'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => removeSong(song)} style={styles.removeButton}>
+                    <Text style={styles.removeText}>حذف</Text>
+                  </TouchableOpacity>
+                </View>
+              )) : <Text style={styles.empty}>مفيش أغنية بالاسم ده. جرّب كلمة تانية.</Text>}
+              {selectedSongId ? (
+                <Text style={styles.selectedLabel}>الأغنية المحددة: {songs.find((song) => song.id === selectedSongId)?.name || ''}</Text>
+              ) : null}
+            </>
+          ) : (
             <Text style={styles.empty}>مكتبتك فارغة. أضف ملفات الأغاني من هاتفك لتظل محفوظة داخل التطبيق.</Text>
           )}
           <Text style={styles.notice}>الأغاني محفوظة محليًا على هاتفك. تشغيلها وإرسال صوتها للمشاهدين يحتاج استكمال مسار الصوت المباشر في LiveKit؛ هذه المكتبة وحدها لا تبث الموسيقى.</Text>
@@ -146,7 +165,7 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: 12, paddingBottom: 12 },
   addButton: { minHeight: 44, borderRadius: 10, backgroundColor: '#8C285B', alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
   addButtonText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 14 },
-  songRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#35283D' },
+  searchInput: { minHeight: 42, borderRadius: 10, borderWidth: 1, borderColor: '#594565', color: '#FFFFFF', paddingHorizontal: 12, marginBottom: 8, textAlign: 'left', backgroundColor: '#241B2D' },\n  selectedSongRow: { backgroundColor: '#30233A', borderRadius: 8, paddingHorizontal: 4 },\n  chooseButton: { paddingHorizontal: 9, paddingVertical: 7, backgroundColor: '#3F704E', borderRadius: 8 },\n  chooseText: { color: '#FFFFFF', fontSize: 11, fontWeight: 'bold' },\n  selectedLabel: { color: '#F5C451', fontSize: 12, marginTop: 8, textAlign: 'left' },\n  songRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#35283D' },
   songIcon: { color: '#F5C451', fontSize: 22, width: 32, textAlign: 'center' },
   songInfo: { flex: 1, paddingHorizontal: 8 },
   songName: { color: '#FFFFFF', fontSize: 13, textAlign: 'left' },
