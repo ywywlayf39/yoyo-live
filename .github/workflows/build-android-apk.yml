@@ -1,0 +1,33 @@
+name: Build YOYO LIVE Android APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-android-apk:
+    name: Build preview APK with EAS
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: YoyoLiveApp
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: YoyoLiveApp/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Android APK on EAS
+        run: npx eas-cli@latest build --platform android --profile preview --non-interactive --wait
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
