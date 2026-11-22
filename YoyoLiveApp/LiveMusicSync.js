@@ -51,6 +51,7 @@ export default function LiveMusicSync({ roomName, userId, isHost }) {
     return () => {
       clearInterval(poll);
       supabase.removeChannel(channel);
+      processingRef.current += 1;
       releasePlayer();
     };
   }, [roomName, refresh, releasePlayer]);
@@ -103,7 +104,6 @@ export default function LiveMusicSync({ roomName, userId, isHost }) {
         playerPathRef.current = sharedMusic.storage_path;
         finishSentRef.current = false;
         let started = false;
-        let statusSubscription = null;
         const beginWhenLoaded = async (status) => {
           if (started || !status?.isLoaded || processingRef.current !== operation) return;
           started = true;
@@ -117,7 +117,7 @@ export default function LiveMusicSync({ roomName, userId, isHost }) {
             console.warn('YOYO shared music seek:', seekError?.message || seekError);
           }
         };
-        statusSubscription = player.addListener('playbackStatusUpdate', (status) => {
+        player.addListener('playbackStatusUpdate', (status) => {
           beginWhenLoaded(status);
           if (isHost && status?.didJustFinish && !finishSentRef.current) {
             finishSentRef.current = true;
@@ -127,7 +127,6 @@ export default function LiveMusicSync({ roomName, userId, isHost }) {
           }
         });
         if (player.isLoaded) await beginWhenLoaded({ isLoaded: true });
-        return () => statusSubscription?.remove?.();
       } catch (error) {
         if (processingRef.current === operation) {
           setMusicError('تعذر تشغيل الموسيقى عند هذا الجهاز. تحقق من اتصال الإنترنت.');
