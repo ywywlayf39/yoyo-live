@@ -102,6 +102,7 @@ export default function LiveMusicSync({ roomName, userId, isHost }) {
         const player = createAudioPlayer(data.signedUrl, { updateInterval: 500 });
         playerRef.current = player;
         playerPathRef.current = sharedMusic.storage_path;
+        playerKeyRef.current = playbackKey;
         finishSentRef.current = false;
         let started = false;
         const beginWhenLoaded = async (status) => {
@@ -129,6 +130,8 @@ export default function LiveMusicSync({ roomName, userId, isHost }) {
         if (player.isLoaded) await beginWhenLoaded({ isLoaded: true });
       } catch (error) {
         if (processingRef.current === operation) {
+          playerKeyRef.current = null;
+          releasePlayer();
           setMusicError('تعذر تشغيل الموسيقى عند هذا الجهاز. تحقق من اتصال الإنترنت.');
         }
         console.warn('YOYO shared music playback:', error?.message || error);
