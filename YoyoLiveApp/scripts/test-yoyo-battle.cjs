@@ -24,7 +24,8 @@ for (const token of [
   'create trigger yoyo_battle_score_from_live_gift',
   'new.host_points',
   'revoke all on function public.yoyo_battle_invite',
-  'grant execute on function public.yoyo_battle_invite'
+  'grant execute on function public.yoyo_battle_invite',
+  'revoke all on function private.yoyo_battle_count_gift()'
 ]) {
   assert.ok(migration.toLowerCase().includes(token.toLowerCase()), 'Migration missing safety/feature clause: ' + token);
 }
