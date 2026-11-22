@@ -19,6 +19,7 @@ on:
       - "YoyoLiveApp/ChatScreen.js"
       - "YoyoLiveApp/eas.json"
       - "YoyoLiveApp/LiveGiftPanel.js"
+      - "YoyoLiveApp/LiveBattlePanel.js"
       - "YoyoLiveApp/giftSoundPlayers.js"
       - "YoyoLiveApp/financialCalculator.js"
       - "YoyoLiveApp/scripts/test-financial-calculator.cjs"
