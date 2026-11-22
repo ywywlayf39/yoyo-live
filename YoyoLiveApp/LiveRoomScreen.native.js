@@ -174,15 +174,15 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
   }, [roomName, isCall]);
 
   const leaveRoom = async () => {
+    let cleanupWarning = '';
+
     if (isHost) {
-      // Mark any pending/active battle as interrupted before ending the room.
-      // This prevents a false winner if the host leaves mid-round.
+      // Best-effort interruption: navigation must not be blocked by a server cleanup error.
       const { error: battleError } = await supabase.rpc('yoyo_battle_interrupt_for_host', {
         p_room_name: roomName,
       });
       if (battleError) {
-        setError(battleError.message || 'تعذر إنهاء التحدي بأمان. حاول مرة أخرى.');
-        return;
+        cleanupWarning = 'تعذر تأكيد إيقاف التحدي على الخادم.';
       }
     }
 
@@ -192,12 +192,19 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
       });
 
       if (endError || !data?.ended) {
-        setError(data?.error || endError?.message || 'لم نتمكن من إنهاء الجلسة وإخراج المشاركين.');
-        return;
+        cleanupWarning = [cleanupWarning, 'تعذر تأكيد إنهاء الغرفة على الخادم. قد تحتاج إعدادات LiveKit إلى مراجعة.']
+          .filter(Boolean)
+          .join(' ');
       }
     }
 
+    // Always leave the live screen locally, even if server-side cleanup fails.
+    // Unmounting LiveKitRoom disconnects this device; the warning explains any remote cleanup issue.
     onClose?.();
+
+    if (cleanupWarning) {
+      Alert.alert('تم الرجوع من شاشة البث', cleanupWarning + ' تأكد من إصلاح اتصال LiveKit قبل بدء بث جديد.');
+    }
   };
 
   const exitAfterConnectionError = async () => {
