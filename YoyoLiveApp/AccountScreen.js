@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, TextInput, Image, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, TextInput, Image, Alert, Linking } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from './supabase';
 
@@ -14,6 +14,7 @@ export default function AccountScreen({ userId, email, onBack }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showCountries, setShowCountries] = useState(false);
@@ -46,6 +47,10 @@ export default function AccountScreen({ userId, email, onBack }) {
     if (parsedDate.getFullYear() !== year || parsedDate.getMonth() !== month - 1 || parsedDate.getDate() !== day || parsedDate > new Date()) {
       setError('تاريخ الميلاد غير صحيح.'); return;
     }
+    const today = new Date();
+    let age = today.getFullYear() - year;
+    if (today.getMonth() < month - 1 || (today.getMonth() === month - 1 && today.getDate() < day)) age -= 1;
+    if (age < 18) { setError('YOYO LIVE متاح لمن بلغوا 18 عامًا فقط.'); return; }
     if (!gender) { setError('اختار النوع من فضلك.'); return; }
     const formattedBirthDate = year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
     setSaving(true); setError(''); setSuccess('');
@@ -100,6 +105,44 @@ export default function AccountScreen({ userId, email, onBack }) {
     } finally { setUploading(false); }
   };
 
+  const deleteAccount = () => {
+    Alert.alert(
+      'حذف الحساب نهائيًا',
+      'سيتم حذف ملفك الشخصي وصورك ورسائلك وبيانات المحفظة والاتصالات المرتبطة بالحساب. لا يمكن التراجع عن هذا الإجراء.',
+      [
+        { text: 'إلغاء', style: 'cancel' },
+        {
+          text: 'حذف حسابي نهائيًا',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            setError('');
+            const { data, error: deleteError } = await supabase.functions.invoke('delete-account', {
+              body: { confirm: true },
+            });
+            if (deleteError || !data?.deleted) {
+              setError(data?.error || deleteError?.message || 'تعذر حذف الحساب الآن. حاول مرة أخرى.');
+              setDeleting(false);
+              return;
+            }
+            await supabase.auth.signOut({ scope: 'local' });
+            Alert.alert('تم حذف الحساب', 'تم حذف الحساب والبيانات المرتبطة به.');
+            onBack?.();
+          },
+        },
+      ],
+      { cancelable: true },
+    );
+  };
+
+  const openDeletionPage = async () => {
+    try {
+      await Linking.openURL('https://ywywlayf39.github.io/yoyo-live/delete-account.html');
+    } catch {
+      setError('تعذر فتح صفحة حذف الحساب. حاول مرة أخرى.');
+    }
+  };
+
   const birthDate = profile?.birth_date ? new Date(profile.birth_date + 'T00:00:00').toLocaleDateString('ar-EG') : 'غير مسجل';
 
   return (
@@ -132,6 +175,26 @@ export default function AccountScreen({ userId, email, onBack }) {
             {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>حفظ التعديلات</Text>}
           </TouchableOpacity>
           <Text style={styles.hint}>تغيير الصورة يتم فور رفعها، وتعديل الاسم والبلد والنوع وتاريخ الميلاد يتم عند الضغط على حفظ التعديلات.</Text>
+          <View style={styles.deleteSection}>
+            <Text style={styles.deleteTitle}>إدارة الحساب</Text>
+            <TouchableOpacity onPress={() => Linking.openURL('https://ywywlayf39.github.io/yoyo-live/privacy-policy.html')} style={styles.externalDeleteLink}>
+              <Text style={styles.externalDeleteText}>سياسة الخصوصية</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => Linking.openURL('https://ywywlayf39.github.io/yoyo-live/terms.html')} style={styles.externalDeleteLink}>
+              <Text style={styles.externalDeleteText}>شروط الاستخدام</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={openDeletionPage} style={styles.externalDeleteLink}>
+              <Text style={styles.externalDeleteText}>طلب حذف الحساب من خارج التطبيق</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={deleteAccount}
+              style={[styles.deleteButton, deleting && styles.disabled]}
+              disabled={deleting || saving || uploading}
+            >
+              {deleting ? <ActivityIndicator color="#fff" /> : <Text style={styles.deleteButtonText}>حذف الحساب نهائيًا</Text>}
+            </TouchableOpacity>
+            <Text style={styles.deleteHint}>حذف الحساب نهائي ولا يمكن استرجاعه.</Text>
+          </View>
         </>
       )}
     </ScrollView>
@@ -164,5 +227,12 @@ const styles = StyleSheet.create({
   button: { backgroundColor: '#8655F5', borderRadius: 12, padding: 15, alignItems: 'center', marginTop: 24 },
   disabled: { opacity: 0.6 },
   buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  hint: { color: '#AAA1B8', textAlign: 'center', marginTop: 14, fontSize: 12 }
+  hint: { color: '#AAA1B8', textAlign: 'center', marginTop: 14, fontSize: 12 },
+  deleteSection: { marginTop: 28, padding: 18, borderRadius: 16, borderWidth: 1, borderColor: '#63333D', backgroundColor: '#191424' },
+  deleteTitle: { color: '#fff', textAlign: 'right', fontSize: 16, fontWeight: 'bold', marginBottom: 12 },
+  externalDeleteLink: { paddingVertical: 10 },
+  externalDeleteText: { color: '#F5C451', textAlign: 'center', textDecorationLine: 'underline' },
+  deleteButton: { backgroundColor: '#9E293C', borderRadius: 12, padding: 14, alignItems: 'center', marginTop: 8 },
+  deleteButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
+  deleteHint: { color: '#AAA1B8', textAlign: 'center', fontSize: 11, marginTop: 10 }
 });

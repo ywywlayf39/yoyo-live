@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  ScrollView, Modal, StyleSheet, ActivityIndicator
+  ScrollView, Modal, StyleSheet, ActivityIndicator, Platform
 } from 'react-native';
 import { supabase } from './supabase';
 import DateTimePicker from '@react-native-community/datetimepicker'
@@ -18,7 +18,8 @@ export default function ProfileScreen({ userId, onComplete }) {
   const [name, setName] = useState('');
   const [country, setCountry] = useState('مصر');
   const [gender, setGender] = useState('');
-  const [birthDate, setBirthDate] = useState('');
+  const [birthDate, setBirthDate] = useState(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [showCountries, setShowCountries] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -36,24 +37,25 @@ export default function ProfileScreen({ userId, onComplete }) {
       return;
     }
 
-    const match = birthDate.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    if (!match) {
-      setError('اكتب تاريخ الميلاد بالشكل يوم/شهر/سنة');
+    if (!birthDate || Number.isNaN(birthDate.getTime())) {
+      setError('اختار تاريخ ميلادك من التقويم');
       return;
     }
 
-    const day = Number(match[1]);
-    const month = Number(match[2]);
-    const year = Number(match[3]);
-    const date = new Date(year, month - 1, day);
+    const day = birthDate.getDate();
+    const month = birthDate.getMonth() + 1;
+    const year = birthDate.getFullYear();
+    const today = new Date();
 
-    if (
-      date.getFullYear() !== year ||
-      date.getMonth() !== month - 1 ||
-      date.getDate() !== day ||
-      date > new Date()
-    ) {
-      setError('تاريخ الميلاد غير صحيح');
+    if (birthDate > today) {
+      setError('تاريخ الميلاد لا يمكن أن يكون في المستقبل');
+      return;
+    }
+
+    let age = today.getFullYear() - year;
+    if (today.getMonth() < month - 1 || (today.getMonth() === month - 1 && today.getDate() < day)) age -= 1;
+    if (age < 18) {
+      setError('YOYO LIVE متاح لمن بلغوا 18 عامًا فقط.');
       return;
     }
 
@@ -120,23 +122,37 @@ export default function ProfileScreen({ userId, onComplete }) {
       </TouchableOpacity>
 
       <Text style={styles.label}>تاريخ ميلادك</Text>
-      <TextInput
+      <TouchableOpacity
         style={styles.input}
-        placeholder="يوم/شهر/سنة مثال 15/08/2000"
-        placeholderTextColor="#999"
-        value={birthDate}
-        onChangeText={(value) => {
-          const digits = value.replace(/\D/g, '').slice(0, 8);
-          const formatted = digits.length <= 2
-            ? digits
-            : digits.length <= 4
-              ? digits.slice(0, 2) + '/' + digits.slice(2)
-              : digits.slice(0, 2) + '/' + digits.slice(2, 4) + '/' + digits.slice(4);
-          setBirthDate(formatted);
-        }}
-        keyboardType="numeric"
-        textAlign="right"
-      />
+        onPress={() => setShowDatePicker(true)}
+        accessibilityRole="button"
+        accessibilityLabel="اختيار تاريخ الميلاد من التقويم"
+      >
+        <Text style={[styles.value, !birthDate && { color: '#999' }]}>
+          {birthDate
+            ? `${String(birthDate.getDate()).padStart(2, '0')}/${String(birthDate.getMonth() + 1).padStart(2, '0')}/${birthDate.getFullYear()}`
+            : 'اضغط لاختيار تاريخ ميلادك'}
+        </Text>
+      </TouchableOpacity>
+      {showDatePicker ? (
+        <View style={styles.datePickerContainer}>
+          <DateTimePicker
+            value={birthDate || new Date(2000, 0, 1)}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            maximumDate={new Date()}
+            onChange={(event, selectedDate) => {
+              if (event.type === 'set' && selectedDate) setBirthDate(selectedDate);
+              if (Platform.OS !== 'ios' || event.type === 'dismissed') setShowDatePicker(false);
+            }}
+          />
+          {Platform.OS === 'ios' ? (
+            <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+              <Text style={styles.close}>تم</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      ) : null}
       <Text style={styles.note}>تاريخ ميلادك لن يظهر للأعضاء الآخرين.</Text>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -254,6 +270,12 @@ const styles = StyleSheet.create({
     color: '#24152b',
     fontSize: 16,
     textAlign: 'right'
+  },
+  datePickerContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginTop: 8,
+    padding: 8
   },
   note: {
     color: '#cbbdce',

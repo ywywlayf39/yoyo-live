@@ -1,0 +1,266 @@
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { AccessToken, RoomServiceClient } from "npm:livekit-server-sdk@2.20.1";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+function json(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  if (req.method !== "POST") {
+    return json({ error: "Method not allowed" }, 405);
+  }
+
+  try {
+    const authorization = req.headers.get("Authorization") ?? "";
+    const jwt = authorization.startsWith("Bearer ")
+      ? authorization.slice(7)
+      : "";
+
+    if (!jwt) return json({ error: "Authentication required" }, 401);
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const publishableKeysRaw = Deno.env.get("SUPABASE_PUBLISHABLE_KEYS");
+    let supabaseKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+
+    if (publishableKeysRaw) {
+      try {
+        const keys = JSON.parse(publishableKeysRaw);
+        const defaultEnvName = keys?.default;
+        if (typeof defaultEnvName === "string") {
+          supabaseKey = Deno.env.get(defaultEnvName) ?? supabaseKey;
+        }
+      } catch {
+        // Fall back to the legacy anon key if the key map is unavailable.
+      }
+    }
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error("Supabase Auth configuration is missing");
+      return json({ error: "Server authentication is not configured" }, 500);
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      global: { headers: { Authorization: `Bearer ${jwt}` } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
+    if (authError || !user) {
+      return json({ error: "Invalid or expired session" }, 401);
+    }
+
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!serviceKey) {
+      console.error("Suspension status service configuration is missing");
+      return json({ error: "Unable to verify account status" }, 500);
+    }
+    const service = createClient(supabaseUrl, serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const checkSuspension = async (userId: string) => {
+      const { data, error } = await service.from("user_suspensions")
+        .select("reason, suspended_until")
+        .eq("user_id", userId)
+        .is("revoked_at", null)
+        .maybeSingle();
+      if (error) throw new Error("Unable to verify account status");
+      return !!data && (!data.suspended_until || new Date(data.suspended_until).getTime() > Date.now());
+    };
+
+    const body = await req.json();
+    const roomName = typeof body?.roomName === "string" ? body.roomName.trim() : "";
+    const action = body?.action === undefined ? "join" : body.action;
+
+    if (action !== "join" && action !== "end") {
+      return json({ error: "A valid action is required" }, 400);
+    }
+
+    if (!roomName || roomName.length > 128 || !/^[a-zA-Z0-9_-]+$/.test(roomName)) {
+      return json({ error: "A valid roomName is required" }, 400);
+    }
+    if (action !== "end" && await checkSuspension(user.id)) {
+      return json({ error: "تم إيقاف حسابك مؤقتًا أو بشكل دائم. تواصل مع الدعم لمعرفة التفاصيل." }, 403);
+    }
+
+    const { data: liveRoom, error: liveRoomError } = await supabase
+      .from("live_rooms")
+      .select("host_id, status")
+      .eq("room_name", roomName)
+      .maybeSingle();
+
+    if (liveRoomError) {
+      console.error("Live room lookup failed:", liveRoomError.message);
+      return json({ error: "Unable to verify live room access" }, 500);
+    }
+
+    let isHost = false;
+    let isCall = false;
+    let callType: string | null = null;
+    let callId: string | null = null;
+    let callParticipantCallerId: string | null = null;
+    let callParticipantReceiverId: string | null = null;
+
+    if (liveRoom) {
+      if (liveRoom.status !== "live") {
+        return json({ error: "Live room not found or already ended" }, 404);
+      }
+      isHost = liveRoom.host_id === user.id;
+    } else {
+      const { data: call, error: callError } = await supabase
+        .from("live_calls")
+        .select("id, caller_id, receiver_id, call_type, status")
+        .eq("room_name", roomName)
+        .maybeSingle();
+
+      if (callError) {
+        console.error("Live call lookup failed:", callError.message);
+        return json({ error: "Unable to verify call access" }, 500);
+      }
+
+      if (!call) return json({ error: "Live room or call not found" }, 404);
+
+      const isCaller = call.caller_id === user.id;
+      const isReceiver = call.receiver_id === user.id;
+      if (!isCaller && !isReceiver) return json({ error: "You are not a participant in this call" }, 403);
+      if (call.status === "rejected" || call.status === "ended") {
+        return json({ error: "This call has ended" }, 404);
+      }
+      if (isReceiver && call.status !== "accepted") {
+        return json({ error: "Accept the call before joining" }, 403);
+      }
+      if (isCaller && call.status !== "ringing" && call.status !== "accepted") {
+        return json({ error: "This call is no longer active" }, 404);
+      }
+
+      isCall = true;
+      callType = call.call_type;
+      callId = call.id;
+      callParticipantCallerId = call.caller_id;
+      callParticipantReceiverId = call.receiver_id;
+    }
+
+    const otherParticipantId = isCall
+      ? (user.id === callParticipantCallerId ? callParticipantReceiverId : callParticipantCallerId)
+      : (!isHost && liveRoom ? liveRoom.host_id : null);
+
+    if (otherParticipantId && action !== "end") {
+      if (await checkSuspension(otherParticipantId)) {
+        return json({ error: "هذا الحساب موقوف حاليًا ولا يمكن الانضمام إلى البث أو المكالمة" }, 403);
+      }
+      const { data: blockRows, error: blockError } = await supabase
+        .from("user_blocks")
+        .select("blocker_id, blocked_id")
+        .or(`blocker_id.eq.${user.id},blocked_id.eq.${user.id}`);
+      if (blockError) {
+        console.error("Live room block check failed:", blockError.message);
+        return json({ error: "Unable to verify room safety" }, 500);
+      }
+      const blocked = (blockRows ?? []).some((row) =>
+        (row.blocker_id === user.id && row.blocked_id === otherParticipantId) ||
+        (row.blocker_id === otherParticipantId && row.blocked_id === user.id)
+      );
+      if (blocked) return json({ error: "You cannot join this room because one of you has blocked the other" }, 403);
+    }
+
+    const apiKey = Deno.env.get("LIVEKIT_API_KEY");
+    const apiSecret = Deno.env.get("LIVEKIT_API_SECRET");
+    const livekitUrl = Deno.env.get("LIVEKIT_URL");
+
+    if (!apiKey || !apiSecret || !livekitUrl) {
+      console.error("LiveKit server configuration is incomplete");
+      return json({ error: "LiveKit is not configured on the server" }, 500);
+    }
+
+    if (action === "end") {
+      if (!isHost && !isCall) {
+        return json({ error: "Only the room host can end this live stream" }, 403);
+      }
+
+      const serviceUrl = livekitUrl.replace(/^wss:/, "https:").replace(/^ws:/, "http:");
+      try {
+        const roomService = new RoomServiceClient(serviceUrl, apiKey, apiSecret);
+        const activeRooms = await roomService.listRooms([roomName]);
+        if (activeRooms.length > 0) {
+          await roomService.deleteRoom(roomName);
+        }
+      } catch (error) {
+        console.error("LiveKit room deletion failed:", error instanceof Error ? error.message : "Unknown error");
+        return json({ error: "Unable to disconnect participants from this room" }, 502);
+      }
+
+      if (isCall && callId) {
+        const { data: endedCall, error: endError } = await supabase
+          .from("live_calls")
+          .update({ status: "ended" })
+          .eq("id", callId)
+          .in("status", ["ringing", "accepted"])
+          .select("id")
+          .maybeSingle();
+
+        if (endError || !endedCall) {
+          console.error("Live call end update failed:", endError?.message ?? "Call was not updated");
+          return json({ error: "Call could not be marked as ended" }, 500);
+        }
+
+        return json({ ended: true, isCall: true, roomName });
+      }
+
+      const { data: endedRoom, error: endError } = await supabase
+        .from("live_rooms")
+        .update({ status: "ended", ended_at: new Date().toISOString() })
+        .eq("room_name", roomName)
+        .eq("host_id", user.id)
+        .eq("status", "live")
+        .select("id")
+        .maybeSingle();
+
+      if (endError || !endedRoom) {
+        console.error("Live room end update failed:", endError?.message ?? "Room was not updated");
+        return json({ error: "Live room could not be marked as ended" }, 500);
+      }
+
+      return json({ ended: true, isCall: false, roomName });
+    }
+
+    const accessToken = new AccessToken(apiKey, apiSecret, {
+      identity: user.id,
+      ttl: "1h",
+    });
+
+    accessToken.addGrant({
+      roomJoin: true,
+      room: roomName,
+      canPublish: isCall || isHost,
+      canSubscribe: true,
+      canPublishData: true,
+    });
+
+    const token = await accessToken.toJwt();
+
+    return json({
+      token,
+      serverUrl: livekitUrl,
+      roomName,
+      isHost,
+      isCall,
+      callType,
+      expiresIn: 3600,
+    });
+  } catch (error) {
+    console.error("livekit-token error:", error instanceof Error ? error.message : "Unknown error");
+    return json({ error: "Unable to create LiveKit access token" }, 500);
+  }
+});

@@ -4,8 +4,11 @@ import AuthScreen from './AuthScreen';
 import ProfileScreen from './ProfileScreen';
 import WalletScreen from './WalletScreen';
 import AccountScreen from './AccountScreen';
+import AdminScreen from './AdminScreen';
 import ChatScreen from './ChatScreen';
 import InboxScreen from './InboxScreen';
+import './registerLiveKit';
+import LiveRoomScreen from './LiveRoomScreen';
 import { supabase } from './supabase';
 import {
   Alert,
@@ -52,10 +55,168 @@ import {
   const [logoutMessage, setLogoutMessage] = useState('');
   const [showWallet, setShowWallet] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
+  const isAdmin = session?.user?.app_metadata?.role === 'admin';
   const [selectedMember, setSelectedMember] = useState(null);
   const [chatMember, setChatMember] = useState(null);
   const [showInbox, setShowInbox] = useState(false);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [liveRooms, setLiveRooms] = useState([]);
+  const [selectedCall, setSelectedCall] = useState(null);
+  const [incomingCall, setIncomingCall] = useState(null);
+
+
+  useEffect(() => {
+    if (!session?.user?.id) {
+      setLiveRooms([]);
+      return;
+    }
+
+    let active = true;
+    const refreshLiveRooms = async () => {
+      const { data, error } = await supabase
+        .from('live_rooms')
+        .select('id, room_name, host_id, host_name, title, created_at')
+        .eq('status', 'live')
+        .order('created_at', { ascending: false });
+      if (!error && active) {
+        const { data: blockRows, error: blockError } = await supabase
+          .from('user_blocks')
+          .select('blocker_id, blocked_id')
+          .or(`blocker_id.eq.${session.user.id},blocked_id.eq.${session.user.id}`);
+        if (blockError) {
+          console.error('YOYO LIVE block list failed:', blockError);
+          setLiveRooms(data || []);
+        } else {
+          const hiddenIds = new Set((blockRows || []).map((row) =>
+            row.blocker_id === session.user.id ? row.blocked_id : row.blocker_id
+          ));
+          setLiveRooms((data || []).filter((room) => !hiddenIds.has(room.host_id)));
+        }
+      }
+      if (error) console.error('YOYO LIVE live rooms failed:', error);
+    };
+
+    refreshLiveRooms();
+    const channel = supabase
+      .channel('live-rooms-feed-' + session.user.id)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_rooms' }, refreshLiveRooms)
+      .subscribe();
+
+    return () => {
+      active = false;
+      supabase.removeChannel(channel);
+    };
+  }, [session?.user?.id]);
+
+
+  useEffect(() => {
+    if (!session?.user?.id) {
+      setIncomingCall(null);
+      return;
+    }
+
+    const loadPendingCall = async () => {
+      const since = new Date(Date.now() - 45000).toISOString();
+      const { data, error } = await supabase.from('live_calls')
+        .select('id, room_name, caller_id, receiver_id, call_type, status, created_at')
+        .eq('receiver_id', session.user.id)
+        .eq('status', 'ringing')
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!error && data) {
+        setIncomingCall((current) => current?.id === data.id ? current : data);
+      }
+    };
+
+    loadPendingCall();
+    const channel = supabase
+      .channel('incoming-calls-' + session.user.id)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'live_calls',
+        filter: 'receiver_id=eq.' + session.user.id,
+      }, (payload) => {
+        if (payload.new?.status === 'ringing') {
+          setIncomingCall((current) => current?.id === payload.new.id ? current : payload.new);
+        }
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'live_calls',
+        filter: 'receiver_id=eq.' + session.user.id,
+      }, (payload) => {
+        if (payload.new?.status !== 'ringing') {
+          setIncomingCall((current) => current?.id === payload.new.id ? null : current);
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (!incomingCall || !session?.user?.id) return;
+
+    if (selectedCall || selectedLive) {
+      supabase.from('live_calls')
+        .update({ status: 'rejected' })
+        .eq('id', incomingCall.id)
+        .eq('receiver_id', session.user.id)
+        .eq('status', 'ringing');
+      setIncomingCall(null);
+      return;
+    }
+
+    const callLabel = incomingCall.call_type === 'video' ? 'مكالمة فيديو واردة' : 'مكالمة صوتية واردة';
+    Alert.alert(callLabel, 'هناك عضو يحاول الاتصال بك على YOYO LIVE.', [
+      {
+        text: 'رفض',
+        style: 'cancel',
+        onPress: async () => {
+          const { error } = await supabase.from('live_calls')
+            .update({ status: 'rejected' })
+            .eq('id', incomingCall.id)
+            .eq('receiver_id', session.user.id)
+            .eq('status', 'ringing');
+          if (error) Alert.alert('تعذر رفض المكالمة', 'حاول مرة أخرى.');
+          setIncomingCall(null);
+        },
+      },
+      {
+        text: 'قبول',
+        onPress: async () => {
+          const { data, error } = await supabase.from('live_calls')
+            .update({ status: 'accepted' })
+            .eq('id', incomingCall.id)
+            .eq('receiver_id', session.user.id)
+            .eq('status', 'ringing')
+            .select('room_name, call_type')
+            .maybeSingle();
+
+          if (error || !data) {
+            Alert.alert('انتهت المكالمة', 'المكالمة لم تعد متاحة.');
+            setIncomingCall(null);
+            return;
+          }
+
+          setSelectedCall({
+            roomName: data.room_name,
+            callType: data.call_type,
+            name: 'مكالمة YOYO LIVE',
+            isCall: true,
+          });
+          setIncomingCall(null);
+        },
+      },
+    ], { cancelable: false });
+  }, [incomingCall, session?.user?.id, selectedCall, selectedLive]);
 
   useEffect(() => {
     if (!session?.user?.id) {
@@ -98,9 +259,24 @@ import {
       setProfileLoading(true);
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, display_name, avatar_url')
+         .select('id, display_name, avatar_url, birth_date')
         .eq('id', session.user.id)
         .maybeSingle();
+      if (active && !error && data?.birth_date) {
+        const [birthYear, birthMonth, birthDay] = data.birth_date.split('-').map(Number);
+        const today = new Date();
+        let age = today.getFullYear() - birthYear;
+        if (today.getMonth() < birthMonth - 1 || (today.getMonth() === birthMonth - 1 && today.getDate() < birthDay)) age -= 1;
+        if (age < 18) {
+          await supabase.auth.signOut({ scope: 'local' });
+          setSession(null);
+          setCurrentProfile(null);
+          setProfileReady(false);
+          setProfileLoading(false);
+          Alert.alert('الخدمة لمن هم 18 عامًا أو أكثر', 'لا يمكن استخدام YOYO LIVE إذا كان عمرك أقل من 18 عامًا.');
+          return;
+        }
+      }
       if (active) {
         setCurrentProfile(!error && data ? data : null);
         setProfileReady(!error && !!data);
@@ -121,19 +297,26 @@ import {
       }
       setMembersLoading(true);
       setMembersError('');
-      const { data, error } = await supabase
-        .from('member_public_profiles')
-        .select('id, display_name, avatar_url, country')
-        .neq('id', session.user.id)
-        .order('display_name', { ascending: true })
-        .limit(30);
+      const [{ data, error }, { data: blockRows, error: blockError }] = await Promise.all([
+        supabase.from('member_public_profiles')
+          .select('id, display_name, avatar_url, country')
+          .neq('id', session.user.id)
+          .order('display_name', { ascending: true })
+          .limit(50),
+        supabase.from('user_blocks')
+          .select('blocker_id, blocked_id')
+          .or(`blocker_id.eq.${session.user.id},blocked_id.eq.${session.user.id}`),
+      ]);
       if (!active) return;
-      if (error) {
-        console.error('YOYO LIVE member directory failed:', error);
+      if (error || blockError) {
+        console.error('YOYO LIVE member directory failed:', error || blockError);
         setMembersError('تعذر تحميل الأعضاء حاليًا');
         setMembers([]);
       } else {
-        setMembers(data || []);
+        const hiddenIds = new Set((blockRows || []).map((row) =>
+          row.blocker_id === session.user.id ? row.blocked_id : row.blocker_id
+        ));
+        setMembers((data || []).filter((member) => !hiddenIds.has(member.id)));
       }
       setMembersLoading(false);
     }
@@ -156,6 +339,65 @@ import {
 
     return () => listener.subscription.unsubscribe();
   }, []);
+
+  const reportMember = (member) => {
+    if (!member?.id || member.id === session?.user?.id) return;
+    Alert.alert('إبلاغ عن العضو', 'اختار سبب الإبلاغ:', [
+      { text: 'محتوى غير لائق', onPress: () => submitMemberReport(member, 'محتوى غير لائق') },
+      { text: 'تحرش أو إساءة', onPress: () => submitMemberReport(member, 'تحرش أو إساءة') },
+      { text: 'رسائل مزعجة أو احتيال', onPress: () => submitMemberReport(member, 'رسائل مزعجة أو احتيال') },
+      { text: 'إلغاء', style: 'cancel' },
+    ]);
+  };
+
+  const submitMemberReport = async (member, reason) => {
+    // اربط البلاغ بغرفة البث النشطة وقت الإبلاغ إن كان العضو يبث الآن.
+    const { data: liveRoom } = await supabase.from('live_rooms')
+      .select('id')
+      .eq('host_id', member.id)
+      .eq('status', 'live')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const { error } = await supabase.from('user_reports').insert({
+      reporter_id: session.user.id,
+      reported_user_id: member.id,
+      live_room_id: liveRoom?.id || null,
+      reason,
+      status: 'pending',
+    });
+    if (error) Alert.alert('تعذر إرسال البلاغ', 'حاول مرة أخرى لاحقًا.');
+    else Alert.alert('تم استلام البلاغ', liveRoom?.id
+      ? 'تم ربط البلاغ بالبث الجاري وإرساله للمراجعة.'
+      : 'سنراجع البلاغ ونتخذ الإجراء المناسب.');
+  };
+
+  const blockMember = (member) => {
+    if (!member?.id || member.id === session?.user?.id) return;
+    Alert.alert('حظر العضو', 'لن تتمكن أنت وهذا العضو من إرسال رسائل خاصة لبعضكما، وسيختفي من قائمة الأعضاء والبثوث لديك.', [
+      { text: 'إلغاء', style: 'cancel' },
+      {
+        text: 'حظر',
+        style: 'destructive',
+        onPress: async () => {
+          const { error } = await supabase.from('user_blocks').upsert({
+            blocker_id: session.user.id,
+            blocked_id: member.id,
+          }, { onConflict: 'blocker_id,blocked_id', ignoreDuplicates: true });
+          if (error) {
+            Alert.alert('تعذر حظر العضو', 'حاول مرة أخرى.');
+            return;
+          }
+          setMembers((current) => current.filter((item) => item.id !== member.id));
+          setLiveRooms((current) => current.filter((room) => room.host_id !== member.id));
+          if (selectedMember?.id === member.id) setSelectedMember(null);
+          if (chatMember?.id === member.id) setChatMember(null);
+          Alert.alert('تم الحظر', 'تم حظر العضو بنجاح.');
+        },
+      },
+    ]);
+  };
 
   const handleLogout = async () => {
     if (loggingOut) return;
@@ -214,6 +456,10 @@ import {
   }
 
 
+  if (showAdmin && isAdmin) {
+    return <AdminScreen onBack={() => setShowAdmin(false)} />;
+  }
+
   if (showAccount) {
     return (
       <AccountScreen
@@ -233,12 +479,28 @@ import {
     );
   }
 
+  if (selectedCall) {
+    return (
+      <LiveRoomScreen
+        roomName={selectedCall.roomName}
+        isHost={false}
+        isCall={true}
+        callType={selectedCall.callType}
+        hostName={selectedCall.name}
+        onClose={() => setSelectedCall(null)}
+      />
+    );
+  }
+
   if (chatMember) {
     return (
       <ChatScreen
         userId={session.user.id}
         member={chatMember}
         onBack={() => setChatMember(null)}
+        onStartCall={(call) => setSelectedCall(call)}
+        onReport={() => reportMember(chatMember)}
+        onBlock={() => blockMember(chatMember)}
       />
     );
   }
@@ -291,47 +553,77 @@ import {
           >
             <Text style={{ color: C.white, fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>💬 إرسال رسالة خاصة</Text>
           </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 18, width: '100%' }}>
+            <TouchableOpacity
+              onPress={() => reportMember(selectedMember)}
+              style={{ flex: 1, backgroundColor: C.card2, padding: 12, borderRadius: 12, alignItems: 'center' }}
+            >
+              <Text style={{ color: C.white, fontWeight: 'bold' }}>🚩 إبلاغ</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => blockMember(selectedMember)}
+              style={{ flex: 1, backgroundColor: '#612A39', padding: 12, borderRadius: 12, alignItems: 'center' }}
+            >
+              <Text style={{ color: C.white, fontWeight: 'bold' }}>🚫 حظر</Text>
+            </TouchableOpacity>
+          </View>
           <Text style={{ color: C.muted, fontSize: 12, marginTop: 16, textAlign: 'center' }}>
-            🎁 إرسال الهدايا سيتاح بعد تأمين رصيد العملات وحسابات الأرباح.
+            🎁 لإرسال هدية، افتح البث المباشر للعضو واستخدم لوحة الهدايا.
           </Text>
         </ScrollView>
       </SafeAreaView>
     );
   }
 
+
+  const startLive = async () => {
+    if (!session?.user?.id) {
+      Alert.alert('تسجيل الدخول مطلوب', 'سجّل الدخول أولاً لبدء البث.');
+      return;
+    }
+
+    const existingRoom = liveRooms.find((room) => room.host_id === session.user.id);
+    if (existingRoom) {
+      setSelectedLive({
+        roomName: existingRoom.room_name,
+        isHost: true,
+        hostId: existingRoom.host_id,
+        name: existingRoom.host_name,
+      });
+      return;
+    }
+
+    const hostName = (currentProfile?.display_name || 'عضو YOYO LIVE').trim().slice(0, 80);
+    const roomName = `yoyo_${session.user.id.replace(/-/g, '').slice(0, 12)}_${Date.now()}`;
+    const { error } = await supabase.from('live_rooms').insert({
+      room_name: roomName,
+      host_id: session.user.id,
+      host_name: hostName,
+      title: 'بث مباشر',
+      status: 'live',
+    });
+
+    if (error) {
+      console.error('YOYO LIVE start live failed:', error);
+      Alert.alert('تعذر بدء البث', 'لم نتمكن من إنشاء غرفة البث. حاول مرة أخرى.');
+      return;
+    }
+
+    setSelectedLive({ roomName, isHost: true, hostId: session.user.id, name: hostName });
+  };
+
   if (selectedLive) {
-                                                      return (
-                                                            <SafeAreaView style={styles.container}>
-                                                                    <StatusBar barStyle="light-content" backgroundColor={C.bg} />
-                                                                            <View style={styles.roomHeader}>
-                                                                                      <TouchableOpacity onPress={() => setSelectedLive(null)}>
-                                                                                                  <Text style={styles.back}>رجوع ←</Text>
-                                                                                                            </TouchableOpacity>
-                                                                                                                      <Text style={styles.live}>● LIVE</Text>
-                                                                                                                              </View>
-                                                                                                                                      <View style={styles.room}>
-                                                                                                                                                <Text style={styles.roomEmoji}>{selectedLive.emoji}</Text>
-                                                                                                                                                          <Text style={styles.roomName}>{selectedLive.name}</Text>
-                                                                                                                                                                    <Text style={styles.roomDesc}>
-                                                                                                                                                                                مرحباً بك في بث {selectedLive.name} 💗
-                                                                                                                                                                                          </Text>
-                                                                                                                                                                                                    <Text style={styles.roomViewers}>👥 250 مشاهد</Text>
-                                                                                                                                                                                                              <Text style={styles.demo}>غرفة بث تجريبية</Text>
-                                                                                                                                                                                                                      </View>
-                                                                                                                                                                                                                              <View style={styles.roomActions}>
-                                                                                                                                                                                                                                        <TouchableOpacity style={styles.action}>
-                                                                                                                                                                                                                                                    <Text style={styles.actionText}>💬 الدردشة</Text>
-                                                                                                                                                                                                                                                              </TouchableOpacity>
-                                                                                                                                                                                                                                                                        <TouchableOpacity style={styles.action}>
-                                                                                                                                                                                                                                                                                    <Text style={styles.actionText}>🎁 هدية</Text>
-                                                                                                                                                                                                                                                                                              </TouchableOpacity>
-                                                                                                                                                                                                                                                                                                        <TouchableOpacity style={styles.action}>
-                                                                                                                                                                                                                                                                                                                    <Text style={styles.actionText}>❤️ إعجاب</Text>
-                                                                                                                                                                                                                                                                                                                              </TouchableOpacity>
-                                                                                                                                                                                                                                                                                                                                      </View>
-                                                                                                                                                                                                                                                                                                                                            </SafeAreaView>
-                                                                                                                                                                                                                                                                                                                                                );
-                                                                                                                                                                                                                                                                                                                                                  }
+    return (
+      <LiveRoomScreen
+        roomName={selectedLive.roomName}
+        isHost={selectedLive.isHost}
+        hostName={selectedLive.name}
+        userId={session.user.id}
+        receiverId={selectedLive.hostId}
+        onClose={() => setSelectedLive(null)}
+      />
+    );
+  }
 
                                                                                                                                                                                                                                                                                                                                                     return (
                                                                                                                                                                                                                                                                                                                                                         <SafeAreaView style={styles.container}>
@@ -359,6 +651,7 @@ import {
         </TouchableOpacity>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                             </View>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       <View style={styles.headerIcons}>
+          {isAdmin && <TouchableOpacity onPress={() => setShowAdmin(true)}><Text style={styles.coins}>🛡️ الإدارة</Text></TouchableOpacity>}
 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     <TouchableOpacity onPress={() => setShowWallet(true)}><Text style={styles.coins}>🪙 المحفظة</Text></TouchableOpacity>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               <TouchableOpacity onPress={() => Alert.alert('الإشعارات', 'لا توجد إشعارات جديدة حاليًا.')}><Text style={styles.notification}>🔔</Text></TouchableOpacity>
@@ -403,7 +696,44 @@ import {
               </ScrollView>
             )}
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      <TouchableOpacity style={styles.arena} onPress={() => Alert.alert('YOYO ARENA', 'التحديات لم يتم تفعيلها بعد، وسيتم فتحها عند تجهيز نظام النقاط والمنافسات.')}>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
+<View style={{ marginTop: 22, marginHorizontal: 18 }}>
+  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+    <Text style={styles.sectionTitle}>البث المباشر 🔴</Text>
+    <TouchableOpacity
+      onPress={startLive}
+      style={{ backgroundColor: C.pink, borderRadius: 12, paddingVertical: 9, paddingHorizontal: 14 }}
+      activeOpacity={0.85}
+    >
+      <Text style={{ color: C.white, fontWeight: 'bold', fontSize: 13 }}>＋ ابدأ بثك</Text>
+    </TouchableOpacity>
+  </View>
+  {liveRooms.length === 0 ? (
+    <Text style={styles.memberStatus}>لا توجد بثوث مباشرة الآن. ابدأ أول بث في YOYO LIVE.</Text>
+  ) : (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      {liveRooms.map((room) => (
+        <TouchableOpacity
+          key={room.id}
+          onPress={() => setSelectedLive({
+            roomName: room.room_name,
+            isHost: room.host_id === session?.user?.id,
+            hostId: room.host_id,
+            name: room.host_name,
+          })}
+          style={{ backgroundColor: C.card, borderWidth: 1, borderColor: '#E53965', borderRadius: 15, padding: 14, marginRight: 10, minWidth: 145 }}
+          activeOpacity={0.85}
+        >
+          <Text style={{ color: '#FF718B', fontWeight: 'bold', marginBottom: 6 }}>● LIVE</Text>
+          <Text style={{ color: C.white, fontWeight: 'bold' }} numberOfLines={1}>{room.host_name}</Text>
+          <Text style={{ color: C.muted, fontSize: 12, marginTop: 4 }} numberOfLines={1}>{room.title}</Text>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+  )}
+</View>
+
+<TouchableOpacity style={styles.arena} onPress={() => Alert.alert('YOYO ARENA', 'التحديات لم يتم تفعيلها بعد، وسيتم فتحها عند تجهيز نظام النقاط والمنافسات.')}>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 <Text style={styles.arenaEmoji}>🏆</Text>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           <Text style={styles.arenaTitle}>YOYO ARENA</Text>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     <Text style={styles.arenaDesc}>
@@ -432,9 +762,9 @@ import {
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               <View style={styles.bottomNav}>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       {['الرئيسية', 'اكتشف', 'البث', 'الرسائل', 'حسابي'].map((item, i) => (
 <TouchableOpacity key={i} style={styles.navItem} accessibilityLabel={item} onPress={() => {
-if (i === 0) { setSelectedLive(null); setShowWallet(false); setShowAccount(false); }
+if (i === 0) { setSelectedLive(null); setShowWallet(false); setShowAccount(false); setShowAdmin(false); }
 else if (i === 1) Alert.alert('اكتشف', 'قسم اكتشف والمحتوى الحقيقي قيد التجهيز.');
-else if (i === 2) Alert.alert('البث المباشر', 'البث المباشر الحقيقي لم يتم تفعيله بعد.');
+else if (i === 2) startLive();
 else if (i === 3) setShowInbox(true);
 else if (i === 4) setShowAccount(true);
 }}>

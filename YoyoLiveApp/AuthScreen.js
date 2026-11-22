@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { supabase } from './supabase';
 
@@ -17,6 +18,7 @@ export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUp
   const [feedback, setFeedback] = useState('');
   const [feedbackType, setFeedbackType] = useState('error');
   const [forgotMode, setForgotMode] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   function showFeedback(message, type = 'error') {
     setFeedback(message);
@@ -47,6 +49,10 @@ export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUp
     }
 
     const cleanEmail = email.trim().toLowerCase();
+    if (!isLogin && !acceptedTerms) {
+      showFeedback('يجب الموافقة على شروط الاستخدام وسياسة الخصوصية قبل إنشاء الحساب.');
+      return;
+    }
     if (forgotMode) {
       if (!cleanEmail) {
         showFeedback('اكتب البريد الإلكتروني أولاً.');
@@ -133,6 +139,7 @@ export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUp
     setForgotMode(false);
     setFeedback('');
     setPassword('');
+    setAcceptedTerms(false);
   }
 
   return (
@@ -165,6 +172,21 @@ export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUp
         onChangeText={(value) => { setPassword(value); setFeedback(''); }}
         editable={!loading}
       />}
+
+      {!recoveryMode && !isLogin && !forgotMode && (
+        <View style={styles.termsRow}>
+          <TouchableOpacity onPress={() => setAcceptedTerms(!acceptedTerms)} disabled={loading} accessibilityRole="checkbox" accessibilityState={{ checked: acceptedTerms }}>
+            <Text style={styles.termsCheck}>{acceptedTerms ? '☑' : '☐'}</Text>
+          </TouchableOpacity>
+          <Text style={styles.termsText}>
+            أوافق على{' '}
+            <Text style={styles.termsLink} onPress={() => Linking.openURL('https://ywywlayf39.github.io/yoyo-live/terms.html')}>شروط الاستخدام</Text>
+            {' '}و{' '}
+            <Text style={styles.termsLink} onPress={() => Linking.openURL('https://ywywlayf39.github.io/yoyo-live/privacy-policy.html')}>سياسة الخصوصية</Text>
+            {' '}وأؤكد أن عمري 18 عامًا أو أكثر.
+          </Text>
+        </View>
+      )}
 
       {!!feedback && (
         <View style={[styles.feedback, feedbackType === 'success' ? styles.successBox : styles.errorBox]}>
@@ -226,6 +248,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 25,
   },
+  termsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 12 },
+  termsCheck: { color: '#F5C451', fontSize: 24, paddingHorizontal: 2 },
+  termsText: { color: '#DDD6E7', flex: 1, textAlign: 'right', lineHeight: 22, fontSize: 13 },
+  termsLink: { color: '#F5C451', textDecorationLine: 'underline', fontWeight: 'bold' },
   input: {
     backgroundColor: '#191424',
     color: '#FFFFFF',

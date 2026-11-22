@@ -1,21 +1,31 @@
 {
   "expo": {
-    "name": "YoyoLiveApp",
-    "slug": "YoyoLiveApp",
+    "name": "YOYO LIVE",
+    "slug": "yoyo-live",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/yoyo-live-icon.svg",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "YOYO LIVE يستخدم الكاميرا لبدء البث المباشر.",
+        "NSMicrophoneUsageDescription": "YOYO LIVE يستخدم الميكروفون لنقل صوت البث المباشر."
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+        "backgroundColor": "#35001F",
+        "foregroundImage": "./assets/yoyo-live-icon.svg",
+        "monochromeImage": "./assets/yoyo-live-icon.svg"
+      },
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS"
+      ],
+      "package": "com.yoyolive.app",
+      "versionCode": 1
     },
     "web": {
       "output": "single",
@@ -35,7 +45,30 @@
       "baseUrl": "/yoyo-live"
     },
     "plugins": [
-      "@react-native-community/datetimepicker"
-    ]
+      "@react-native-community/datetimepicker",
+      "@livekit/react-native-expo-plugin",
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "اسمح ليويو لايف باستخدام الكاميرا لبدء البث المباشر.",
+          "microphonePermission": "اسمح ليويو لايف باستخدام الميكروفون لنقل صوت البث المباشر."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 37,
+            "targetSdkVersion": 36
+          }
+        }
+      ]
+    ],
+    "owner": "ebrahim2211s-team",
+    "extra": {
+      "eas": {
+        "projectId": "14d34dd0-5abf-4d06-879e-b9fe0438f909"
+      }
+    }
   }
 }
