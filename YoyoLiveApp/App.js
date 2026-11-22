@@ -21,6 +21,7 @@ import {
           TouchableOpacity,
             SafeAreaView,
               StatusBar,
+              Platform,
               Image,
               } from 'react-native';
 
@@ -1107,7 +1108,8 @@ storyCircle: {
     backgroundColor: C.card,
     paddingHorizontal: 2,
     paddingTop: 7,
-    paddingBottom: 9,
+    paddingBottom: Platform.OS === 'android' ? 14 : 9,
+    marginBottom: Platform.OS === 'android' ? 28 : 0,
     minHeight: 74,
     width: '100%',
     flexShrink: 0,
