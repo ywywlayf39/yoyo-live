@@ -26,6 +26,7 @@ import LiveBattlePanel from './LiveBattlePanel';
 import LiveMusicLibrary from './LiveMusicLibrary';
 import LiveRoomChat from './LiveRoomChat';
 import LiveBattleVote from './LiveBattleVote';
+import LiveQuizPanel from './LiveQuizPanel';
 
 function formatBroadcastDuration(totalSeconds) {
   const seconds = Math.max(0, Math.floor(totalSeconds || 0));
@@ -184,6 +185,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
       {!isCall && userId ? <LiveRoomChat roomName={roomName} userId={userId} isHost={isHost} /> : null}
       {!isCall && userId ? <LiveGiftPanel userId={userId} receiverId={receiverId} isHost={isHost} roomName={roomName} onOpenPackages={onOpenPackages} /> : null}
       {!isCall && isHost && userId ? <LiveBattlePanel userId={userId} roomName={roomName} isHost={isHost} /> : null}
+      {!isCall && userId ? <LiveQuizPanel roomName={roomName} userId={userId} isHost={isHost} /> : null}
       {!isCall && userId ? <LiveBattleVote roomName={roomName} userId={userId} /> : null}
 
       {!isCall && !isHost && userId ? (
