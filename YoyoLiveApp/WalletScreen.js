@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -46,7 +48,8 @@ const transactionLabel = (type) => ({
 
 const statusLabel = (status) => ({
   pending: 'قيد المراجعة',
-  approved: 'تمت الموافقة',
+  reviewing: 'قيد المراجعة',
+  approved: 'تمت الموافقة - بانتظار التحويل',
   rejected: 'مرفوض',
   paid: 'تم الصرف',
 }[status] || status || '—');
@@ -58,6 +61,9 @@ export default function WalletScreen({ userId, onBack, onOpenPackages }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [payoutMethod, setPayoutMethod] = useState('vodafone_cash');
+  const [payoutDetails, setPayoutDetails] = useState('');
+  const [withdrawalBusy, setWithdrawalBusy] = useState(false);
 
   const loadWallet = useCallback(async (isRefresh = false) => {
     if (!userId) return;
@@ -104,6 +110,43 @@ export default function WalletScreen({ userId, onBack, onOpenPackages }) {
   useEffect(() => {
     loadWallet();
   }, [loadWallet]);
+
+  const submitWithdrawal = () => {
+    const available = Number(wallet?.earned_points || 0);
+    const points = Math.floor(available / MIN_WITHDRAWAL_POINTS) * MIN_WITHDRAWAL_POINTS;
+    if (points < MIN_WITHDRAWAL_POINTS) {
+      Alert.alert('النقاط غير كافية', 'يمكنك طلب السحب عند الوصول إلى 100,000 نقطة مكتسبة على الأقل.');
+      return;
+    }
+    if (payoutDetails.trim().length < 6) {
+      Alert.alert('بيانات الاستلام ناقصة', 'اكتب رقم المحفظة أو معرف InstaPay أو بيانات الحساب بشكل صحيح.');
+      return;
+    }
+    const amount = (points / MIN_WITHDRAWAL_POINTS) * EGP_PER_100K_POINTS;
+    Alert.alert(
+      'تأكيد طلب السحب',
+      'سيتم حجز ' + coins(points) + ' نقطة من رصيدك وتحويلها إلى نقاط معلّقة لحين مراجعة الأدمن. القيمة التقديرية ' + money(amount) + ' جنيه.',
+      [
+        { text: 'إلغاء', style: 'cancel' },
+        { text: 'إرسال الطلب', onPress: async () => {
+          setWithdrawalBusy(true);
+          const { data, error: requestError } = await supabase.rpc('yoyo_create_withdrawal_request', {
+            p_points: points,
+            p_payout_method: payoutMethod,
+            p_payout_details: payoutDetails.trim(),
+          });
+          setWithdrawalBusy(false);
+          if (requestError || !data) {
+            Alert.alert('تعذر إرسال طلب السحب', requestError?.message || 'حاول مرة أخرى.');
+            return;
+          }
+          setPayoutDetails('');
+          await loadWallet(true);
+          Alert.alert('تم إرسال الطلب', 'تم حجز النقاط وإرسال الطلب إلى مراجعة الإدارة. لن يتم الصرف إلا بعد مراجعة الأدمن والتحويل الفعلي.');
+        }},
+      ]
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -178,6 +221,42 @@ export default function WalletScreen({ userId, onBack, onOpenPackages }) {
                   <Text style={styles.statValue}>{coins(wallet.lifetime_points)}</Text>
                   <Text style={styles.muted}>إجمالي النقاط</Text>
                 </View>
+              </View>
+
+              <View style={styles.withdrawPanel}>
+                <Text style={styles.cardTitle}>💸 طلب سحب النقاط</Text>
+                <Text style={styles.muted}>يتم طلب السحب بمضاعفات 100,000 نقطة. سيتم طلب أكبر عدد من المضاعفات المتاح في رصيدك المكتسب، وتظل النقاط محجوزة لحين مراجعة الإدارة.</Text>
+                <Text style={styles.financialLabel}>طريقة استلام الأرباح</Text>
+                <View style={styles.methodRow}>
+                  {[
+                    ['vodafone_cash','فودافون كاش'],
+                    ['instapay','InstaPay'],
+                    ['bank_transfer','تحويل بنكي'],
+                  ].map(([value,label]) => (
+                    <TouchableOpacity key={value} onPress={() => setPayoutMethod(value)}
+                      style={[styles.methodChip,payoutMethod===value && styles.methodChipActive]}>
+                      <Text style={styles.methodText}>{label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Text style={styles.financialLabel}>رقم المحفظة أو بيانات الحساب</Text>
+                <TextInput
+                  value={payoutDetails}
+                  onChangeText={setPayoutDetails}
+                  placeholder="أدخل بيانات الاستلام بدقة"
+                  placeholderTextColor="#8F849F"
+                  style={styles.payoutInput}
+                  autoCapitalize="none"
+                  maxLength={300}
+                />
+                <Text style={styles.payoutPrivacy}>بيانات الاستلام تظهر للأدمن المصرح له فقط لمراجعة طلبك.</Text>
+                <TouchableOpacity
+                  style={[styles.withdrawSubmit, (withdrawalBusy || Number(wallet.earned_points || 0) < MIN_WITHDRAWAL_POINTS) && styles.withdrawDisabled]}
+                  onPress={submitWithdrawal}
+                  disabled={withdrawalBusy || Number(wallet.earned_points || 0) < MIN_WITHDRAWAL_POINTS}
+                >
+                  <Text style={styles.actionText}>{withdrawalBusy ? 'جارٍ إرسال الطلب...' : 'إرسال طلب السحب'}</Text>
+                </TouchableOpacity>
               </View>
             </>
           )}
@@ -281,6 +360,16 @@ const styles = StyleSheet.create({
   progressFill: { height: 9, borderRadius: 9, backgroundColor: '#8FE0B0' },
   progressCaption: { color: C.muted, fontSize: 12, textAlign: 'right', marginTop: 7 },
   estimatedValue: { color: '#8FE0B0', fontSize: 15, fontWeight: '800', textAlign: 'right', marginTop: 10 },
+  withdrawPanel: { backgroundColor: C.card, borderRadius: 16, padding: 16, marginTop: 14, borderWidth: 1, borderColor: C.border, gap: 10 },
+  financialLabel: { color: '#D6CBE5', fontSize: 13, textAlign: 'right', fontWeight: '700' },
+  methodRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 7 },
+  methodChip: { paddingHorizontal: 11, paddingVertical: 9, borderRadius: 11, backgroundColor: C.card2, borderWidth: 1, borderColor: C.border },
+  methodChipActive: { borderColor: C.gold, backgroundColor: '#4B3B1D' },
+  methodText: { color: C.white, fontSize: 12, fontWeight: '700' },
+  payoutInput: { backgroundColor: C.card2, color: C.white, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 12, textAlign: 'right', minHeight: 46 },
+  payoutPrivacy: { color: C.muted, fontSize: 11, textAlign: 'right' },
+  withdrawSubmit: { backgroundColor: C.purple, padding: 13, borderRadius: 12, alignItems: 'center' },
+  withdrawDisabled: { opacity: 0.45 },
   balanceRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
   balanceItem: { flex: 1 },
   moneyValue: { color: '#8FE0B0', fontSize: 19, fontWeight: 'bold', textAlign: 'right', marginTop: 7 },
