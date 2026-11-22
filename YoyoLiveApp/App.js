@@ -759,6 +759,7 @@ import {
         hostName={selectedLive.name}
         userId={session.user.id}
         receiverId={selectedLive.hostId}
+        onOpenPackages={() => setShowPackages(true)}
         onClose={() => setSelectedLive(null)}
       />
     );
