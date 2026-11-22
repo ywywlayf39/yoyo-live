@@ -49,9 +49,7 @@ export default function LiveMusicSync({ roomName, userId, isHost }) {
         filter: 'room_name=eq.' + roomName,
       }, refresh)
       .subscribe((status) => { if (status === 'SUBSCRIBED') refresh(); });
-    const poll = setInterval(refresh, 5000);
     return () => {
-      clearInterval(poll);
       supabase.removeChannel(channel);
       processingRef.current += 1;
       releasePlayer();
