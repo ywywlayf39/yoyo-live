@@ -37,6 +37,9 @@ export default function AdminScreen({ onBack }) {
   const [suspensionDuration, setSuspensionDuration] = useState('24h');
   const [suspensionBusyId, setSuspensionBusyId] = useState(null);
   const [coinPurchaseRequests, setCoinPurchaseRequests] = useState([]);
+  const [withdrawalRequests, setWithdrawalRequests] = useState([]);
+  const [withdrawalReviewNote, setWithdrawalReviewNote] = useState('');
+  const [withdrawalBusyId, setWithdrawalBusyId] = useState(null);
   const [giftCatalog, setGiftCatalog] = useState([]);
   const [coinReviewNote, setCoinReviewNote] = useState('');
   const [coinReviewBusyId, setCoinReviewBusyId] = useState(null);
@@ -64,7 +67,7 @@ export default function AdminScreen({ onBack }) {
   const loadDashboard = useCallback(async () => {
     setLoading(true);
     setError('');
-    const [summaryResult, reportsResult, membersResult, suspensionsResult, auditResult, liveRoomsResult, coinRequestsResult, giftCatalogResult] = await Promise.all([
+    const [summaryResult, reportsResult, membersResult, suspensionsResult, auditResult, liveRoomsResult, coinRequestsResult, giftCatalogResult, withdrawalsResult] = await Promise.all([
       supabase.rpc('yoyo_admin_summary'),
       supabase.rpc('yoyo_admin_list_reports_with_live', { p_limit: 100 }),
       supabase.from('profiles')
@@ -87,6 +90,7 @@ export default function AdminScreen({ onBack }) {
         .select('id,user_id,requested_amount_egp,requested_coins,payment_method,transfer_reference,proof_storage_path,status,admin_note,created_at')
         .order('created_at', { ascending: false }).limit(100),
       supabase.from('gift_catalog').select('id,name,coin_cost,gross_points,active').order('coin_cost', { ascending: true }),
+      supabase.rpc('yoyo_admin_list_withdrawal_requests', { p_limit: 100 }),
     ]);
 
     if (summaryResult.error || reportsResult.error || membersResult.error) {
@@ -98,6 +102,8 @@ export default function AdminScreen({ onBack }) {
     setMembers(membersResult.error ? [] : (membersResult.data || []));
     setLiveRooms(liveRoomsResult.error ? [] : (liveRoomsResult.data || []));
     setCoinPurchaseRequests(coinRequestsResult.error ? [] : (coinRequestsResult.data || []));
+    setWithdrawalRequests(withdrawalsResult.error ? [] : (withdrawalsResult.data || []));
+    if (withdrawalsResult.error) console.error('YOYO admin withdrawal requests failed:', withdrawalsResult.error);
     setGiftCatalog(giftCatalogResult.error ? [] : (giftCatalogResult.data || []));
     if (giftCatalogResult.error) console.error('YOYO gift catalog audit failed:', giftCatalogResult.error);
     if (coinRequestsResult.error) console.error('YOYO coin purchase requests failed:', coinRequestsResult.error);
@@ -291,6 +297,38 @@ export default function AdminScreen({ onBack }) {
         if (reviewError || data !== true) Alert.alert('تعذر تحديث الطلب', reviewError?.message || 'لم يتم العثور على الطلب.');
         else { setCoinReviewNote(''); await loadDashboard(); Alert.alert('تم', decision === 'approved' ? 'تم اعتماد الطلب وإضافة العملات وتسجيل الحركة.' : 'تم تحديث حالة الطلب.'); }
         setCoinReviewBusyId(null);
+      }},
+    ]);
+  };
+
+  const reviewWithdrawal = (request, decision) => {
+    const labels = {
+      reviewing: 'نقل الطلب إلى قيد المراجعة',
+      approved: 'اعتماد الطلب بعد التحقق من بيانات الاستلام',
+      rejected: 'رفض الطلب وإعادة النقاط إلى رصيد العضو',
+      paid: 'تسجيل أن التحويل النقدي تم بالفعل',
+    };
+    Alert.alert('مراجعة طلب السحب', labels[decision], [
+      { text: 'إلغاء', style: 'cancel' },
+      { text: 'تأكيد', style: decision === 'rejected' ? 'destructive' : 'default', onPress: async () => {
+        setWithdrawalBusyId(request.id);
+        const { data, error: reviewError } = await supabase.rpc('yoyo_admin_review_withdrawal', {
+          p_request_id: request.id,
+          p_decision: decision,
+          p_admin_note: withdrawalReviewNote.trim() || null,
+        });
+        if (reviewError || data !== true) {
+          Alert.alert('تعذر تحديث طلب السحب', reviewError?.message || 'لم يتم العثور على الطلب.');
+        } else {
+          setWithdrawalReviewNote('');
+          await loadDashboard();
+          Alert.alert('تم', decision === 'paid'
+            ? 'تم تسجيل الصرف وإنهاء الطلب.'
+            : decision === 'rejected'
+              ? 'تم رفض الطلب وإعادة النقاط إلى رصيد العضو.'
+              : 'تم تحديث حالة طلب السحب.');
+        }
+        setWithdrawalBusyId(null);
       }},
     ]);
   };
@@ -569,6 +607,50 @@ export default function AdminScreen({ onBack }) {
             </View>
           ))}
 
+
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>💸 طلبات سحب الأرباح</Text>
+            <TouchableOpacity onPress={loadDashboard}><Text style={styles.refresh}>تحديث ↻</Text></TouchableOpacity>
+          </View>
+          <Text style={styles.memberHint}>كل 100,000 نقطة = 500 جنيه. تحقق يدويًا من بيانات الاستلام، ولا تسجل «تم الصرف» إلا بعد تنفيذ التحويل فعليًا. رفض الطلب يعيد النقاط تلقائيًا للعضو.</Text>
+          <TextInput value={withdrawalReviewNote} onChangeText={setWithdrawalReviewNote}
+            placeholder="ملاحظة مراجعة السحب (اختياري)" placeholderTextColor="#8F849F"
+            style={styles.searchInput} multiline maxLength={1000} />
+          {withdrawalRequests.length === 0 ? (
+            <View style={styles.empty}><Text style={styles.emptyText}>لا توجد طلبات سحب حتى الآن.</Text></View>
+          ) : withdrawalRequests.map(request => (
+            <View key={request.id} style={styles.reportCard}>
+              <View style={styles.reportTop}>
+                <Text style={styles.status}>{({pending:'جديد',reviewing:'قيد المراجعة',approved:'معتمد - بانتظار التحويل',rejected:'مرفوض',paid:'تم الصرف'})[request.status] || request.status}</Text>
+                <Text style={styles.reason}>{request.payout_method === 'vodafone_cash' ? 'فودافون كاش' : request.payout_method === 'bank_transfer' ? 'تحويل بنكي' : 'إنستاباي'}</Text>
+              </View>
+              <Text style={styles.person}>العضو: {request.display_name || 'عضو بدون اسم'}</Text>
+              <Text style={styles.person}>النقاط: {Number(request.points_requested || 0).toLocaleString('ar-EG')}</Text>
+              <Text style={styles.person}>المبلغ: {Number(request.amount_egp || 0).toLocaleString('ar-EG')} جنيه</Text>
+              <Text style={styles.person}>بيانات الاستلام: {request.payout_details || 'غير متاحة'}</Text>
+              <Text style={styles.memberId}>معرّف العضو: {request.user_id}</Text>
+              <Text style={styles.date}>{request.created_at ? new Date(request.created_at).toLocaleString('ar-EG') : ''}</Text>
+              {request.status === 'pending' && (
+                <View style={styles.actions}>
+                  <TouchableOpacity disabled={!!withdrawalBusyId} style={styles.reviewButton} onPress={() => reviewWithdrawal(request,'reviewing')}><Text style={styles.actionText}>قيد المراجعة</Text></TouchableOpacity>
+                  <TouchableOpacity disabled={!!withdrawalBusyId} style={styles.doneButton} onPress={() => reviewWithdrawal(request,'approved')}><Text style={styles.actionText}>اعتماد الطلب</Text></TouchableOpacity>
+                  <TouchableOpacity disabled={!!withdrawalBusyId} style={styles.dismissButton} onPress={() => reviewWithdrawal(request,'rejected')}><Text style={styles.actionText}>رفض وإعادة النقاط</Text></TouchableOpacity>
+                </View>
+              )}
+              {request.status === 'reviewing' && (
+                <View style={styles.actions}>
+                  <TouchableOpacity disabled={!!withdrawalBusyId} style={styles.doneButton} onPress={() => reviewWithdrawal(request,'approved')}><Text style={styles.actionText}>اعتماد الطلب</Text></TouchableOpacity>
+                  <TouchableOpacity disabled={!!withdrawalBusyId} style={styles.dismissButton} onPress={() => reviewWithdrawal(request,'rejected')}><Text style={styles.actionText}>رفض وإعادة النقاط</Text></TouchableOpacity>
+                </View>
+              )}
+              {request.status === 'approved' && (
+                <TouchableOpacity disabled={!!withdrawalBusyId} style={styles.doneButton} onPress={() => reviewWithdrawal(request,'paid')}>
+                  <Text style={styles.actionText}>{withdrawalBusyId === request.id ? 'جارٍ...' : 'تسجيل التحويل بعد صرفه فعليًا'}</Text>
+                </TouchableOpacity>
+              )}
+              {!!request.admin_note && <Text style={styles.details}>ملاحظة الإدارة: {request.admin_note}</Text>}
+            </View>
+          ))}
 
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>📊 مراجعة نسب الهدايا</Text>
