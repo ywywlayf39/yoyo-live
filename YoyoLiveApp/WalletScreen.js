@@ -47,7 +47,7 @@ const statusLabel = (status) => ({
   paid: 'تم الصرف',
 }[status] || status || '—');
 
-export default function WalletScreen({ userId, onBack }) {
+export default function WalletScreen({ userId, onBack, onOpenPackages }) {
   const [wallet, setWallet] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [withdrawals, setWithdrawals] = useState([]);
@@ -126,6 +126,12 @@ export default function WalletScreen({ userId, onBack }) {
               {refreshing ? 'جارٍ التحديث...' : 'تحديث الرصيد ↻'}
             </Text>
           </TouchableOpacity>
+          {!!onOpenPackages && (
+            <TouchableOpacity style={[styles.refreshButton,{backgroundColor:C.pink,alignSelf:'stretch',alignItems:'center',marginTop:2}]}
+              onPress={onOpenPackages}>
+              <Text style={[styles.refreshText,{color:C.white,fontSize:15}]}>🎁 افتح باقات العملات</Text>
+            </TouchableOpacity>
+          )}
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
