@@ -4,7 +4,7 @@
     "slug": "yoyo-live",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/yoyo-live-icon.svg",
+    "icon": "./assets/yoyo-live-icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
@@ -16,8 +16,7 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#35001F",
-        "foregroundImage": "./assets/yoyo-live-icon.svg",
-        "monochromeImage": "./assets/yoyo-live-icon.svg"
+        "foregroundImage": "./assets/yoyo-live-icon.png"
       },
       "permissions": [
         "CAMERA",
