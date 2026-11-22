@@ -44,6 +44,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
   const [micBusy, setMicBusy] = useState(false);
   const [roomStandby, setRoomStandby] = useState(false);
   const [hostAvatar, setHostAvatar] = useState(null);
+  const [videoOverlaysVisible, setVideoOverlaysVisible] = useState(true);
   const showStandby = isHost ? isStandby : roomStandby;
 
   useEffect(() => {
@@ -166,6 +167,8 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
         style={styles.roomContentScroll}
         contentContainerStyle={styles.videoList}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={(event) => setVideoOverlaysVisible(event.nativeEvent.contentOffset.y < 40)}
       >
         {showStandby && !isCall ? (
           <View style={[styles.standbyView, { height: windowHeight }]}>
@@ -212,8 +215,8 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
         <Text style={styles.leaveButtonText}>{isCall ? 'إنهاء المكالمة' : isHost ? 'إنهاء البث' : 'مغادرة البث'}</Text>
       </TouchableOpacity>
 
-      {!isCall && userId ? <LiveRoomChat roomName={roomName} userId={userId} isHost={isHost} /> : null}
-      {!isCall && userId ? <LiveGiftPanel userId={userId} receiverId={receiverId} isHost={isHost} roomName={roomName} onOpenPackages={onOpenPackages} /> : null}
+      {!isCall && userId && videoOverlaysVisible ? <LiveRoomChat roomName={roomName} userId={userId} isHost={isHost} /> : null}
+      {!isCall && userId && videoOverlaysVisible ? <LiveGiftPanel userId={userId} receiverId={receiverId} isHost={isHost} roomName={roomName} onOpenPackages={onOpenPackages} /> : null}
 
     </View>
   );
