@@ -551,7 +551,7 @@ export default function AdminScreen({ onBack }) {
             <View key={request.id} style={styles.reportCard}>
               <View style={styles.reportTop}>
                 <Text style={styles.status}>{({pending:'جديد',reviewing:'قيد المراجعة',approved:'معتمد',rejected:'مرفوض'})[request.status] || request.status}</Text>
-                <Text style={styles.reason}>{request.payment_method === 'vodafone_cash' ? 'فودافون كاش' : 'إنستاباي'}</Text>
+                <Text style={styles.reason}>{request.payment_method === 'vodafone_cash' ? 'فودافون كاش' : request.payment_method === 'bank_transfer' ? 'تحويل بنكي' : 'إنستاباي'}</Text>
               </View>
               <Text style={styles.person}>المبلغ: {Number(request.requested_amount_egp || 0).toLocaleString('ar-EG')} جنيه</Text>
               <Text style={styles.person}>العملات المطلوبة: {Number(request.requested_coins || 0).toLocaleString('ar-EG')}</Text>
