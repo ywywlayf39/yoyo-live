@@ -5,7 +5,6 @@ import {
   Image,
   SafeAreaView,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -21,6 +20,7 @@ import {
   useLocalParticipant,
 } from '@livekit/react-native';
 import { Track } from 'livekit-client';
+import { StatusBar } from 'expo-status-bar';
 import { supabase } from './supabase';
 import LiveGiftPanel from './LiveGiftPanel';
 import LiveBattlePanel from './LiveBattlePanel';
@@ -44,7 +44,6 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
   const [micBusy, setMicBusy] = useState(false);
   const [roomStandby, setRoomStandby] = useState(false);
   const [hostAvatar, setHostAvatar] = useState(null);
-  const [videoOverlaysVisible, setVideoOverlaysVisible] = useState(true);
   const showStandby = isHost ? isStandby : roomStandby;
 
   useEffect(() => {
@@ -167,8 +166,6 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
         style={styles.roomContentScroll}
         contentContainerStyle={styles.videoList}
         showsVerticalScrollIndicator={false}
-        scrollEventThrottle={16}
-        onScroll={(event) => setVideoOverlaysVisible(event.nativeEvent.contentOffset.y < 40)}
       >
         {showStandby && !isCall ? (
           <View style={[styles.standbyView, { height: windowHeight }]}>
@@ -204,7 +201,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
 
       </ScrollView>
 
-      {videoOverlaysVisible ? <TouchableOpacity style={styles.leaveButton} onPress={() => Alert.alert(
+      <TouchableOpacity style={styles.leaveButton} onPress={() => Alert.alert(
         isCall ? 'إنهاء المكالمة' : isHost ? 'إنهاء البث المباشر' : 'مغادرة البث',
         isCall ? 'هل أنت متأكد أنك تريد إنهاء المكالمة؟' : isHost ? 'هل أنت متأكد؟ سيتم إنهاء البث وفصل جميع المشاهدين، وإنهاء أي تحدٍ نشط دون إعلان فائز.' : 'هل تريد مغادرة البث؟',
         [
@@ -213,10 +210,10 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
         ],
       )} activeOpacity={0.85}>
         <Text style={styles.leaveButtonText}>{isCall ? 'إنهاء المكالمة' : isHost ? 'إنهاء البث' : 'مغادرة البث'}</Text>
-      </TouchableOpacity> : null}
+      </TouchableOpacity>
 
       {!isCall && userId ? <LiveRoomChat roomName={roomName} userId={userId} isHost={isHost} /> : null}
-      {!isCall && userId && videoOverlaysVisible ? <LiveGiftPanel userId={userId} receiverId={receiverId} isHost={isHost} roomName={roomName} onOpenPackages={onOpenPackages} /> : null}
+      {!isCall && userId ? <LiveGiftPanel userId={userId} receiverId={receiverId} isHost={isHost} roomName={roomName} onOpenPackages={onOpenPackages} /> : null}
 
     </View>
   );
@@ -385,7 +382,7 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B0912" />
+      <StatusBar style="light" hidden />
       {!connection ? (
         <View style={styles.loading}>
           {error ? (
@@ -446,7 +443,7 @@ const styles = StyleSheet.create({
   livePillText: { color: '#FFFFFF', fontWeight: 'bold' },
   roomContentScroll: { flex: 1 },
   videoList: { flexGrow: 1, justifyContent: 'flex-start', gap: 12, paddingBottom: 90 },
-  video: { width: '100%', height: '100%', minHeight: 560, backgroundColor: '#05040A', borderRadius: 0, overflow: 'hidden' },
+  video: { width: '100%', height: '100%', backgroundColor: '#05040A', borderRadius: 0, overflow: 'hidden' },
   hostControls: { position: 'absolute', top: 100, left: 12, right: 12, zIndex: 55, elevation: 18, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 0 },
   standbyButton: { flex: 1, backgroundColor: '#34263F', borderWidth: 1, borderColor: '#8A5578', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 8, alignItems: 'center' },
   micButton: { flex: 1, backgroundColor: '#245A48', borderWidth: 1, borderColor: '#3E9B78', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 8, alignItems: 'center' },
