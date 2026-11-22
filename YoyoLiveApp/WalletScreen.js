@@ -181,7 +181,7 @@ export default function WalletScreen({ userId, onBack, onOpenPackages }) {
           <View style={styles.noticeCard}>
             <Text style={styles.cardTitle}>معلومات مهمة</Text>
             <Text style={styles.muted}>
-              الحد الأدنى المخطط لطلب السحب هو 500 جنيه. شراء العملات وصرف الأرباح لن يتم تفعيله قبل ربط وسيلة دفع ومراجعة آمنة.
+              الحد الأدنى المخطط لطلب السحب هو 500 جنيه. شراء العملات متاح من قسم الباقات بطلب تحويل يدوي، ولا تُضاف العملات إلا بعد مراجعة الأدمن. صرف الأرباح يظل غير مفعّل حتى تجهيز مسار سحب آمن.
             </Text>
             <Text style={styles.noticeFoot}>نسبة توزيع الهدايا المعتمدة: 70٪ للمضيف و30٪ للمنصة.</Text>
           </View>
