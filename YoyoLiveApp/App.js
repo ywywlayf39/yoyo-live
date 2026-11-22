@@ -390,6 +390,26 @@ import {
     setFollowCounts((current) => ({ ...current, followers: Math.max(0, current.followers + (followedSelectedMember ? -1 : 1)) }));
   };
 
+  const openNotifications = async () => {
+    const { data, error } = await supabase.from('user_notifications')
+      .select('id,title,body,created_at,read_at')
+      .eq('recipient_id', session.user.id)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    if (error) {
+      Alert.alert('الإشعارات', 'تعذر تحميل الإشعارات الآن.');
+      return;
+    }
+    const rows = data || [];
+    Alert.alert('الإشعارات 🔔', rows.length
+      ? rows.map((item) => (item.title || 'إشعار') + '\\n' + (item.body || '')).join('\\n\\n')
+      : 'لا توجد إشعارات جديدة حاليًا.');
+    const unreadIds = rows.filter((item) => !item.read_at).map((item) => item.id);
+    if (unreadIds.length) {
+      await supabase.from('user_notifications').update({ read_at: new Date().toISOString() }).in('id', unreadIds);
+    }
+  };
+
   const reportMember = (member) => {
     if (!member?.id || member.id === session?.user?.id) return;
     Alert.alert('إبلاغ عن العضو', 'اختار سبب الإبلاغ:', [
@@ -719,7 +739,7 @@ import {
 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     <TouchableOpacity onPress={() => setShowWallet(true)}><Text style={styles.coins}>🪙 المحفظة</Text></TouchableOpacity>
           <TouchableOpacity onPress={() => setShowFollowScreen(true)}><Text style={styles.coins}>👥 المتابعة</Text></TouchableOpacity>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              <TouchableOpacity onPress={() => Alert.alert('الإشعارات', 'لا توجد إشعارات جديدة حاليًا.')}><Text style={styles.notification}>🔔</Text></TouchableOpacity>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              <TouchableOpacity onPress={openNotifications}><Text style={styles.notification}>🔔</Text></TouchableOpacity>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         </View>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 </View>
 
