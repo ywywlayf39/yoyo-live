@@ -7,6 +7,7 @@ import AccountScreen from './AccountScreen';
 import AdminScreen from './AdminScreen';
 import ChatScreen from './ChatScreen';
 import InboxScreen from './InboxScreen';
+import FollowScreen from './FollowScreen';
 import './registerLiveKit';
 import LiveRoomScreen from './LiveRoomScreen';
 import { supabase } from './supabase';
@@ -60,6 +61,10 @@ import {
   const [selectedMember, setSelectedMember] = useState(null);
   const [chatMember, setChatMember] = useState(null);
   const [showInbox, setShowInbox] = useState(false);
+  const [showFollowScreen, setShowFollowScreen] = useState(false);
+  const [followedSelectedMember, setFollowedSelectedMember] = useState(false);
+  const [followCounts, setFollowCounts] = useState({ followers: 0, following: 0 });
+  const [followBusy, setFollowBusy] = useState(false);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [liveRooms, setLiveRooms] = useState([]);
   const [selectedCall, setSelectedCall] = useState(null);
@@ -505,7 +510,7 @@ import {
     );
   }
 
-  if (showInbox) {
+  if (showFollowScreen) {\n    return <FollowScreen userId={session.user.id} onBack={() => setShowFollowScreen(false)} onOpenMember={(member) => { setShowFollowScreen(false); setSelectedMember(member); }} />;\n  }\n\n  if (showInbox) {
     return (
       <InboxScreen
         userId={session.user.id}
@@ -547,6 +552,20 @@ import {
           <Text style={{ color: C.muted, fontSize: 13, marginTop: 24, textAlign: 'center' }}>
             عضو في مجتمع YOYO LIVE 💗
           </Text>
+          <View style={{ flexDirection: 'row', gap: 22, marginTop: 18 }}>
+            <TouchableOpacity onPress={() => setShowFollowScreen(true)} style={{ alignItems: 'center' }}>
+              <Text style={{ color: C.white, fontWeight: 'bold', fontSize: 17 }}>{followCounts.followers}</Text>
+              <Text style={{ color: C.muted, fontSize: 12 }}>متابعون</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowFollowScreen(true)} style={{ alignItems: 'center' }}>
+              <Text style={{ color: C.white, fontWeight: 'bold', fontSize: 17 }}>{followCounts.following}</Text>
+              <Text style={{ color: C.muted, fontSize: 12 }}>يتابع</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity disabled={followBusy} onPress={toggleSelectedFollow}
+            style={{ backgroundColor: followedSelectedMember ? C.card2 : C.pink, paddingVertical: 13, paddingHorizontal: 36, borderRadius: 14, marginTop: 20, minWidth: 210, alignItems: 'center', borderWidth: followedSelectedMember ? 1 : 0, borderColor: C.pink }}>
+            <Text style={{ color: C.white, fontWeight: 'bold' }}>{followBusy ? 'جارٍ التحديث...' : followedSelectedMember ? '✓ تتابعه · إلغاء المتابعة' : '＋ متابعة'}</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setChatMember(selectedMember)}
             style={{ backgroundColor: C.pink, paddingVertical: 14, paddingHorizontal: 34, borderRadius: 15, marginTop: 28, minWidth: 210 }}
@@ -654,6 +673,7 @@ import {
           {isAdmin && <TouchableOpacity onPress={() => setShowAdmin(true)}><Text style={styles.coins}>🛡️ الإدارة</Text></TouchableOpacity>}
 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     <TouchableOpacity onPress={() => setShowWallet(true)}><Text style={styles.coins}>🪙 المحفظة</Text></TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowFollowScreen(true)}><Text style={styles.coins}>👥 المتابعة</Text></TouchableOpacity>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               <TouchableOpacity onPress={() => Alert.alert('الإشعارات', 'لا توجد إشعارات جديدة حاليًا.')}><Text style={styles.notification}>🔔</Text></TouchableOpacity>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         </View>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 </View>
