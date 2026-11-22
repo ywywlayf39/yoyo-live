@@ -221,8 +221,8 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
           audio={connection.isCall || !!isHost}
           video={connection.isCall ? connection.callType === 'video' : !!isHost}
           options={{ adaptiveStream: { pixelDensity: 'screen' } }}
-          onDisconnected={() => onClose?.()}
-          onError={(roomError) => setError(roomError?.message || 'انقطع الاتصال بغرفة LiveKit.')}
+          onDisconnected={() => setError('انقطع اتصال غرفة البث. لم نغلق الشاشة تلقائيًا حتى تتمكن من رؤية الخطأ ومحاولة التشخيص.')}
+          onError={(roomError) => setError(roomError?.message || 'فشل الاتصال بغرفة LiveKit. ابقَ في الشاشة لعرض التشخيص.')}
         >
           <RoomContent
             isHost={isHost}
