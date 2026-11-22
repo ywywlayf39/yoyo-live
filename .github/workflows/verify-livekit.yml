@@ -21,6 +21,9 @@ on:
       - "YoyoLiveApp/LiveGiftPanel.js"
       - "YoyoLiveApp/LiveBattlePanel.js"
       - "YoyoLiveApp/LiveQuizPanel.js"
+      - "YoyoLiveApp/LiveMusicLibrary.js"
+      - "YoyoLiveApp/LiveMusicSync.js"
+      - "YoyoLiveApp/scripts/test-live-music-sync.cjs"
       - "YoyoLiveApp/scripts/test-yoyo-quiz.cjs"
       - "YoyoLiveApp/giftSoundPlayers.js"
       - "YoyoLiveApp/financialCalculator.js"
@@ -82,6 +85,9 @@ jobs:
 
       - name: Test YOYO Quiz safety and UI wiring
         run: node scripts/test-yoyo-quiz.cjs
+
+      - name: Test synchronized live music sharing
+        run: node scripts/test-live-music-sync.cjs
 
       - name: Check Expo dependency compatibility
         run: npx expo install --check
