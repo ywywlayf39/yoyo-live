@@ -62,7 +62,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
         (payload) => setRoomStandby(payload.new?.is_standby === true))
       .subscribe();
     return () => { active = false; supabase.removeChannel(channel); };
-  }, [roomName, isCall]);
+  }, [roomName, isCall, isHost, onStandbyChange]);
   const videoTracks = tracks.filter(isTrackReference);
 
   const reportLiveRoom = () => {
