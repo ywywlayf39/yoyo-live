@@ -8,7 +8,7 @@ const sync = fs.readFileSync(path.join(root, 'LiveMusicSync.js'), 'utf8');
 const room = fs.readFileSync(path.join(root, 'LiveRoomScreen.native.js'), 'utf8');
 
 assert.ok(library.includes('await file.bytes()'), 'Native file bytes must be read through Expo FileSystem');
-assert.ok(library.includes('arrayBuffer.slice'), 'Storage upload must use an ArrayBuffer in React Native');
+assert.ok(library.includes('bytes.buffer.slice'), 'Storage upload must use an ArrayBuffer in React Native');
 assert.ok(library.includes("from('live-music').upload"), 'Host must upload shared audio to the private bucket');
 assert.ok(library.includes("rpc('yoyo_live_music_control'"), 'Host must publish playback state through the server RPC');
 assert.ok(library.includes('20 * 1024 * 1024'), 'Shared audio upload must enforce the 20 MB cap');
