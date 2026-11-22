@@ -166,6 +166,8 @@ export default function LiveMusicLibrary({ roomName, userId }) {
     setSharingSongId(song.id);
     try {
       await stopPlayback();
+      const { data: previousMusic } = await supabase.from('live_room_music')
+        .select('storage_path').eq('room_name', roomName).maybeSingle();
       const bytes = await file.bytes();
       const arrayBuffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
       const storagePath = userId + '/' + Date.now() + '-' + safeFileName(song.name);
@@ -185,6 +187,9 @@ export default function LiveMusicLibrary({ roomName, userId }) {
       if (controlError) {
         await supabase.storage.from('live-music').remove([storagePath]);
         throw controlError;
+      }
+      if (previousMusic?.storage_path && previousMusic.storage_path !== storagePath) {
+        await supabase.storage.from('live-music').remove([previousMusic.storage_path]);
       }
       Alert.alert('الموسيقى بدأت مع الجمهور 🎵', 'الأغنية هتشتغل عندك وعند المشاهدين المتصلين بالبث. شارك فقط ملفات تملك حق استخدامها.');
     } catch (error) {
