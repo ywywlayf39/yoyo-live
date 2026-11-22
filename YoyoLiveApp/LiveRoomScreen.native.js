@@ -24,6 +24,7 @@ import { supabase } from './supabase';
 import LiveGiftPanel from './LiveGiftPanel';
 import LiveBattlePanel from './LiveBattlePanel';
 import LiveMusicLibrary from './LiveMusicLibrary';
+import LiveMusicSync from './LiveMusicSync';
 import LiveRoomChat from './LiveRoomChat';
 import LiveBattleVote from './LiveBattleVote';
 import LiveQuizPanel from './LiveQuizPanel';
@@ -181,7 +182,8 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
         )}
       </ScrollView>
 
-      {!isCall && isHost && userId ? <LiveMusicLibrary /> : null}
+      {!isCall && isHost && userId ? <LiveMusicLibrary roomName={roomName} userId={userId} /> : null}
+      {!isCall && userId ? <LiveMusicSync roomName={roomName} userId={userId} isHost={isHost} /> : null}
       {!isCall && userId ? <LiveRoomChat roomName={roomName} userId={userId} isHost={isHost} /> : null}
       {!isCall && userId ? <LiveGiftPanel userId={userId} receiverId={receiverId} isHost={isHost} roomName={roomName} onOpenPackages={onOpenPackages} /> : null}
       {!isCall && isHost && userId ? <LiveBattlePanel userId={userId} roomName={roomName} isHost={isHost} /> : null}
@@ -324,6 +326,10 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
 
   const leaveRoom = async () => {
     let cleanupWarning = '';
+
+    if (isHost && !isCall) {
+      await supabase.rpc('yoyo_live_music_control', { p_room_name: roomName, p_action: 'stop' }).catch(() => {});
+    }
 
     if (isHost) {
       // Best-effort interruption: navigation must not be blocked by a server cleanup error.
