@@ -135,6 +135,26 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
   const [error, setError] = useState('');
   const [broadcastStartedAt, setBroadcastStartedAt] = useState(null);
   const [clockNow, setClockNow] = useState(Date.now());
+  useEffect(() => {
+    if (isCall || isHost || !roomName || !userId) return undefined;
+    let active = true;
+    supabase.from('live_room_viewers')
+      .insert({ room_name: roomName, user_id: userId })
+      .then(({ error: joinError }) => {
+        if (active && joinError && !String(joinError.code || '').includes('23505')) {
+          console.warn('YOYO LIVE viewer presence:', joinError.message);
+        }
+      });
+    return () => {
+      active = false;
+      supabase.from('live_room_viewers')
+        .delete()
+        .eq('room_name', roomName)
+        .eq('user_id', userId)
+        .then(() => {});
+    };
+  }, [roomName, userId, isHost, isCall]);
+
 
   useEffect(() => {
     if (isCall || !roomName) return undefined;
