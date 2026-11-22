@@ -35,7 +35,7 @@ function formatBroadcastDuration(totalSeconds) {
   return [hours, minutes, remainder].map((value) => String(value).padStart(2, '0')).join(':');
 }
 
-function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userId, receiverId, roomName, broadcastDuration, isStandby, onStandbyChange }) {
+function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userId, receiverId, roomName, broadcastDuration, isStandby, onStandbyChange, onOpenPackages }) {
   const tracks = useTracks([Track.Source.Camera]);
   const [roomStandby, setRoomStandby] = useState(false);
   const [hostAvatar, setHostAvatar] = useState(null);
@@ -160,7 +160,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
 
       {!isCall && isHost && userId ? <LiveMusicLibrary /> : null}
       {!isCall && userId ? <LiveRoomChat roomName={roomName} userId={userId} isHost={isHost} /> : null}
-      {!isCall && userId ? <LiveGiftPanel userId={userId} receiverId={receiverId} isHost={isHost} roomName={roomName} /> : null}
+      {!isCall && userId ? <LiveGiftPanel userId={userId} receiverId={receiverId} isHost={isHost} roomName={roomName} onOpenPackages={onOpenPackages} /> : null}
       {!isCall && isHost && userId ? <LiveBattlePanel userId={userId} roomName={roomName} isHost={isHost} /> : null}
       {!isCall && userId ? <LiveBattleVote roomName={roomName} userId={userId} /> : null}
 
@@ -184,7 +184,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
   );
 }
 
-export default function LiveRoomScreen({ roomName, isHost, isCall = false, callType = 'video', hostName, onClose, userId, receiverId }) {
+export default function LiveRoomScreen({ roomName, isHost, isCall = false, callType = 'video', hostName, onClose, userId, receiverId, onOpenPackages }) {
   const [connection, setConnection] = useState(null);
   const [error, setError] = useState('');
   const [broadcastStartedAt, setBroadcastStartedAt] = useState(null);
@@ -383,6 +383,7 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
             broadcastDuration={broadcastDuration}
             isStandby={isStandby}
             onStandbyChange={setIsStandby}
+            onOpenPackages={onOpenPackages}
           />
         </LiveKitRoom>
       )}
