@@ -7,6 +7,7 @@ export default function LiveMusicSync({ roomName, userId, isHost }) {
   const [sharedMusic, setSharedMusic] = useState(null);
   const [busy, setBusy] = useState(false);
   const [musicError, setMusicError] = useState('');
+  const [muted, setMuted] = useState(false);
   const playerRef = useRef(null);
   const playerPathRef = useRef(null);
   const playerKeyRef = useRef(null);
@@ -143,6 +144,10 @@ export default function LiveMusicSync({ roomName, userId, isHost }) {
     };
   }, [sharedMusic, isHost, roomName, releasePlayer, refresh]);
 
+  useEffect(() => {
+    if (playerRef.current) playerRef.current.muted = muted;
+  }, [muted]);
+
   const control = async (action) => {
     if (!isHost || busy) return;
     setBusy(true);
@@ -170,6 +175,11 @@ export default function LiveMusicSync({ roomName, userId, isHost }) {
           <Text style={styles.name} numberOfLines={1}>{sharedMusic.track_name}</Text>
           <Text style={styles.status}>{sharedMusic.status === 'playing' ? 'تعمل الآن عند جمهور البث' : 'متوقفة مؤقتًا'}</Text>
         </View>
+      </View>
+      <View style={styles.controls}>
+        <TouchableOpacity onPress={() => setMuted((value) => !value)} style={styles.controlButton}>
+          <Text style={styles.controlText}>{muted ? '🔊 تشغيل الصوت' : '🔇 كتم عندي'}</Text>
+        </TouchableOpacity>
       </View>
       {isHost ? (
         <View style={styles.controls}>
