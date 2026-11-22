@@ -23,6 +23,7 @@ import { supabase } from './supabase';
 import LiveGiftPanel from './LiveGiftPanel';
 import LiveBattlePanel from './LiveBattlePanel';
 import LiveMusicLibrary from './LiveMusicLibrary';
+import LiveRoomChat from './LiveRoomChat';
 
 function formatBroadcastDuration(totalSeconds) {
   const seconds = Math.max(0, Math.floor(totalSeconds || 0));
@@ -103,6 +104,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
       </ScrollView>
 
       {!isCall && isHost && userId ? <LiveMusicLibrary /> : null}
+      {!isCall && userId ? <LiveRoomChat roomName={roomName} userId={userId} isHost={isHost} /> : null}
       {!isCall && userId ? <LiveGiftPanel userId={userId} receiverId={receiverId} isHost={isHost} roomName={roomName} /> : null}
       {!isCall && isHost && userId ? <LiveBattlePanel userId={userId} roomName={roomName} isHost={isHost} /> : null}
 
