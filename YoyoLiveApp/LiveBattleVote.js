@@ -19,8 +19,10 @@ export default function LiveBattleVote({ roomName, userId }) {
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (error || !data) { setBattle(null); return; }
+    if (error || !data) { setBattle(null); setMyVote(null); setTally({}); return; }
     setBattle(data);
+    const { data: tallyData } = await supabase.rpc('yoyo_battle_get_duration_tally', { p_battle_id: data.id });
+    if (tallyData) { setMyVote(tallyData.my_vote || null); setTally(tallyData.tally || {}); }
   }, [roomName, userId]);
 
   useEffect(() => {
