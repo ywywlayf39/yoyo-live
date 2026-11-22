@@ -264,7 +264,7 @@ export default function LiveMusicLibrary({ roomName, userId }) {
               {selectedSongId ? (
                 <Text style={styles.selectedLabel}>الأغنية المحددة: {songs.find((song) => song.id === selectedSongId)?.name || ''}</Text>
               ) : null}
-              {!!roomName && !!userId && selectedSongId ? (
+              {!!roomName && !!userId && selectedSongId && songs.some((song) => song.id === selectedSongId) ? (
                 <TouchableOpacity
                   onPress={() => shareSongWithRoom(songs.find((song) => song.id === selectedSongId))}
                   disabled={!!sharingSongId}
