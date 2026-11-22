@@ -88,7 +88,7 @@ function effectFor(gift) {
   return GIFT_ANIMATION_EFFECTS[gift.animation_key] || null;
 }
 
-export default function LiveGiftPanel({ userId, receiverId, isHost = false, roomName }) {
+export default function LiveGiftPanel({ userId, receiverId, isHost = false, roomName, onOpenPackages }) {
   const [visible, setVisible] = useState(false);
   const [gifts, setGifts] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('starter');
@@ -257,7 +257,10 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
     }
     const total = Number(selectedGift.coin_cost) * quantity;
     if (balance < total) {
-      Alert.alert('رصيدك غير كافٍ', 'اشحن عملاتك أولاً من المحفظة.');
+      Alert.alert('رصيدك غير كافٍ', 'افتح باقات العملات واختر الباقة المناسبة.', [
+        { text: 'لاحقًا', style: 'cancel' },
+        ...(onOpenPackages ? [{ text: 'عرض الباقات', onPress: onOpenPackages }] : []),
+      ]);
       return;
     }
     setSending(true);
