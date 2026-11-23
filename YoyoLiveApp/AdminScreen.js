@@ -118,7 +118,6 @@ export default function AdminScreen({ onBack }) {
     setCoinPurchaseRequests(coinRowsWithProof);
     setVipRequests(vipRowsWithProof);
     setWithdrawalRequests(withdrawalsResult.error ? [] : (withdrawalsResult.data || []));
-    setVipRequests(vipRequestsResult.error ? [] : (vipRequestsResult.data || []));
     if (vipRequestsResult.error) console.error('YOYO VIP requests failed:', vipRequestsResult.error);
     if (withdrawalsResult.error) console.error('YOYO admin withdrawal requests failed:', withdrawalsResult.error);
     setGiftCatalog(giftCatalogResult.error ? [] : (giftCatalogResult.data || []));
