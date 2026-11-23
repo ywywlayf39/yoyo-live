@@ -10,6 +10,7 @@ import AdminScreen from './AdminScreen';
 import ChatScreen from './ChatScreen';
 import InboxScreen from './InboxScreen';
 import FollowScreen from './FollowScreen';
+import ReelsScreen from './ReelsScreen';
 import './registerLiveKit';
 import LiveRoomScreen from './LiveRoomScreen';
 import { supabase } from './supabase';
@@ -91,6 +92,7 @@ export default function App() {
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [liveRooms, setLiveRooms] = useState([]);
   const [showDiscover, setShowDiscover] = useState(false);
+  const [showReels, setShowReels] = useState(false);
   const [selectedCall, setSelectedCall] = useState(null);
   const [incomingCall, setIncomingCall] = useState(null);
 
@@ -602,6 +604,7 @@ export default function App() {
     setShowInbox(false);
     setShowFollowScreen(false);
     setShowDiscover(false);
+    setShowReels(false);
 
     if (tabIndex === 1) setShowDiscover(true);
     else if (tabIndex === 2) setShowPackages(true);
@@ -700,6 +703,10 @@ export default function App() {
         onOpenPackages={() => { setShowWallet(false); setShowPackages(true); }}
       />
     );
+  }
+
+  if (showReels) {
+    return <ReelsScreen userId={session.user.id} onBack={() => setShowReels(false)} />;
   }
 
   if (showDiscover) {
@@ -1035,7 +1042,7 @@ export default function App() {
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             </TouchableOpacity>
 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     <View style={styles.sectionHeader}>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              <TouchableOpacity onPress={() => Alert.alert('اكتشف الفيديوهات', 'الفيديوهات الحقيقية هتظهر هنا بعد نشرها من الأعضاء.') }><Text style={styles.more}>المزيد ←</Text></TouchableOpacity>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              <TouchableOpacity onPress={() => setShowReels(true)}><Text style={styles.more}>عرض الريلز ←</Text></TouchableOpacity>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         <Text style={styles.sectionTitle}>اكتشف الفيديوهات ✨</Text>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 </View>
 
