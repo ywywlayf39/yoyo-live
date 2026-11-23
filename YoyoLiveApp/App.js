@@ -638,6 +638,7 @@ import {
       <AccountScreen
         userId={session.user.id}
         email={session.user.email}
+        onAvatarChanged={(avatarUrl) => setCurrentProfile(current => current ? { ...current, avatar_url: avatarUrl } : current)}
         onBack={() => setShowAccount(false)}
       />
     );
