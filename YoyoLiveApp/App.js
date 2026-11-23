@@ -4,6 +4,7 @@ import AuthScreen from './AuthScreen';
 import ProfileScreen from './ProfileScreen';
 import WalletScreen from './WalletScreen';
 import PackagesScreen from './PackagesScreen';
+import VIPScreen from './VIPScreen';
 import AccountScreen from './AccountScreen';
 import AdminScreen from './AdminScreen';
 import ChatScreen from './ChatScreen';
@@ -59,6 +60,7 @@ import {
   const [logoutMessage, setLogoutMessage] = useState('');
   const [showWallet, setShowWallet] = useState(false);
   const [showPackages, setShowPackages] = useState(false);
+  const [showVIP, setShowVIP] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const isAdmin = session?.user?.app_metadata?.role === 'admin';
@@ -645,6 +647,10 @@ import {
     return <PackagesScreen userId={session.user.id} onBack={() => setShowPackages(false)} />;
   }
 
+  if (showVIP) {
+    return <VIPScreen userId={session.user.id} onBack={() => setShowVIP(false)} />;
+  }
+
   if (showWallet) {
     return (
       <WalletScreen
@@ -895,7 +901,8 @@ import {
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       <View style={styles.headerIcons}>
           {isAdmin && <TouchableOpacity onPress={() => setShowAdmin(true)}><Text style={styles.coins}>🛡️ الإدارة</Text></TouchableOpacity>}
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    <TouchableOpacity onPress={() => setShowPackages(true)}><Text style={styles.coins}>🎁 الباقات</Text></TouchableOpacity>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    <TouchableOpacity onPress={() => setShowPackages(true)}><Text style={styles.coins}>🎁 العملات</Text></TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowVIP(true)}><Text style={styles.coins}>👑 VIP</Text></TouchableOpacity>
           <TouchableOpacity onPress={() => setShowWallet(true)}><Text style={styles.coins}>🪙 المحفظة</Text></TouchableOpacity>
           <TouchableOpacity onPress={() => setShowFollowScreen(true)}><Text style={styles.coins}>👥 المتابعة</Text></TouchableOpacity>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               <TouchableOpacity onPress={openNotifications}><Text style={styles.notification}>🔔</Text></TouchableOpacity>
