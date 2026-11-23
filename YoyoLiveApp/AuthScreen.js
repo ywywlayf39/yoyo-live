@@ -60,15 +60,23 @@ export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUp
       }
       setLoading(true);
       try {
-        // Use the Supabase Auth SDK's supported recovery method so the
-        // installed React Native fetch implementation is not used directly.
-        if (typeof supabase?.auth?.resetPasswordForEmail !== 'function') {
-          throw new Error('ميزة استعادة كلمة المرور غير متاحة في نسخة التطبيق الحالية. حدّث التطبيق ثم حاول مرة أخرى.');
-        }
-        const { error: recoveryError } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
-          redirectTo: 'yoyolive://auth/callback?flow=recovery',
+        // Call the Supabase Auth recovery REST endpoint directly. This avoids
+        // SDK method mismatches in previously published React Native bundles.
+        const recoveryUrl = `${supabaseUrl}/auth/v1/recover?redirect_to=${encodeURIComponent('yoyolive://auth/callback?flow=recovery')}`;
+        const response = await fetch(recoveryUrl, {
+          method: 'POST',
+          headers: {
+            apikey: supabaseAnonKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email: cleanEmail }),
         });
-        if (recoveryError) throw recoveryError;
+        const responseText = await response.text();
+        let responseBody = {};
+        try { responseBody = responseText ? JSON.parse(responseText) : {}; } catch {}
+        if (!response.ok) {
+          throw new Error(responseBody.msg || responseBody.message || responseBody.error_description || `تعذر إرسال رابط الاستعادة (HTTP ${response.status}).`);
+        }
 
         showFeedback('لو البريد مسجل عندنا، هتوصلك رسالة فيها رابط آمن لإعادة تعيين كلمة المرور. راجع الوارد والرسائل غير المرغوب فيها.', 'success');
       } catch (error) {
