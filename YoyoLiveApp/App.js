@@ -14,6 +14,7 @@ import LiveRoomScreen from './LiveRoomScreen';
 import { supabase } from './supabase';
 import {
   Alert,
+  Linking,
   View,
     Text,
       StyleSheet,
