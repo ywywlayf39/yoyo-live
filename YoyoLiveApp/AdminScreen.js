@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { supabase } from './supabase';
 import { calculateGiftEconomics } from './financialCalculator';
 
@@ -95,7 +95,7 @@ export default function AdminScreen({ onBack }) {
       supabase.from('gift_catalog').select('id,name,coin_cost,gross_points,active').order('coin_cost', { ascending: true }),
       supabase.rpc('yoyo_admin_list_withdrawal_requests', { p_limit: 100 }),
       supabase.from('vip_subscription_requests')
-        .select('id,user_id,amount_egp,payment_method,transfer_reference,status,admin_note,created_at,plan:vip_plans(name,duration_days)')
+        .select('id,user_id,amount_egp,payment_method,transfer_reference,proof_storage_path,status,admin_note,created_at,plan:vip_plans(name,duration_days)')
         .order('created_at', { ascending: false }).limit(100),
     ]);
 
@@ -107,7 +107,16 @@ export default function AdminScreen({ onBack }) {
     setReports(reportsResult.error ? [] : (reportsResult.data || []));
     setMembers(membersResult.error ? [] : (membersResult.data || []));
     setLiveRooms(liveRoomsResult.error ? [] : (liveRoomsResult.data || []));
-    setCoinPurchaseRequests(coinRequestsResult.error ? [] : (coinRequestsResult.data || []));
+    const coinRows = coinRequestsResult.error ? [] : (coinRequestsResult.data || []);
+    const vipRows = vipRequestsResult.error ? [] : (vipRequestsResult.data || []);
+    const withProofUrls = async rows => Promise.all(rows.map(async row => {
+      if (!row.proof_storage_path) return row;
+      const { data } = await supabase.storage.from('payment-proofs').createSignedUrl(row.proof_storage_path, 900);
+      return { ...row, proofUrl: data?.signedUrl || null };
+    }));
+    const [coinRowsWithProof, vipRowsWithProof] = await Promise.all([withProofUrls(coinRows), withProofUrls(vipRows)]);
+    setCoinPurchaseRequests(coinRowsWithProof);
+    setVipRequests(vipRowsWithProof);
     setWithdrawalRequests(withdrawalsResult.error ? [] : (withdrawalsResult.data || []));
     setVipRequests(vipRequestsResult.error ? [] : (vipRequestsResult.data || []));
     if (vipRequestsResult.error) console.error('YOYO VIP requests failed:', vipRequestsResult.error);
@@ -632,7 +641,8 @@ export default function AdminScreen({ onBack }) {
               </View>
               <Text style={styles.person}>الباقة: {request.plan?.name || 'VIP شهري'}</Text>
               <Text style={styles.person}>المبلغ: {Number(request.amount_egp || 0).toLocaleString('ar-EG')} جنيه</Text>
-              <Text style={styles.person}>الرقم المرجعي: {request.transfer_reference}</Text>
+              {!!request.proofUrl && <Image source={{uri:request.proofUrl}} style={{width:'100%',height:260,resizeMode:'contain',marginVertical:10,backgroundColor:'#100D18',borderRadius:10}} />}
+              <Text style={styles.person}>{request.proof_storage_path ? 'صورة إيصال التحويل مرفقة' : 'لا توجد صورة مرفقة لهذا الطلب القديم'}</Text>
               <Text style={styles.memberId}>معرّف العضو: {request.user_id}</Text>
               <Text style={styles.date}>{request.created_at ? new Date(request.created_at).toLocaleString('ar-EG') : ''}</Text>
               <View style={styles.actions}>
@@ -660,7 +670,8 @@ export default function AdminScreen({ onBack }) {
               </View>
               <Text style={styles.person}>المبلغ: {Number(request.requested_amount_egp || 0).toLocaleString('ar-EG')} جنيه</Text>
               <Text style={styles.person}>العملات المطلوبة: {Number(request.requested_coins || 0).toLocaleString('ar-EG')}</Text>
-              <Text style={styles.person}>مرجع التحويل: {request.transfer_reference || 'غير مضاف'}</Text>
+              {!!request.proofUrl && <Image source={{uri:request.proofUrl}} style={{width:'100%',height:260,resizeMode:'contain',marginVertical:10,backgroundColor:'#100D18',borderRadius:10}} />}
+              <Text style={styles.person}>{request.proof_storage_path ? 'صورة إيصال التحويل مرفقة' : 'لا توجد صورة مرفقة لهذا الطلب القديم'}</Text>
               <Text style={styles.memberId}>معرّف العضو: {request.user_id}</Text>
               <Text style={styles.date}>{new Date(request.created_at).toLocaleString('ar-EG')}</Text>
               {request.status !== 'approved' && request.status !== 'rejected' && (
