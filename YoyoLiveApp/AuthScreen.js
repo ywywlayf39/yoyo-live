@@ -60,37 +60,31 @@ export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUp
       }
       setLoading(true);
       try {
+        // Use React Native's global fetch directly to avoid SDK method compatibility issues.
         const redirectTo = 'yoyolive://auth/callback?flow=recovery';
-        const resetMethod = supabase?.auth?.resetPasswordForEmail;
-
-        if (typeof resetMethod === 'function') {
-          // Use the documented Supabase SDK method directly (no detached method call).
-          const result = await supabase.auth.resetPasswordForEmail(cleanEmail, { redirectTo });
-          if (result?.error) throw result.error;
-        } else {
-          // Compatibility fallback for older/incomplete native bundles.
-          const nativeFetch = globalThis?.fetch;
-          if (typeof nativeFetch !== 'function') {
-            throw new Error('نسخة التطبيق الحالية لا تدعم إرسال رابط الاستعادة. حدّث التطبيق لآخر نسخة.');
+        if (typeof fetch !== 'function') {
+          throw new Error('الاتصال بخدمة الاستعادة غير متاح في هذه النسخة. أعد تشغيل التطبيق وحاول مرة أخرى.');
+        }
+        const response = await fetch(
+          `${supabaseUrl}/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`,
+          {
+            method: 'POST',
+            headers: {
+              apikey: supabaseAnonKey,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email: cleanEmail }),
           }
-          const response = await nativeFetch(
-            `${supabaseUrl}/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`,
-            {
-              method: 'POST',
-              headers: {
-                apikey: supabaseAnonKey,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ email: cleanEmail }),
-            }
-          );
-          if (!response?.ok) {
-            let detail = '';
-            if (typeof response?.text === 'function') {
-              try { detail = await response.text(); } catch (_) {}
-            }
-            throw new Error(detail || `تعذر إرسال رابط الاستعادة (HTTP ${response?.status || 'غير معروف'}).`);
-          }
+        );
+        if (!response.ok) {
+          let detail = '';
+          try { detail = await response.text(); } catch (_) {}
+          let message = detail;
+          try {
+            const parsed = JSON.parse(detail);
+            message = parsed.msg || parsed.message || parsed.error_description || parsed.error || detail;
+          } catch (_) {}
+          throw new Error(message || `تعذر إرسال رابط الاستعادة (HTTP ${response.status}).`);
         }
 
         showFeedback('لو البريد مسجل عندنا، هتوصلك رسالة فيها رابط آمن لإعادة تعيين كلمة المرور. راجع الوارد والرسائل غير المرغوب فيها.', 'success');
