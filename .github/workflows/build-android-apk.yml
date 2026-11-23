@@ -54,8 +54,7 @@ jobs:
 
       - name: Validate Expo production config
         run: |
-          npx expo config --type public > /tmp/yoyo-expo-config.json
-          node -e "const c=require('/tmp/yoyo-expo-config.json'); if(c.updates?.useNativeDebug===true) throw new Error('Native debug mode must be disabled'); console.log('Production Expo config validated')"
+          node -e "const c=require('./app.json').expo; if(c.updates?.useNativeDebug===true) throw new Error('Native debug mode must be disabled'); console.log('Production Expo config validated')"
 
       - name: Generate Android native project
         run: npx expo prebuild --platform android --no-install --clean
