@@ -62,23 +62,18 @@ export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUp
       try {
         const redirectTo = 'yoyolive://auth/callback?flow=recovery';
         const resetMethod = supabase?.auth?.resetPasswordForEmail;
-        let resetError = null;
 
         if (typeof resetMethod === 'function') {
-          try {
-            const result = await resetMethod.call(supabase.auth, cleanEmail, { redirectTo });
-            resetError = result?.error || null;
-          } catch (sdkError) {
-            // Some native bundles may expose an incomplete Auth client.
-            // Fall back to Supabase's documented GoTrue recovery endpoint.
-            if (!/undefined is not a function|not a function/i.test(String(sdkError?.message || ''))) {
-              throw sdkError;
-            }
+          // Use the documented Supabase SDK method directly (no detached method call).
+          const result = await supabase.auth.resetPasswordForEmail(cleanEmail, { redirectTo });
+          if (result?.error) throw result.error;
+        } else {
+          // Compatibility fallback for older/incomplete native bundles.
+          const nativeFetch = globalThis?.fetch;
+          if (typeof nativeFetch !== 'function') {
+            throw new Error('نسخة التطبيق الحالية لا تدعم إرسال رابط الاستعادة. حدّث التطبيق لآخر نسخة.');
           }
-        }
-
-        if (typeof resetMethod !== 'function' || resetError) {
-          const response = await fetch(
+          const response = await nativeFetch(
             `${supabaseUrl}/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`,
             {
               method: 'POST',
@@ -89,18 +84,19 @@ export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUp
               body: JSON.stringify({ email: cleanEmail }),
             }
           );
-          if (!response.ok) {
-            const detail = await response.text();
-            throw new Error(detail || `تعذر إرسال رابط الاستعادة (HTTP ${response.status}).`);
+          if (!response?.ok) {
+            let detail = '';
+            if (typeof response?.text === 'function') {
+              try { detail = await response.text(); } catch (_) {}
+            }
+            throw new Error(detail || `تعذر إرسال رابط الاستعادة (HTTP ${response?.status || 'غير معروف'}).`);
           }
-          resetError = null;
         }
 
-        if (resetError) throw resetError;
         showFeedback('لو البريد مسجل عندنا، هتوصلك رسالة فيها رابط آمن لإعادة تعيين كلمة المرور. راجع الوارد والرسائل غير المرغوب فيها.', 'success');
       } catch (error) {
-        const raw = String(error?.message || '');
-        showFeedback(/rate limit|too many requests/i.test(raw)
+        const raw = String(error?.message || error || '');
+        showFeedback(/rate limit|too many requests|over_email_send_rate_limit|over_request_rate_limit/i.test(raw)
           ? 'طلبت روابط كثيرة في وقت قصير. انتظر قليلاً ثم حاول مرة أخرى.'
           : raw || 'تعذر إرسال رابط الاستعادة. حاول مرة أخرى.');
       } finally {
