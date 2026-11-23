@@ -358,7 +358,13 @@ import {
         const code = params.get('code');
         const isRecoveryLink =
           params.get('type') === 'recovery' ||
+          /yoyolive:\/\/auth\/callback/i.test(url) ||
           (parsed.protocol === 'yoyolive:' && parsed.hostname === 'auth' && parsed.pathname.startsWith('/callback'));
+
+        // Mark the recovery flow immediately. On Android the auth callback can
+        // race the normal session bootstrap; waiting until exchangeCode/setSession
+        // finishes can leave the login screen rendered.
+        if (active && isRecoveryLink) setPasswordRecovery(true);
 
         if (code) {
           // Supabase PKCE links contain the authorization code, not the full URL.
@@ -385,7 +391,10 @@ import {
         }
       } catch (error) {
         console.error('YOYO LIVE auth deep link failed:', error);
-        if (active) Alert.alert('رابط الاستعادة غير صالح', 'اطلب رابط استعادة جديدًا ثم افتحه مرة واحدة.');
+        if (active) {
+          setPasswordRecovery(false);
+          Alert.alert('رابط الاستعادة غير صالح', 'تعذر تجهيز جلسة الاستعادة. اطلب رابطًا جديدًا بعد قليل ثم افتحه مرة واحدة.');
+        }
       }
     };
 
