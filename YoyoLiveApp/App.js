@@ -337,6 +337,7 @@ import {
   useEffect(() => {
     let active = true;
     let lastHandledUrl = null;
+    let recoveryFlowStarted = false;
 
     const handleAuthUrl = async (url) => {
       if (!url || url === lastHandledUrl) return;
@@ -366,7 +367,8 @@ import {
         // race the normal session bootstrap; waiting until exchangeCode/setSession
         // finishes can leave the login screen rendered.
         if (active && isRecoveryLink) {
-          // A recovery callback must take priority over the normal login bootstrap.
+          // Keep recovery mode active even if code exchange reports an error.
+          recoveryFlowStarted = true;
           setPasswordRecovery(true);
           setAuthLoading(false);
         }
@@ -397,8 +399,14 @@ import {
       } catch (error) {
         console.error('YOYO LIVE auth deep link failed:', error);
         if (active) {
-          setPasswordRecovery(false);
-          Alert.alert('رابط الاستعادة غير صالح', 'تعذر تجهيز جلسة الاستعادة. اطلب رابطًا جديدًا بعد قليل ثم افتحه مرة واحدة.');
+          // Do not send the user back to login after a recovery callback.
+          // Keep the recovery screen visible and explain that a fresh link is needed.
+          if (recoveryFlowStarted) {
+            setPasswordRecovery(true);
+            Alert.alert('تعذر تجهيز الاستعادة', 'وصلنا إلى التطبيق، لكن لم تكتمل جلسة تغيير كلمة المرور. ارجع إلى Gmail واطلب رابط استعادة جديدًا ثم افتحه مرة واحدة.');
+          } else {
+            Alert.alert('تعذر فتح الرابط', 'حدث خطأ أثناء معالجة الرابط. حاول مرة أخرى.');
+          }
         }
       }
     };
@@ -412,17 +420,22 @@ import {
       handleAuthUrl(url);
     });
 
-    Linking.getInitialURL().then((url) => {
-      if (active && url) handleAuthUrl(url);
-    }).catch((error) => {
-      console.error('YOYO LIVE initial auth link failed:', error);
-    });
-
-    supabase.auth.getSession().then(({ data, error }) => {
+    // Resolve the launch URL and stored session together so a recovery deep link
+    // cannot lose a race against the normal session bootstrap.
+    Promise.all([Linking.getInitialURL(), supabase.auth.getSession()]).then(async ([url, result]) => {
       if (!active) return;
-      if (error) console.error('YOYO LIVE session restore failed:', error);
-      setSession(data?.session || null);
-      setAuthLoading(false);
+      if (url) {
+        await handleAuthUrl(url);
+        return;
+      }
+      if (result.error) console.error('YOYO LIVE session restore failed:', result.error);
+      if (!recoveryFlowStarted) {
+        setSession(result.data?.session || null);
+        setAuthLoading(false);
+      }
+    }).catch((error) => {
+      console.error('YOYO LIVE auth bootstrap failed:', error);
+      if (active && !recoveryFlowStarted) setAuthLoading(false);
     });
 
     return () => {
