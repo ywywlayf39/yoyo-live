@@ -57,7 +57,30 @@ export default function App() {
   const [showVIP, setShowVIP] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
-  const isAdmin = session?.user?.app_metadata?.role === 'admin';
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Refresh stale JWT app_metadata once per signed-in user so a newly granted
+  // admin role appears without requiring the user to sign out and back in.
+  useEffect(() => {
+    let active = true;
+    const refreshAdminRole = async () => {
+      if (!session?.user?.id) {
+        if (active) setIsAdmin(false);
+        return;
+      }
+      let currentSession = session;
+      if (currentSession.user?.app_metadata?.role !== 'admin') {
+        const { data, error } = await supabase.auth.refreshSession();
+        if (!error && data?.session) {
+          currentSession = data.session;
+          if (active) setSession(data.session);
+        }
+      }
+      if (active) setIsAdmin(currentSession.user?.app_metadata?.role === 'admin');
+    };
+    refreshAdminRole();
+    return () => { active = false; };
+  }, [session?.user?.id]);
   const [selectedMember, setSelectedMember] = useState(null);
   const [chatMember, setChatMember] = useState(null);
   const [showInbox, setShowInbox] = useState(false);
