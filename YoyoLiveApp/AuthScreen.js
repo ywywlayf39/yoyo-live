@@ -61,7 +61,7 @@ export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUp
       setLoading(true);
       try {
         const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
-          redirectTo: 'https://ywywlayf39.github.io/yoyo-live/',
+          redirectTo: 'yoyolive://auth/callback',
         });
         if (error) throw error;
         showFeedback('لو البريد مسجل عندنا، هتوصلك رسالة فيها رابط آمن لإعادة تعيين كلمة المرور. راجع الوارد والرسائل غير المرغوب فيها.', 'success');

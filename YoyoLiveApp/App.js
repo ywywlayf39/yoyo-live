@@ -334,19 +334,77 @@ import {
   }, [session]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+    let active = true;
+    let lastHandledUrl = null;
+
+    const handleAuthUrl = async (url) => {
+      if (!url || url === lastHandledUrl) return;
+      lastHandledUrl = url;
+
+      try {
+        const parsed = new URL(url);
+        const query = new URLSearchParams(parsed.search);
+        const hash = new URLSearchParams(parsed.hash.replace(/^#/, ''));
+        const params = new URLSearchParams([...query.entries(), ...hash.entries()]);
+        const authError = params.get('error_description') || params.get('error');
+
+        if (authError) {
+          Alert.alert('تعذر فتح رابط الاستعادة', decodeURIComponent(authError.replace(/\+/g, ' ')));
+          return;
+        }
+
+        let sessionData = null;
+        const code = params.get('code');
+        if (code) {
+          const { data, error } = await supabase.auth.exchangeCodeForSession(url);
+          if (error) throw error;
+          sessionData = data;
+        } else {
+          const access_token = params.get('access_token');
+          const refresh_token = params.get('refresh_token');
+          if (!access_token || !refresh_token) return;
+          const { data, error } = await supabase.auth.setSession({ access_token, refresh_token });
+          if (error) throw error;
+          sessionData = data;
+        }
+
+        if (active && sessionData?.session && params.get('type') === 'recovery') {
+          setSession(sessionData.session);
+          setPasswordRecovery(true);
+        }
+      } catch (error) {
+        console.error('YOYO LIVE auth deep link failed:', error);
+        if (active) Alert.alert('رابط الاستعادة غير صالح', 'اطلب رابط استعادة جديدًا ثم افتحه مرة واحدة.');
+      }
+    };
+
+    const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
+      setSession(newSession);
+      if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true);
+    });
+
+    const linkingSubscription = Linking.addEventListener('url', ({ url }) => {
+      handleAuthUrl(url);
+    });
+
+    Linking.getInitialURL().then((url) => {
+      if (active && url) handleAuthUrl(url);
+    }).catch((error) => {
+      console.error('YOYO LIVE initial auth link failed:', error);
+    });
+
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!active) return;
+      if (error) console.error('YOYO LIVE session restore failed:', error);
+      setSession(data?.session || null);
       setAuthLoading(false);
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (event, newSession) => {
-        setSession(newSession);
-        if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true);
-      }
-    );
-
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      active = false;
+      listener.subscription.unsubscribe();
+      linkingSubscription.remove();
+    };
   }, []);
 
   useEffect(() => {
