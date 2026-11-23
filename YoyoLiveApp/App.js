@@ -357,9 +357,10 @@ import {
         let sessionData = null;
         const code = params.get('code');
         const isRecoveryLink =
+          params.get('flow') === 'recovery' ||
           params.get('type') === 'recovery' ||
-          /yoyolive:\/\/auth\/callback/i.test(url) ||
-          (parsed.protocol === 'yoyolive:' && parsed.hostname === 'auth' && parsed.pathname.startsWith('/callback'));
+          (parsed.protocol === 'yoyolive:' && parsed.hostname === 'auth' && parsed.pathname.startsWith('/callback')) ||
+          /yoyolive:\/\/auth\/callback/i.test(url);
 
         // Mark the recovery flow immediately. On Android the auth callback can
         // race the normal session bootstrap; waiting until exchangeCode/setSession
