@@ -364,7 +364,11 @@ import {
         // Mark the recovery flow immediately. On Android the auth callback can
         // race the normal session bootstrap; waiting until exchangeCode/setSession
         // finishes can leave the login screen rendered.
-        if (active && isRecoveryLink) setPasswordRecovery(true);
+        if (active && isRecoveryLink) {
+          // A recovery callback must take priority over the normal login bootstrap.
+          setPasswordRecovery(true);
+          setAuthLoading(false);
+        }
 
         if (code) {
           // Supabase PKCE links contain the authorization code, not the full URL.
@@ -569,6 +573,11 @@ import {
     }
   };
 
+  // Always show the password reset screen before the normal auth loading screen.
+  if (passwordRecovery) {
+    return <AuthScreen recoveryMode onPasswordUpdated={() => setPasswordRecovery(false)} />;
+  }
+
   if (authLoading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -578,10 +587,6 @@ import {
         </Text>
       </SafeAreaView>
     );
-  }
-
-  if (passwordRecovery) {
-    return <AuthScreen recoveryMode onPasswordUpdated={() => setPasswordRecovery(false)} />;
   }
 
   if (!session) {
