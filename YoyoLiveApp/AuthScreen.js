@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Linking,
 } from 'react-native';
-import { supabase } from './supabase';
+import { supabase, supabaseUrl, supabaseAnonKey } from './supabase';
 
 export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUpdated }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -60,12 +60,43 @@ export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUp
       }
       setLoading(true);
       try {
-        const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
-          // Explicit flow marker survives Supabase PKCE redirects and lets the
-          // native app distinguish password recovery from a normal auth callback.
-          redirectTo: 'yoyolive://auth/callback?flow=recovery',
-        });
-        if (error) throw error;
+        const redirectTo = 'yoyolive://auth/callback?flow=recovery';
+        const resetMethod = supabase?.auth?.resetPasswordForEmail;
+        let resetError = null;
+
+        if (typeof resetMethod === 'function') {
+          try {
+            const result = await resetMethod.call(supabase.auth, cleanEmail, { redirectTo });
+            resetError = result?.error || null;
+          } catch (sdkError) {
+            // Some native bundles may expose an incomplete Auth client.
+            // Fall back to Supabase's documented GoTrue recovery endpoint.
+            if (!/undefined is not a function|not a function/i.test(String(sdkError?.message || ''))) {
+              throw sdkError;
+            }
+          }
+        }
+
+        if (typeof resetMethod !== 'function' || resetError) {
+          const response = await fetch(
+            `${supabaseUrl}/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`,
+            {
+              method: 'POST',
+              headers: {
+                apikey: supabaseAnonKey,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ email: cleanEmail }),
+            }
+          );
+          if (!response.ok) {
+            const detail = await response.text();
+            throw new Error(detail || `تعذر إرسال رابط الاستعادة (HTTP ${response.status}).`);
+          }
+          resetError = null;
+        }
+
+        if (resetError) throw resetError;
         showFeedback('لو البريد مسجل عندنا، هتوصلك رسالة فيها رابط آمن لإعادة تعيين كلمة المرور. راجع الوارد والرسائل غير المرغوب فيها.', 'success');
       } catch (error) {
         const raw = String(error?.message || '');
