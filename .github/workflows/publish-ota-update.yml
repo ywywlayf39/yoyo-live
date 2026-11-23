@@ -34,10 +34,13 @@ jobs:
         run: npm install
 
       - name: Check Expo access token
-        if: ${{ secrets.EXPO_TOKEN == '' }}
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          echo "::error::Add the Expo access token as the GitHub Actions secret EXPO_TOKEN before OTA publishing can work."
-          exit 1
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::Add the Expo access token as the GitHub Actions secret EXPO_TOKEN before OTA publishing can work."
+            exit 1
+          fi
 
       - name: Create production channel if needed
         env:
