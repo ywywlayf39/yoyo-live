@@ -239,6 +239,28 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
   const [isStandby, setIsStandby] = useState(false);
   const [viewerPresenceReady, setViewerPresenceReady] = useState(false);
   useEffect(() => {
+    if (isCall || !isHost || !roomName || !userId) return undefined;
+    let active = true;
+    const sendHeartbeat = async () => {
+      const { error: heartbeatError } = await supabase
+        .from('live_rooms')
+        .update({ last_heartbeat_at: new Date().toISOString() })
+        .eq('room_name', roomName)
+        .eq('host_id', userId)
+        .eq('status', 'live');
+      if (heartbeatError && active) {
+        console.warn('YOYO LIVE host heartbeat failed:', heartbeatError.message);
+      }
+    };
+    sendHeartbeat();
+    const timer = setInterval(sendHeartbeat, 15000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [roomName, userId, isHost, isCall]);
+
+  useEffect(() => {
     if (isCall || isHost || !roomName || !userId) {
       setViewerPresenceReady(true);
       return undefined;
