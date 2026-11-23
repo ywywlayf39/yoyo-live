@@ -32,3 +32,6 @@ for (const token of [
 assert.ok(hardening.includes("status='expired'") && hardening.includes("status='completed'"), 'State transition hardening is incomplete');
 assert.ok(!/wallets|wallet_transactions|purchased_coins/i.test(migration), 'Battle migration must not mutate wallet balances');
 console.log('YOYO BATTLE static checks passed.');
+
+assert.ok(panel.includes("last_heartbeat_at"), 'Challenge room list must filter out stale/offline broadcasts');
+assert.ok(room.includes("update({ last_heartbeat_at:"), 'Live host must publish an online heartbeat');
