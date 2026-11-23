@@ -61,7 +61,9 @@ export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUp
       setLoading(true);
       try {
         const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
-          redirectTo: 'yoyolive://auth/callback',
+          // Explicit flow marker survives Supabase PKCE redirects and lets the
+          // native app distinguish password recovery from a normal auth callback.
+          redirectTo: 'yoyolive://auth/callback?flow=recovery',
         });
         if (error) throw error;
         showFeedback('لو البريد مسجل عندنا، هتوصلك رسالة فيها رابط آمن لإعادة تعيين كلمة المرور. راجع الوارد والرسائل غير المرغوب فيها.', 'success');
