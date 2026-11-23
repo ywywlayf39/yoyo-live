@@ -356,20 +356,30 @@ import {
 
         let sessionData = null;
         const code = params.get('code');
+        const isRecoveryLink =
+          params.get('type') === 'recovery' ||
+          (parsed.protocol === 'yoyolive:' && parsed.hostname === 'auth' && parsed.pathname.startsWith('/callback'));
+
         if (code) {
-          const { data, error } = await supabase.auth.exchangeCodeForSession(url);
+          // Supabase PKCE links contain the authorization code, not the full URL.
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
           if (error) throw error;
           sessionData = data;
         } else {
           const access_token = params.get('access_token');
           const refresh_token = params.get('refresh_token');
-          if (!access_token || !refresh_token) return;
+          if (!access_token || !refresh_token) {
+            if (isRecoveryLink && active) {
+              Alert.alert('رابط الاستعادة غير مكتمل', 'اطلب رسالة استعادة جديدة وافتح أحدث رابط مرة واحدة.');
+            }
+            return;
+          }
           const { data, error } = await supabase.auth.setSession({ access_token, refresh_token });
           if (error) throw error;
           sessionData = data;
         }
 
-        if (active && sessionData?.session && params.get('type') === 'recovery') {
+        if (active && sessionData?.session && isRecoveryLink) {
           setSession(sessionData.session);
           setPasswordRecovery(true);
         }
