@@ -106,6 +106,7 @@ export default function LiveBattlePanel({ userId, roomName, isHost = false }) {
     const { data, error } = await supabase.from('live_rooms')
       .select('room_name,host_id,host_name,title')
       .eq('status', 'live')
+      .gt('last_heartbeat_at', new Date(Date.now() - 45000).toISOString())
       .neq('host_id', userId)
       .order('created_at', { ascending: false });
     setLoading(false);
