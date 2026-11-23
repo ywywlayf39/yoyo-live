@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   build-android-apk:
-    name: Build and verify YOYO LIVE release APK
+    name: Build and verify YOYO LIVE ARM64 release APK
     runs-on: ubuntu-latest
     timeout-minutes: 75
     defaults:
@@ -59,11 +59,11 @@ jobs:
       - name: Generate Android native project
         run: npx expo prebuild --platform android --no-install --clean
 
-      - name: Build Android release APK
+      - name: Build Android release APK (ARM64 only)
         working-directory: YoyoLiveApp/android
         run: |
           chmod +x ./gradlew
-          ./gradlew --no-daemon assembleRelease
+          ./gradlew --no-daemon -PreactNativeArchitectures=arm64-v8a assembleRelease
 
       - name: Align and sign APK for device testing
         working-directory: YoyoLiveApp/android
@@ -89,7 +89,7 @@ jobs:
       - name: Upload verified YOYO LIVE release APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: yoyo-live-release-apk
+          name: yoyo-live-release-apk-arm64
           path: YoyoLiveApp/android/app/build/outputs/verified/YOYO-LIVE.apk
           if-no-files-found: error
           retention-days: 7
@@ -99,8 +99,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           APK="android/app/build/outputs/verified/YOYO-LIVE.apk"
-          TAG="android-release-test-${GITHUB_RUN_NUMBER}"
+          TAG="android-release-arm64-test-${GITHUB_RUN_NUMBER}"
           gh release create "$TAG" "$APK#YOYO-LIVE.apk" \
             --repo "$GITHUB_REPOSITORY" \
-            --title "YOYO LIVE device test build ${GITHUB_RUN_NUMBER}" \
-            --notes "Release-variant APK for device testing. Signed for testing only; not the Google Play production signing key. Built from commit ${GITHUB_SHA}."
+            --title "YOYO LIVE ARM64 device test build ${GITHUB_RUN_NUMBER}" \
+            --notes "ARM64-only release APK for device testing. Signed for testing only; not the Google Play production signing key. Built from commit ${GITHUB_SHA}."
