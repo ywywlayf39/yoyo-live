@@ -358,30 +358,35 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
   }, [roomName, isCall]);
 
   const leaveRoom = async () => {
-    // Close this screen immediately; server cleanup must never keep the leave button waiting.
-    onClose?.();
-
-    const cleanupTasks = [];
-    if (isHost && !isCall) {
-      cleanupTasks.push((async () => {
-        const { data: sharedMusic } = await supabase.from('live_room_music')
-          .select('storage_path').eq('room_name', roomName).maybeSingle();
-        await supabase.rpc('yoyo_live_music_control', { p_room_name: roomName, p_action: 'stop' });
-        if (sharedMusic?.storage_path) {
-          await supabase.storage.from('live-music').remove([sharedMusic.storage_path]);
-        }
-      })());
-      cleanupTasks.push(supabase.rpc('yoyo_battle_interrupt_for_host', { p_room_name: roomName }));
-    }
     if (isHost || isCall) {
-      cleanupTasks.push(supabase.functions.invoke('livekit-token', { body: { roomName, action: 'end' } }));
-    }
+      // The authenticated Edge Function owns the authoritative server-side end.
+      const { data, error: endError } = await supabase.functions.invoke('livekit-token', {
+        body: { roomName, action: 'end' },
+      });
+      if (endError || data?.ended !== true) {
+        Alert.alert(
+          'تعذر إنهاء البث',
+          endError?.message || data?.error || 'لم نتأكد من إغلاق البث على الخادم. حاول مرة أخرى.'
+        );
+        return;
+      }
 
-    const results = await Promise.allSettled(cleanupTasks);
-    const failed = results.some((result) => result.status === 'rejected' || result.value?.error || (result.value?.data && result.value.data.ended === false));
-    if (failed) {
-      Alert.alert('تنبيه إنهاء البث', 'تم إغلاق الشاشة على جهازك، لكن تعذر تأكيد بعض خطوات الإنهاء على الخادم. راجع حالة الغرفة قبل بدء بث جديد.');
+      // Secondary cleanup is best-effort and must not undo a confirmed end.
+      if (isHost && !isCall) {
+        Promise.allSettled([
+          (async () => {
+            const { data: sharedMusic } = await supabase.from('live_room_music')
+              .select('storage_path').eq('room_name', roomName).maybeSingle();
+            await supabase.rpc('yoyo_live_music_control', { p_room_name: roomName, p_action: 'stop' });
+            if (sharedMusic?.storage_path) {
+              await supabase.storage.from('live-music').remove([sharedMusic.storage_path]);
+            }
+          })(),
+          supabase.rpc('yoyo_battle_interrupt_for_host', { p_room_name: roomName }),
+        ]);
+      }
     }
+    onClose?.();
   };
 
   const exitAfterConnectionError = async () => {
