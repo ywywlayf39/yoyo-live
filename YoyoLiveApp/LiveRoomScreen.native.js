@@ -43,6 +43,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
   const [micBusy, setMicBusy] = useState(false);
   const [roomStandby, setRoomStandby] = useState(false);
   const [hostAvatar, setHostAvatar] = useState(null);
+  const [toolsVisible, setToolsVisible] = useState(false);
   const showStandby = isHost ? isStandby : roomStandby;
 
   useEffect(() => {
@@ -120,7 +121,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      {isHost && !isCall ? (
+      {isHost && !isCall && toolsVisible ? (
         <View style={styles.hostControls}>
           <TouchableOpacity
             style={[styles.standbyButton, showStandby && styles.standbyButtonActive]}
@@ -182,6 +183,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
         )}
       </View>
 
+      {toolsVisible ? (
       <ScrollView
         style={styles.overlayPanelsScroll}
         contentContainerStyle={styles.overlayPanelsContent}
@@ -199,6 +201,17 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
           </TouchableOpacity>
         ) : null}
       </ScrollView>
+      ) : null}
+
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel={toolsVisible ? 'إخفاء أدوات البث' : 'إظهار أدوات البث'}
+        style={styles.toolsToggle}
+        onPress={() => setToolsVisible((visible) => !visible)}
+        activeOpacity={0.85}
+      >
+        <Text style={styles.toolsToggleText}>{toolsVisible ? '‹' : '›'}</Text>
+      </TouchableOpacity>
 
       <TouchableOpacity style={styles.leaveButton} onPress={() => Alert.alert(
         isCall ? 'إنهاء المكالمة' : isHost ? 'إنهاء البث المباشر' : 'مغادرة البث',
@@ -212,7 +225,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
       </TouchableOpacity>
 
       {!isCall && userId ? <LiveRoomChat roomName={roomName} userId={userId} isHost={isHost} /> : null}
-      {!isCall && userId ? <LiveGiftPanel userId={userId} receiverId={receiverId} isHost={isHost} roomName={roomName} onOpenPackages={onOpenPackages} /> : null}
+      {!isCall && userId && toolsVisible ? <LiveGiftPanel userId={userId} receiverId={receiverId} isHost={isHost} roomName={roomName} onOpenPackages={onOpenPackages} /> : null}
 
     </View>
   );
@@ -442,7 +455,9 @@ const styles = StyleSheet.create({
   livePillText: { color: '#FFFFFF', fontWeight: 'bold' },
   videoStage: { ...StyleSheet.absoluteFillObject, backgroundColor: '#05040A', zIndex: 0, elevation: 0 },
   video: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%', backgroundColor: '#05040A', borderRadius: 0 },
-  overlayPanelsScroll: { position: 'absolute', top: 164, left: 10, right: 10, bottom: 174, zIndex: 35, elevation: 8 },
+  overlayPanelsScroll: { position: 'absolute', top: 150, left: 10, right: 10, bottom: 190, zIndex: 35, elevation: 8 },
+  toolsToggle: { position: 'absolute', right: 10, top: '46%', zIndex: 110, elevation: 30, width: 42, height: 58, borderRadius: 18, borderWidth: 1, borderColor: '#F5C451', backgroundColor: 'rgba(25,20,36,0.92)', alignItems: 'center', justifyContent: 'center' },
+  toolsToggleText: { color: '#F5C451', fontSize: 34, lineHeight: 38, fontWeight: '900' }, 
   overlayPanelsContent: { paddingBottom: 12, gap: 10 },
   hostControls: { position: 'absolute', top: 100, left: 12, right: 12, zIndex: 55, elevation: 18, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 0 },
   standbyButton: { flex: 1, backgroundColor: '#34263F', borderWidth: 1, borderColor: '#8A5578', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 8, alignItems: 'center' },
@@ -465,6 +480,6 @@ const styles = StyleSheet.create({
   error: { color: '#FF9EAD', textAlign: 'center', marginVertical: 12, lineHeight: 22 },
   reportButton: { backgroundColor: '#34263F', borderWidth: 1, borderColor: '#8A5578', borderRadius: 12, padding: 12, alignItems: 'center', marginTop: 12 },
   reportButtonText: { color: '#F4C5D8', fontSize: 14, fontWeight: 'bold' },
-  leaveButton: { position: 'absolute', bottom: 28, left: 16, right: 16, zIndex: 80, elevation: 24, backgroundColor: '#E53965', borderRadius: 14, paddingVertical: 13, paddingHorizontal: 16, alignItems: 'center', marginTop: 0 },
+  leaveButton: { position: 'absolute', bottom: 42, left: 16, right: 16, zIndex: 120, elevation: 32, backgroundColor: '#E53965', borderRadius: 14, paddingVertical: 13, paddingHorizontal: 16, alignItems: 'center', marginTop: 0 }, 
   leaveButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
 });
