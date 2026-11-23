@@ -24,7 +24,24 @@
         "MODIFY_AUDIO_SETTINGS"
       ],
       "package": "com.yoyolive.app",
-      "versionCode": 2
+      "versionCode": 3,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": false,
+          "data": [
+            {
+              "scheme": "yoyolive",
+              "host": "auth",
+              "pathPrefix": "/callback"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "output": "single",
@@ -80,6 +97,7 @@
       "requestHeaders": {
         "expo-channel-name": "production"
       }
-    }
+    },
+    "scheme": "yoyolive"
   }
 }
