@@ -17,6 +17,9 @@ export const supabase = createClient(url, key, {
     storage: AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
+    // Password-reset links are handled with exchangeCodeForSession in App.js.
+    // Explicit PKCE ensures Supabase stores the verifier needed for that exchange.
+    flowType: 'pkce',
     detectSessionInUrl: typeof window !== 'undefined' && !!window.location?.href,
   },
 });
