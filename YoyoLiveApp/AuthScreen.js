@@ -60,35 +60,19 @@ export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUp
       }
       setLoading(true);
       try {
-        // Use React Native's global fetch directly to avoid SDK method compatibility issues.
-        const redirectTo = 'yoyolive://auth/callback?flow=recovery';
-        if (typeof fetch !== 'function') {
-          throw new Error('الاتصال بخدمة الاستعادة غير متاح في هذه النسخة. أعد تشغيل التطبيق وحاول مرة أخرى.');
+        // Use the Supabase Auth SDK's supported recovery method so the
+        // installed React Native fetch implementation is not used directly.
+        if (typeof supabase?.auth?.resetPasswordForEmail !== 'function') {
+          throw new Error('ميزة استعادة كلمة المرور غير متاحة في نسخة التطبيق الحالية. حدّث التطبيق ثم حاول مرة أخرى.');
         }
-        const response = await fetch(
-          `${supabaseUrl}/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`,
-          {
-            method: 'POST',
-            headers: {
-              apikey: supabaseAnonKey,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ email: cleanEmail }),
-          }
-        );
-        if (!response.ok) {
-          let detail = '';
-          try { detail = await response.text(); } catch (_) {}
-          let message = detail;
-          try {
-            const parsed = JSON.parse(detail);
-            message = parsed.msg || parsed.message || parsed.error_description || parsed.error || detail;
-          } catch (_) {}
-          throw new Error(message || `تعذر إرسال رابط الاستعادة (HTTP ${response.status}).`);
-        }
+        const { error: recoveryError } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+          redirectTo: 'yoyolive://auth/callback?flow=recovery',
+        });
+        if (recoveryError) throw recoveryError;
 
         showFeedback('لو البريد مسجل عندنا، هتوصلك رسالة فيها رابط آمن لإعادة تعيين كلمة المرور. راجع الوارد والرسائل غير المرغوب فيها.', 'success');
       } catch (error) {
+        console.error('YOYO LIVE password recovery request failed:', error?.stack || error);
         const raw = String(error?.message || error || '');
         showFeedback(/rate limit|too many requests|over_email_send_rate_limit|over_request_rate_limit/i.test(raw)
           ? 'طلبت روابط كثيرة في وقت قصير. انتظر قليلاً ثم حاول مرة أخرى.'
