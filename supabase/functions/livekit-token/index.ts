@@ -95,7 +95,9 @@ Deno.serve(async (req: Request) => {
       return json({ error: "تم إيقاف حسابك مؤقتًا أو بشكل دائم. تواصل مع الدعم لمعرفة التفاصيل." }, 403);
     }
 
-    const { data: liveRoom, error: liveRoomError } = await supabase
+    // Read room ownership with the service client after authenticating the caller.
+    // This avoids an RLS-hidden row being mistaken for a missing room during end.
+    const { data: liveRoom, error: liveRoomError } = await service
       .from("live_rooms")
       .select("host_id, status")
       .eq("room_name", roomName)
@@ -218,7 +220,7 @@ Deno.serve(async (req: Request) => {
         return json({ ended: true, isCall: true, roomName });
       }
 
-      const { data: endedRoom, error: endError } = await supabase
+      const { data: endedRoom, error: endError } = await service
         .from("live_rooms")
         .update({ status: "ended", ended_at: new Date().toISOString() })
         .eq("room_name", roomName)
