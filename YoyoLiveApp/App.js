@@ -571,6 +571,28 @@ import {
     ]);
   };
 
+  // Close every previously opened full-screen section before navigating.
+  const navigateMainTab = (tabIndex) => {
+    setSelectedLive(null);
+    setSelectedCall(null);
+    setSelectedMember(null);
+    setChatMember(null);
+    setShowWallet(false);
+    setShowPackages(false);
+    setShowVIP(false);
+    setShowAccount(false);
+    setShowAdmin(false);
+    setShowInbox(false);
+    setShowFollowScreen(false);
+    setShowDiscover(false);
+
+    if (tabIndex === 1) setShowDiscover(true);
+    else if (tabIndex === 2) setShowPackages(true);
+    else if (tabIndex === 3) startLive();
+    else if (tabIndex === 4) setShowInbox(true);
+    else if (tabIndex === 5) setShowAccount(true);
+  };
+
   const handleLogout = async () => {
     if (loggingOut) return;
 
@@ -1013,14 +1035,7 @@ import {
 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               <View style={styles.bottomNav}>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       {['الرئيسية', 'اكتشف', 'الباقات', 'البث', 'الرسائل', 'حسابي'].map((item, i) => (
-<TouchableOpacity key={i} style={styles.navItem} accessibilityLabel={item} onPress={() => {
-if (i === 0) { setSelectedLive(null); setShowWallet(false); setShowPackages(false); setShowAccount(false); setShowAdmin(false); setShowDiscover(false); }
-else if (i === 1) setShowDiscover(true);
-else if (i === 2) setShowPackages(true);
-else if (i === 3) startLive();
-else if (i === 4) setShowInbox(true);
-else if (i === 5) setShowAccount(true);
-}}>
+<TouchableOpacity key={i} style={styles.navItem} accessibilityLabel={item} onPress={() => navigateMainTab(i)}>
 <View style={{ position: 'relative' }}>
 <Text style={styles.navIcon}>{['🏠', '✨', '🎁', '🔴', '💬', '👤'][i]}</Text>
 {i === 3 && unreadMessageCount > 0 && (
