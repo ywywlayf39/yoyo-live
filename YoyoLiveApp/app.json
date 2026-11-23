@@ -98,6 +98,11 @@
         "expo-channel-name": "production"
       }
     },
-    "scheme": "yoyolive"
+    "scheme": "yoyolive",
+    "splash": {
+      "image": "./assets/yoyo-live-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0B0912"
+    }
   }
 }
