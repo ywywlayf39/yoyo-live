@@ -4,15 +4,15 @@ import { createClient } from '@supabase/supabase-js';
 
 // These are public client settings. RLS protects database rows; never place a
 // service_role or secret key in this app.
-const url =
+export const supabaseUrl =
   process.env.EXPO_PUBLIC_SUPABASE_URL ||
   'https://wpvcecxkpoldhdhooszb.supabase.co';
-const key =
+export const supabaseAnonKey =
   process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
   'sb_publishable_QmTBI7SNQBJxiQxXMStX8A_HDOzDR5Q';
 
-export const supabase = createClient(url, key, {
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: AsyncStorage,
     autoRefreshToken: true,
