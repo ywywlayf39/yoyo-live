@@ -61,6 +61,18 @@
       "baseUrl": "/yoyo-live"
     },
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0B0912",
+          "image": "./assets/yoyo-live-icon.png",
+          "imageWidth": 200,
+          "dark": {
+            "backgroundColor": "#0B0912",
+            "image": "./assets/yoyo-live-icon.png"
+          }
+        }
+      ],
       "@react-native-community/datetimepicker",
       "@livekit/react-native-expo-plugin",
       [
@@ -98,11 +110,6 @@
         "expo-channel-name": "production"
       }
     },
-    "scheme": "yoyolive",
-    "splash": {
-      "image": "./assets/yoyo-live-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0B0912"
-    }
+    "scheme": "yoyolive"
   }
 }
