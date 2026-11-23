@@ -77,6 +77,10 @@ export default function ReelsScreen({ userId, onBack }) {
       });
       if (picked.canceled || !picked.assets?.[0]) return;
       const asset = picked.assets[0];
+      if (asset.width && asset.height && asset.height <= asset.width) {
+        Alert.alert('ريلز عمودية فقط', 'اختار فيديو بالطول عشان يظهر بشكل Reels ويملى الشاشة.');
+        return;
+      }
       const durationSeconds = Math.ceil((asset.duration || 0) / 1000);
       if (!durationSeconds || durationSeconds > 60) {
         Alert.alert('مدة الفيديو', 'اختار فيديو مدته من ثانية إلى 60 ثانية.'); return;
