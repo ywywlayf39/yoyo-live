@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, TextInput, Image, Alert, Linking } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { File } from 'expo-file-system';
 import { supabase } from './supabase';
 
 const countries = ['مصر','السعودية','الإمارات','الكويت','قطر','البحرين','عمان','الأردن','العراق','لبنان','المغرب','الجزائر','تونس','ليبيا','السودان','فلسطين','اليمن','سوريا','تركيا','ألمانيا','فرنسا','بريطانيا','أمريكا','كندا','أخرى'];
 
-export default function AccountScreen({ userId, email, onBack }) {
+export default function AccountScreen({ userId, email, onBack, onAvatarChanged }) {
   const [profile, setProfile] = useState(null);
   const [name, setName] = useState('');
   const [country, setCountry] = useState('مصر');
@@ -83,12 +84,17 @@ export default function AccountScreen({ userId, email, onBack }) {
       const ext = (asset.fileName?.split('.').pop() || asset.mimeType?.split('/').pop() || 'jpg').toLowerCase();
       const safeExt = ['jpg','jpeg','png','webp'].includes(ext) ? ext : 'jpg';
       const path = userId + '/' + Date.now() + '.' + safeExt;
-      const response = await fetch(asset.uri);
-      if (!response.ok) throw new Error('تعذر قراءة الصورة من الهاتف.');
-      const blob = await response.blob();
-      const contentType = safeExt === 'png' ? 'image/png' : safeExt === 'webp' ? 'image/webp' : 'image/jpeg';
+      // Read the selected local file as binary bytes. fetch(uri).blob() can
+      // return text/plain for Android content:// picker URIs on some devices.
+      const imageFile = new File(asset.uri);
+      const bytes = await imageFile.bytes();
+      if (!bytes || bytes.byteLength === 0) throw new Error('الصورة المختارة فارغة أو تعذر قراءتها.');
+      const fileBuffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+      const contentType = asset.mimeType && ['image/jpeg', 'image/png', 'image/webp'].includes(asset.mimeType)
+        ? asset.mimeType
+        : safeExt === 'png' ? 'image/png' : safeExt === 'webp' ? 'image/webp' : 'image/jpeg';
       const { error: uploadError } = await supabase.storage.from('profile-avatars')
-        .upload(path, blob, { contentType, upsert: false });
+        .upload(path, fileBuffer, { contentType, upsert: false });
       if (uploadError) throw uploadError;
       const { data } = supabase.storage.from('profile-avatars').getPublicUrl(path);
       const { data: updatedProfile, error: updateError } = await supabase.from('profiles')
@@ -99,6 +105,7 @@ export default function AccountScreen({ userId, email, onBack }) {
       if (updateError) throw updateError;
       if (!updatedProfile?.avatar_url) throw new Error('تم رفع الصورة لكن لم يتم ربطها بحسابك. حاول مرة أخرى.');
       setProfile(current => ({ ...current, avatar_url: updatedProfile.avatar_url }));
+      onAvatarChanged?.(updatedProfile.avatar_url);
       setSuccess('تم تحديث صورة البروفايل بنجاح ✓');
     } catch (e) {
       setError('تعذر تغيير الصورة: ' + (e?.message || 'حاول مرة أخرى'));
