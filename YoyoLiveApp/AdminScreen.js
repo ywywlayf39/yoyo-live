@@ -37,6 +37,9 @@ export default function AdminScreen({ onBack }) {
   const [suspensionDuration, setSuspensionDuration] = useState('24h');
   const [suspensionBusyId, setSuspensionBusyId] = useState(null);
   const [coinPurchaseRequests, setCoinPurchaseRequests] = useState([]);
+  const [vipRequests, setVipRequests] = useState([]);
+  const [vipReviewNote, setVipReviewNote] = useState('');
+  const [vipReviewBusyId, setVipReviewBusyId] = useState(null);
   const [withdrawalRequests, setWithdrawalRequests] = useState([]);
   const [withdrawalReviewNote, setWithdrawalReviewNote] = useState('');
   const [withdrawalBusyId, setWithdrawalBusyId] = useState(null);
@@ -67,7 +70,7 @@ export default function AdminScreen({ onBack }) {
   const loadDashboard = useCallback(async () => {
     setLoading(true);
     setError('');
-    const [summaryResult, reportsResult, membersResult, suspensionsResult, auditResult, liveRoomsResult, coinRequestsResult, giftCatalogResult, withdrawalsResult] = await Promise.all([
+    const [summaryResult, reportsResult, membersResult, suspensionsResult, auditResult, liveRoomsResult, coinRequestsResult, giftCatalogResult, withdrawalsResult, vipRequestsResult] = await Promise.all([
       supabase.rpc('yoyo_admin_summary'),
       supabase.rpc('yoyo_admin_list_reports_with_live', { p_limit: 100 }),
       supabase.from('profiles')
@@ -91,6 +94,9 @@ export default function AdminScreen({ onBack }) {
         .order('created_at', { ascending: false }).limit(100),
       supabase.from('gift_catalog').select('id,name,coin_cost,gross_points,active').order('coin_cost', { ascending: true }),
       supabase.rpc('yoyo_admin_list_withdrawal_requests', { p_limit: 100 }),
+      supabase.from('vip_subscription_requests')
+        .select('id,user_id,amount_egp,payment_method,transfer_reference,status,admin_note,created_at,plan:vip_plans(name,duration_days)')
+        .order('created_at', { ascending: false }).limit(100),
     ]);
 
     if (summaryResult.error || reportsResult.error || membersResult.error) {
@@ -103,6 +109,8 @@ export default function AdminScreen({ onBack }) {
     setLiveRooms(liveRoomsResult.error ? [] : (liveRoomsResult.data || []));
     setCoinPurchaseRequests(coinRequestsResult.error ? [] : (coinRequestsResult.data || []));
     setWithdrawalRequests(withdrawalsResult.error ? [] : (withdrawalsResult.data || []));
+    setVipRequests(vipRequestsResult.error ? [] : (vipRequestsResult.data || []));
+    if (vipRequestsResult.error) console.error('YOYO VIP requests failed:', vipRequestsResult.error);
     if (withdrawalsResult.error) console.error('YOYO admin withdrawal requests failed:', withdrawalsResult.error);
     setGiftCatalog(giftCatalogResult.error ? [] : (giftCatalogResult.data || []));
     if (giftCatalogResult.error) console.error('YOYO gift catalog audit failed:', giftCatalogResult.error);
@@ -297,6 +305,36 @@ export default function AdminScreen({ onBack }) {
         if (reviewError || data !== true) Alert.alert('تعذر تحديث الطلب', reviewError?.message || 'لم يتم العثور على الطلب.');
         else { setCoinReviewNote(''); await loadDashboard(); Alert.alert('تم', decision === 'approved' ? 'تم اعتماد الطلب وإضافة العملات وتسجيل الحركة.' : 'تم تحديث حالة الطلب.'); }
         setCoinReviewBusyId(null);
+      }},
+    ]);
+  };
+
+
+  const reviewVipRequest = (request, decision) => {
+    const labels = {
+      reviewing: 'نقل طلب VIP إلى قيد المراجعة',
+      approved: 'اعتماد التحويل وتفعيل عضوية VIP لمدة 30 يومًا',
+      rejected: 'رفض طلب VIP دون تفعيل العضوية',
+    };
+    Alert.alert('مراجعة طلب VIP', labels[decision], [
+      { text: 'إلغاء', style: 'cancel' },
+      { text: 'تأكيد', onPress: async () => {
+        setVipReviewBusyId(request.id);
+        const { error: reviewError } = await supabase.rpc('yoyo_admin_review_vip_request', {
+          p_request_id: request.id,
+          p_decision: decision,
+          p_admin_note: vipReviewNote.trim() || null,
+        });
+        if (reviewError) {
+          Alert.alert('تعذر تحديث طلب VIP', reviewError.message || 'حاول مرة أخرى.');
+        } else {
+          setVipReviewNote('');
+          await loadDashboard();
+          Alert.alert('تم', decision === 'approved'
+            ? 'تم اعتماد الطلب وتفعيل عضوية VIP للعضو لمدة 30 يومًا.'
+            : decision === 'rejected' ? 'تم رفض الطلب ولم يتم تفعيل العضوية.' : 'تم نقل الطلب إلى قيد المراجعة.');
+        }
+        setVipReviewBusyId(null);
       }},
     ]);
   };
@@ -573,6 +611,35 @@ export default function AdminScreen({ onBack }) {
               <TouchableOpacity disabled={!!liveActionBusyId} style={styles.dismissButton} onPress={() => endLiveRoom(room)}>
                 <Text style={styles.actionText}>{liveActionBusyId === room.id ? 'جارٍ إنهاء البث...' : 'إنهاء البث بعد المراجعة'}</Text>
               </TouchableOpacity>
+            </View>
+          ))}
+
+
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>👑 طلبات عضوية VIP</Text>
+            <TouchableOpacity onPress={loadDashboard}><Text style={styles.refresh}>تحديث ↻</Text></TouchableOpacity>
+          </View>
+          <Text style={styles.memberHint}>لا تعتمد الطلب إلا بعد التأكد من وصول 200 جنيه فعليًا. اعتماد الطلب يفعّل عضوية VIP لمدة 30 يومًا.</Text>
+          <TextInput value={vipReviewNote} onChangeText={setVipReviewNote}
+            placeholder="ملاحظة مراجعة VIP (اختياري)" placeholderTextColor="#8F849F" style={styles.searchInput} multiline maxLength={1000} />
+          {vipRequests.filter(request => ['pending','reviewing'].includes(request.status)).length === 0 ? (
+            <View style={styles.empty}><Text style={styles.emptyText}>لا توجد طلبات VIP تنتظر المراجعة.</Text></View>
+          ) : vipRequests.filter(request => ['pending','reviewing'].includes(request.status)).map(request => (
+            <View key={request.id} style={styles.reportCard}>
+              <View style={styles.reportTop}>
+                <Text style={styles.status}>{request.status === 'reviewing' ? 'قيد المراجعة' : 'جديد'}</Text>
+                <Text style={styles.reason}>{request.payment_method === 'vodafone_cash' ? 'فودافون كاش' : request.payment_method === 'bank_transfer' ? 'تحويل بنكي' : 'InstaPay'}</Text>
+              </View>
+              <Text style={styles.person}>الباقة: {request.plan?.name || 'VIP شهري'}</Text>
+              <Text style={styles.person}>المبلغ: {Number(request.amount_egp || 0).toLocaleString('ar-EG')} جنيه</Text>
+              <Text style={styles.person}>الرقم المرجعي: {request.transfer_reference}</Text>
+              <Text style={styles.memberId}>معرّف العضو: {request.user_id}</Text>
+              <Text style={styles.date}>{request.created_at ? new Date(request.created_at).toLocaleString('ar-EG') : ''}</Text>
+              <View style={styles.actions}>
+                <TouchableOpacity disabled={!!vipReviewBusyId} style={styles.reviewButton} onPress={() => reviewVipRequest(request,'reviewing')}><Text style={styles.actionText}>قيد المراجعة</Text></TouchableOpacity>
+                <TouchableOpacity disabled={!!vipReviewBusyId} style={styles.doneButton} onPress={() => reviewVipRequest(request,'approved')}><Text style={styles.actionText}>{vipReviewBusyId === request.id ? 'جارٍ...' : 'اعتماد وتفعيل VIP'}</Text></TouchableOpacity>
+                <TouchableOpacity disabled={!!vipReviewBusyId} style={styles.dismissButton} onPress={() => reviewVipRequest(request,'rejected')}><Text style={styles.actionText}>رفض الطلب</Text></TouchableOpacity>
+              </View>
             </View>
           ))}
 
