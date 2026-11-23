@@ -1,0 +1,50 @@
+name: Publish YOYO LIVE over-the-air update
+
+on:
+  push:
+    branches:
+      - feature/livekit-live-stream
+    paths:
+      - "YoyoLiveApp/**"
+      - ".github/workflows/publish-ota-update.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish-update:
+    name: Publish compatible app update to Expo
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: YoyoLiveApp
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: YoyoLiveApp/package-lock.json
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Check Expo access token
+        if: ${{ secrets.EXPO_TOKEN == '' }}
+        run: |
+          echo "::error::Add the Expo access token as the GitHub Actions secret EXPO_TOKEN before OTA publishing can work."
+          exit 1
+
+      - name: Create production channel if needed
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx eas-cli@latest channel:create production --non-interactive || true
+
+      - name: Publish JavaScript and asset update
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx eas-cli@latest update --channel production --message "YOYO LIVE automatic update" --non-interactive
