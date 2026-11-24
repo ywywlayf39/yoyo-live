@@ -38,6 +38,8 @@ export default function AdminScreen({ onBack }) {
   const [suspensionBusyId, setSuspensionBusyId] = useState(null);
   const [coinPurchaseRequests, setCoinPurchaseRequests] = useState([]);
   const [vipRequests, setVipRequests] = useState([]);
+  const [referralVipRewards, setReferralVipRewards] = useState([]);
+  const [referralRewardBusyId, setReferralRewardBusyId] = useState(null);
   const [vipReviewNote, setVipReviewNote] = useState('');
   const [vipReviewBusyId, setVipReviewBusyId] = useState(null);
   const [withdrawalRequests, setWithdrawalRequests] = useState([]);
@@ -70,7 +72,7 @@ export default function AdminScreen({ onBack }) {
   const loadDashboard = useCallback(async () => {
     setLoading(true);
     setError('');
-    const [summaryResult, reportsResult, membersResult, suspensionsResult, auditResult, liveRoomsResult, coinRequestsResult, giftCatalogResult, withdrawalsResult, vipRequestsResult] = await Promise.all([
+    const [summaryResult, reportsResult, membersResult, suspensionsResult, auditResult, liveRoomsResult, coinRequestsResult, giftCatalogResult, withdrawalsResult, vipRequestsResult, referralRewardsResult] = await Promise.all([
       supabase.rpc('yoyo_admin_summary'),
       supabase.rpc('yoyo_admin_list_reports_with_live', { p_limit: 100 }),
       supabase.from('profiles')
@@ -97,6 +99,7 @@ export default function AdminScreen({ onBack }) {
       supabase.from('vip_subscription_requests')
         .select('id,user_id,amount_egp,payment_method,transfer_reference,proof_storage_path,status,admin_note,created_at,plan:vip_plans(name,duration_days)')
         .order('created_at', { ascending: false }).limit(100),
+      supabase.rpc('yoyo_admin_list_referral_vip_rewards', { p_limit: 100 }),
     ]);
 
     if (summaryResult.error || reportsResult.error || membersResult.error) {
@@ -117,6 +120,8 @@ export default function AdminScreen({ onBack }) {
     const [coinRowsWithProof, vipRowsWithProof] = await Promise.all([withProofUrls(coinRows), withProofUrls(vipRows)]);
     setCoinPurchaseRequests(coinRowsWithProof);
     setVipRequests(vipRowsWithProof);
+    setReferralVipRewards(referralRewardsResult.error ? [] : (referralRewardsResult.data || []));
+    if (referralRewardsResult.error) console.error('YOYO referral VIP rewards failed:', referralRewardsResult.error);
     setWithdrawalRequests(withdrawalsResult.error ? [] : (withdrawalsResult.data || []));
     if (vipRequestsResult.error) console.error('YOYO VIP requests failed:', vipRequestsResult.error);
     if (withdrawalsResult.error) console.error('YOYO admin withdrawal requests failed:', withdrawalsResult.error);
@@ -343,6 +348,35 @@ export default function AdminScreen({ onBack }) {
             : decision === 'rejected' ? 'تم رفض الطلب ولم يتم تفعيل العضوية.' : 'تم نقل الطلب إلى قيد المراجعة.');
         }
         setVipReviewBusyId(null);
+      }},
+    ]);
+  };
+
+  const reviewReferralVipReward = (reward, decision) => {
+    const labels = {
+      reviewing: 'نقل مكافأة VIP إلى قيد المراجعة',
+      approved: 'اعتماد مكافأة VIP المجانية للعضو',
+      rejected: 'رفض مكافأة VIP دون تفعيل أي مدة',
+    };
+    Alert.alert('مراجعة مكافأة الدعوات', labels[decision], [
+      { text: 'إلغاء', style: 'cancel' },
+      { text: 'تأكيد', onPress: async () => {
+        setReferralRewardBusyId(reward.id);
+        const { data, error: reviewError } = await supabase.rpc('yoyo_admin_review_referral_vip_reward', {
+          p_reward_id: reward.id,
+          p_decision: decision,
+        });
+        if (reviewError) {
+          Alert.alert('تعذر تحديث المكافأة', reviewError.message || 'حاول مرة أخرى.');
+        } else {
+          await loadDashboard();
+          Alert.alert('تم', decision === 'approved'
+            ? (Number(data || 0) > 0
+              ? 'تم اعتماد المكافأة وإضافة ' + Number(data).toLocaleString('ar-EG') + ' يوم VIP مجاني.'
+              : 'تم اعتماد المرحلة؛ العضو حصل بالفعل على إجمالي أيام هذه المرحلة من مكافأة سابقة.')
+            : decision === 'rejected' ? 'تم رفض المكافأة ولم يتم تفعيل VIP.' : 'تم نقل المكافأة إلى قيد المراجعة.');
+        }
+        setReferralRewardBusyId(null);
       }},
     ]);
   };
@@ -648,6 +682,31 @@ export default function AdminScreen({ onBack }) {
                 <TouchableOpacity disabled={!!vipReviewBusyId} style={styles.reviewButton} onPress={() => reviewVipRequest(request,'reviewing')}><Text style={styles.actionText}>قيد المراجعة</Text></TouchableOpacity>
                 <TouchableOpacity disabled={!!vipReviewBusyId} style={styles.doneButton} onPress={() => reviewVipRequest(request,'approved')}><Text style={styles.actionText}>{vipReviewBusyId === request.id ? 'جارٍ...' : 'اعتماد وتفعيل VIP'}</Text></TouchableOpacity>
                 <TouchableOpacity disabled={!!vipReviewBusyId} style={styles.dismissButton} onPress={() => reviewVipRequest(request,'rejected')}><Text style={styles.actionText}>رفض الطلب</Text></TouchableOpacity>
+              </View>
+            </View>
+          ))}
+
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>🎁 مكافآت دعوات VIP</Text>
+            <TouchableOpacity onPress={loadDashboard}><Text style={styles.refresh}>تحديث ↻</Text></TouchableOpacity>
+          </View>
+          <Text style={styles.memberHint}>هذه مزايا مجانية وليست أموالًا أو عملات. راجع الدعوات قبل الاعتماد. النظام يمنح فقط الفرق اللازم للوصول إلى إجمالي 7 أو 15 أو 30 يوم VIP خلال الشهر، وبحد أقصى 30 يومًا.</Text>
+          {referralVipRewards.filter(item => ['pending','reviewing'].includes(item.status)).length === 0 ? (
+            <View style={styles.empty}><Text style={styles.emptyText}>لا توجد مكافآت دعوات تنتظر المراجعة.</Text></View>
+          ) : referralVipRewards.filter(item => ['pending','reviewing'].includes(item.status)).map(reward => (
+            <View key={reward.id} style={styles.reportCard}>
+              <View style={styles.reportTop}>
+                <Text style={styles.status}>{reward.status === 'reviewing' ? 'قيد المراجعة' : 'جديدة'}</Text>
+                <Text style={styles.reason}>{reward.milestone_invites} دعوات ناجحة</Text>
+              </View>
+              <Text style={styles.person}>العضو: {reward.display_name || 'عضو'}</Text>
+              <Text style={styles.person}>الهدف: {reward.target_vip_days} يوم VIP إجماليًا</Text>
+              <Text style={styles.person}>الفترة: {reward.period_start}</Text>
+              <Text style={styles.memberId}>معرّف العضو: {reward.user_id}</Text>
+              <View style={styles.actions}>
+                <TouchableOpacity disabled={!!referralRewardBusyId} style={styles.reviewButton} onPress={() => reviewReferralVipReward(reward,'reviewing')}><Text style={styles.actionText}>قيد المراجعة</Text></TouchableOpacity>
+                <TouchableOpacity disabled={!!referralRewardBusyId} style={styles.doneButton} onPress={() => reviewReferralVipReward(reward,'approved')}><Text style={styles.actionText}>{referralRewardBusyId === reward.id ? 'جارٍ...' : 'اعتماد VIP المجاني'}</Text></TouchableOpacity>
+                <TouchableOpacity disabled={!!referralRewardBusyId} style={styles.dismissButton} onPress={() => reviewReferralVipReward(reward,'rejected')}><Text style={styles.actionText}>رفض</Text></TouchableOpacity>
               </View>
             </View>
           ))}
