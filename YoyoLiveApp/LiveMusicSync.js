@@ -3,7 +3,7 @@ import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { createAudioPlayer } from 'expo-audio';
 import { supabase } from './supabase';
 
-export default function LiveMusicSync({ roomName, userId, isHost }) {
+export default function LiveMusicSync({ roomName, userId, isHost, visible = true }) {
   const [sharedMusic, setSharedMusic] = useState(null);
   const [busy, setBusy] = useState(false);
   const [musicError, setMusicError] = useState('');
@@ -57,7 +57,9 @@ export default function LiveMusicSync({ roomName, userId, isHost }) {
   }, [roomName, refresh, releasePlayer]);
 
   useEffect(() => {
-    if (!sharedMusic || sharedMusic.status === 'stopped') {
+    if (!visible) return null;
+
+  if (!sharedMusic || sharedMusic.status === 'stopped') {
       processingRef.current += 1;
       releasePlayer();
       return undefined;
