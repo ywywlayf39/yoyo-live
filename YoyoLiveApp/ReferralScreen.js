@@ -26,20 +26,30 @@ const C = {
 
 export default function ReferralScreen({ userId, onBack }) {
   const [summary, setSummary] = useState(null);
+  const [rewardProgress, setRewardProgress] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sharing, setSharing] = useState(false);
 
   const loadSummary = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
-    const { data, error } = await supabase.rpc('yoyo_get_referral_summary');
-    if (error) {
-      console.error('YOYO LIVE referral summary failed:', error);
+    const [summaryResult, rewardResult] = await Promise.all([
+      supabase.rpc('yoyo_get_referral_summary'),
+      supabase.rpc('yoyo_get_referral_vip_reward_progress'),
+    ]);
+    if (summaryResult.error) {
+      console.error('YOYO LIVE referral summary failed:', summaryResult.error);
       Alert.alert('تعذر تحميل الدعوات', 'تأكد من اتصال الإنترنت وحاول مرة أخرى.');
       setSummary(null);
     } else {
-      const row = Array.isArray(data) ? data[0] : data;
+      const row = Array.isArray(summaryResult.data) ? summaryResult.data[0] : summaryResult.data;
       setSummary(row || null);
+    }
+    if (rewardResult.error) {
+      console.error('YOYO LIVE referral VIP progress failed:', rewardResult.error);
+      setRewardProgress([]);
+    } else {
+      setRewardProgress(rewardResult.data || []);
     }
     setLoading(false);
   }, [userId]);
@@ -115,9 +125,38 @@ export default function ReferralScreen({ userId, onBack }) {
             <Text style={styles.statLabel}>أصدقاء سجلوا بكودك</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={[styles.statNumber, { fontSize: 17, marginTop: 5 }]}>قريبًا</Text>
-            <Text style={styles.statLabel}>مكافآت الدعوات غير مفعّلة حاليًا</Text>
+            <Text style={styles.statNumber}>{loading ? '—' : rewardProgress[0]?.qualified_invites ?? 0}</Text>
+            <Text style={styles.statLabel}>دعوات مؤهلة هذا الشهر</Text>
           </View>
+        </View>
+
+        <View style={styles.noteCard}>
+          <Text style={styles.noteTitle}>👑 مكافآت VIP الشهرية</Text>
+          <Text style={styles.noteText}>كلما زادت دعواتك المؤهلة، تقترب من مزايا VIP المجانية. المكافآت لا تُفعّل إلا بعد مراجعة الإدارة، وهي غير قابلة للتحويل إلى أموال.</Text>
+          {[
+            { count: 3, days: 7 },
+            { count: 5, days: 15 },
+            { count: 10, days: 30 },
+          ].map(tier => {
+            const progress = rewardProgress.find(item => Number(item.milestone_invites) === tier.count);
+            const status = progress?.status || 'not_reached';
+            const statusLabel = status === 'approved'
+              ? 'تم الاعتماد'
+              : status === 'pending' ? 'بانتظار مراجعة الإدارة'
+                : status === 'reviewing' ? 'قيد المراجعة'
+                  : status === 'rejected' ? 'لم تتم الموافقة'
+                    : 'لم تصل للهدف بعد';
+            return (
+              <View key={tier.count} style={styles.rewardRow}>
+                <View style={styles.rewardInfo}>
+                  <Text style={styles.rewardTitle}>{tier.count} دعوات ناجحة</Text>
+                  <Text style={styles.rewardStatus}>{statusLabel}</Text>
+                </View>
+                <Text style={styles.rewardDays}>{tier.days} يوم VIP</Text>
+              </View>
+            );
+          })}
+          <Text style={styles.noteText}>الحد الأقصى للمكافأة 30 يوم VIP في الشهر. الدعوة المؤهلة تُحتسب بعد استكمال شروط التأهيل داخل التطبيق.</Text>
         </View>
 
         <View style={styles.noteCard}>
@@ -195,6 +234,11 @@ const styles = StyleSheet.create({
   statNumber: { color: C.gold, fontSize: 26, fontWeight: '900' },
   statLabel: { color: C.muted, fontSize: 12, textAlign: 'center', marginTop: 7 },
   noteCard: { backgroundColor: C.card2, borderRadius: 15, padding: 16, marginTop: 14 },
+  rewardRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: C.card, borderRadius: 12, padding: 12, marginTop: 10 },
+  rewardInfo: { flex: 1, alignItems: 'flex-end' },
+  rewardTitle: { color: C.white, fontWeight: '900', fontSize: 14 },
+  rewardStatus: { color: C.muted, fontSize: 11, marginTop: 4 },
+  rewardDays: { color: C.gold, fontWeight: '900', fontSize: 14, marginLeft: 10 },
   noteTitle: { color: C.white, fontWeight: 'bold', fontSize: 15, textAlign: 'right' },
   noteText: { color: C.muted, textAlign: 'right', lineHeight: 22, marginTop: 8, fontSize: 13 },
   refreshButton: { alignItems: 'center', padding: 15, marginTop: 8 },
