@@ -105,10 +105,14 @@ export default function App() {
 
     let active = true;
     const refreshLiveRooms = async () => {
+      // Close rooms whose broadcaster stopped sending heartbeats (app killed/offline).
+      const { error: cleanupError } = await supabase.rpc('yoyo_expire_stale_live_rooms');
+      if (cleanupError) console.warn('YOYO LIVE stale room cleanup:', cleanupError.message);
       const { data, error } = await supabase
         .from('live_rooms')
         .select('id, room_name, host_id, host_name, title, created_at')
         .eq('status', 'live')
+        .gt('last_heartbeat_at', new Date(Date.now() - 45000).toISOString())
         .order('created_at', { ascending: false });
       if (!error && active) {
         const { data: blockRows, error: blockError } = await supabase
