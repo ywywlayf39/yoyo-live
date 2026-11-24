@@ -17,7 +17,6 @@ import {
   isTrackReference,
   useTracks,
   useLocalParticipant,
-  useRoomContext,
 } from '@livekit/react-native';
 import { Track } from 'livekit-client';
 import { StatusBar } from 'expo-status-bar';
@@ -40,7 +39,6 @@ function formatBroadcastDuration(totalSeconds) {
 }
 
 function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userId, receiverId, roomName, broadcastDuration, isStandby, onStandbyChange, onOpenPackages, viewerPresenceReady }) {
-  const room = useRoomContext();
   const tracks = useTracks([Track.Source.Camera]);
   const { localParticipant, isMicrophoneEnabled } = useLocalParticipant();
   const [micBusy, setMicBusy] = useState(false);
@@ -221,7 +219,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
         isCall ? 'هل أنت متأكد أنك تريد إنهاء المكالمة؟' : isHost ? 'هل أنت متأكد؟ سيتم إنهاء البث وفصل جميع المشاهدين، وإنهاء أي تحدٍ نشط دون إعلان فائز.' : 'هل تريد مغادرة البث؟',
         [
           { text: 'استمرار', style: 'cancel' },
-          { text: isHost ? 'إنهاء البث' : isCall ? 'إنهاء المكالمة' : 'مغادرة', style: 'destructive', onPress: () => onLeave?.(room) },
+          { text: isHost ? 'إنهاء البث' : isCall ? 'إنهاء المكالمة' : 'مغادرة', style: 'destructive', onPress: () => onLeave?.() },
         ],
       )} activeOpacity={0.85}>
         <Text style={styles.leaveButtonText}>{isCall ? 'إنهاء المكالمة' : isHost ? 'إنهاء البث' : 'مغادرة البث'}</Text>
@@ -390,34 +388,25 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
     };
   }, [roomName, isCall]);
 
-  const leaveRoom = async (liveKitRoom) => {
+  const leaveRoom = async () => {
     if (isLeaving) return;
     setIsLeaving(true);
 
-    // Ask the LiveKit Room to disconnect and release its native camera/audio
-    // tracks before removing the React Native screen from the navigation tree.
+    // Start server-side ending immediately, but do not wait for it before
+    // returning the user to the app. LiveKitRoom owns its native teardown
+    // when it is unmounted; calling room.disconnect() here as well can cause
+    // a second native teardown on Android.
     const shouldEndRoom = isHost || isCall;
     const endRequest = shouldEndRoom
       ? supabase.functions.invoke('livekit-token', { body: { roomName, action: 'end' } })
       : Promise.resolve({ data: { ended: true }, error: null });
 
-    try {
-      if (liveKitRoom) {
-        await Promise.race([
-          liveKitRoom.disconnect(),
-          new Promise((resolve) => setTimeout(resolve, 5000)),
-        ]);
-      }
-    } catch (disconnectError) {
-      console.warn('YOYO LIVE LiveKit disconnect failed:', disconnectError?.message || disconnectError);
-    }
-
-    // Only now unmount LiveKitRoom; give Android one frame window to detach
-    // the native video surface before the parent renders the home screen.
+    // Unmount LiveKitRoom once, then return to the home route.
     setConnection(null);
-    await new Promise((resolve) => setTimeout(resolve, 350));
+    await new Promise((resolve) => setTimeout(resolve, 250));
     onClose?.();
 
+    // Finish server cleanup in the background after navigation has returned.
     try {
       const { data, error: endError } = await endRequest;
       if (endError || data?.ended !== true) {
