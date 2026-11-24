@@ -11,6 +11,7 @@ import ChatScreen from './ChatScreen';
 import InboxScreen from './InboxScreen';
 import FollowScreen from './FollowScreen';
 import ReelsScreen from './ReelsScreen';
+import ReferralScreen from './ReferralScreen';
 import './registerLiveKit';
 import LiveRoomScreen from './LiveRoomScreen';
 import { supabase } from './supabase';
@@ -93,6 +94,7 @@ export default function App() {
   const [liveRooms, setLiveRooms] = useState([]);
   const [showDiscover, setShowDiscover] = useState(false);
   const [showReels, setShowReels] = useState(false);
+  const [showReferrals, setShowReferrals] = useState(false);
   const [selectedCall, setSelectedCall] = useState(null);
   const [incomingCall, setIncomingCall] = useState(null);
 
@@ -322,6 +324,20 @@ export default function App() {
     return () => { active = false; };
   }, [session]);
 
+
+  useEffect(() => {
+    const referralCode = session?.user?.user_metadata?.referral_code;
+    if (!session?.user?.id || !profileReady || !referralCode) return;
+    let active = true;
+    supabase.rpc('yoyo_apply_referral_code', {
+      p_code: String(referralCode).trim().toUpperCase(),
+    }).then(({ error }) => {
+      if (error && active) {
+        console.warn('YOYO LIVE referral attribution failed:', error.message);
+      }
+    });
+    return () => { active = false; };
+  }, [session?.user?.id, profileReady]);
 
   useEffect(() => {
     let active = true;
@@ -609,6 +625,7 @@ export default function App() {
     setShowFollowScreen(false);
     setShowDiscover(false);
     setShowReels(false);
+    setShowReferrals(false);
 
     if (tabIndex === 1) setShowDiscover(true);
     else if (tabIndex === 2) setShowPackages(true);
@@ -675,6 +692,10 @@ export default function App() {
     );
   }
 
+
+  if (showReferrals) {
+    return <ReferralScreen userId={session.user.id} onBack={() => setShowReferrals(false)} />;
+  }
 
   if (showAdmin && isAdmin) {
     return <AdminScreen onBack={() => setShowAdmin(false)} />;
@@ -960,6 +981,15 @@ export default function App() {
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               <TouchableOpacity onPress={openNotifications}><Text style={styles.notification}>🔔</Text></TouchableOpacity>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         </View>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 </View>
+        <TouchableOpacity
+          onPress={() => setShowReferrals(true)}
+          activeOpacity={0.85}
+          style={{ marginHorizontal: 18, marginTop: 14, backgroundColor: C.card2, borderWidth: 1, borderColor: '#7653A8', borderRadius: 14, padding: 14 }}
+        >
+          <Text style={{ color: C.white, fontWeight: 'bold', textAlign: 'right', fontSize: 15 }}>🎉 ادعُ أصحابك إلى YOYO LIVE</Text>
+          <Text style={{ color: C.muted, textAlign: 'right', marginTop: 5, lineHeight: 21 }}>شارك كود دعوتك وتابع عدد الأصدقاء الذين انضموا من خلالك.</Text>
+        </TouchableOpacity>
+
 
                                                                                                                                                                                                                                                                                <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>الأعضاء 👥</Text>
