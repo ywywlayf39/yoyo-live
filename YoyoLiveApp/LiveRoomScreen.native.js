@@ -392,39 +392,43 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
     if (isLeaving) return;
     setIsLeaving(true);
 
-    // Start server-side ending immediately, but do not wait for it before
-    // returning the user to the app. LiveKitRoom owns its native teardown
-    // when it is unmounted; calling room.disconnect() here as well can cause
-    // a second native teardown on Android.
-    const shouldEndRoom = isHost || isCall;
-    const endRequest = shouldEndRoom
-      ? supabase.functions.invoke('livekit-token', { body: { roomName, action: 'end' } })
-      : Promise.resolve({ data: { ended: true }, error: null });
+    // For hosts, finish the server-side room shutdown before unmounting
+    // LiveKitRoom. Unmounting while deleteRoom is still disconnecting the
+    // native Android participant can race with LiveKit's own teardown and
+    // briefly leave the app on a blank screen.
+    let endFailure = null;
+    if (isHost || isCall) {
+      try {
+        const { data, error: endError } = await supabase.functions.invoke(
+          'livekit-token',
+          { body: { roomName, action: 'end' } }
+        );
+        if (endError || data?.ended !== true) {
+          endFailure = endError?.message || data?.error || 'لم نتأكد من إغلاق البث على الخادم.';
+        }
+      } catch (reason) {
+        endFailure = reason?.message || 'حصل خطأ أثناء إغلاق البث على الخادم.';
+      }
+    }
 
-    // Return to the home route immediately. The parent unmounts LiveKitRoom
-    // exactly once; do not wait on a timer or set local state before navigation.
+    // Only unmount the native LiveKit view after the end request has settled.
     onClose?.();
 
-    // Finish server cleanup in the background after navigation has returned.
-    try {
-      const { data, error: endError } = await endRequest;
-      if (endError || data?.ended !== true) {
-        Alert.alert('تعذر تأكيد إنهاء البث', endError?.message || data?.error || 'رجعنا للرئيسية، لكن لم نتأكد من إغلاق البث على الخادم.');
-        return;
-      }
-      if (isHost && !isCall) {
-        await Promise.allSettled([
-          (async () => {
-            const { data: sharedMusic } = await supabase.from('live_room_music')
-              .select('storage_path').eq('room_name', roomName).maybeSingle();
-            await supabase.rpc('yoyo_live_music_control', { p_room_name: roomName, p_action: 'stop' });
-            if (sharedMusic?.storage_path) await supabase.storage.from('live-music').remove([sharedMusic.storage_path]);
-          })(),
-          supabase.rpc('yoyo_battle_interrupt_for_host', { p_room_name: roomName }),
-        ]);
-      }
-    } catch (endError) {
-      Alert.alert('تعذر تأكيد إنهاء البث', endError?.message || 'رجعنا للرئيسية، لكن حصل خطأ أثناء إغلاق البث على الخادم.');
+    if (endFailure) {
+      Alert.alert('تعذر تأكيد إنهاء البث', endFailure);
+      return;
+    }
+
+    if (isHost && !isCall) {
+      Promise.allSettled([
+        (async () => {
+          const { data: sharedMusic } = await supabase.from('live_room_music')
+            .select('storage_path').eq('room_name', roomName).maybeSingle();
+          await supabase.rpc('yoyo_live_music_control', { p_room_name: roomName, p_action: 'stop' });
+          if (sharedMusic?.storage_path) await supabase.storage.from('live-music').remove([sharedMusic.storage_path]);
+        })(),
+        supabase.rpc('yoyo_battle_interrupt_for_host', { p_room_name: roomName }),
+      ]);
     }
   };
 
