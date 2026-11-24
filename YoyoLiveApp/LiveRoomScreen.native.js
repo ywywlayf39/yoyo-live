@@ -225,7 +225,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
       </TouchableOpacity>
 
       {!isCall && userId ? <LiveRoomChat roomName={roomName} userId={userId} isHost={isHost} /> : null}
-      {!isCall && userId && toolsVisible ? <LiveGiftPanel userId={userId} receiverId={receiverId} isHost={isHost} roomName={roomName} onOpenPackages={onOpenPackages} /> : null}
+      {!isCall && userId ? <LiveGiftPanel userId={userId} receiverId={receiverId} isHost={isHost} roomName={roomName} onOpenPackages={onOpenPackages} /> : null}
 
     </View>
   );
@@ -261,7 +261,7 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
   }, [roomName, userId, isHost, isCall]);
 
   useEffect(() => {
-    if (isCall || isHost || !roomName || !userId) {
+    if (isCall || !roomName || !userId) {
       setViewerPresenceReady(true);
       return undefined;
     }
