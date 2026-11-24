@@ -87,8 +87,10 @@ export default function VIPScreen({ userId, onBack }) {
           const mime=proof.mimeType || (ext==='png'?'image/png':ext==='webp'?'image/webp':'image/jpeg');
           path=userId+'/'+Date.now()+'.'+(mime==='image/png'?'png':mime==='image/webp'?'webp':'jpg');
           const response=await fetch(proof.uri);
-          const blob=await response.blob();
-          const {error:uploadError}=await supabase.storage.from('payment-proofs').upload(path,blob,{contentType:mime,upsert:false});
+          if(!response.ok) throw new Error('تعذر قراءة صورة الإيصال من الهاتف.');
+          const bytes=await response.arrayBuffer();
+          const imageBlob=new Blob([bytes],{type:mime});
+          const {error:uploadError}=await supabase.storage.from('payment-proofs').upload(path,imageBlob,{contentType:mime,upsert:false});
           if(uploadError) throw uploadError;
           const {data,error:requestError}=await supabase.rpc('yoyo_create_vip_subscription_request',{
             p_plan_id:plan.id,p_payment_method:method,p_transfer_reference:'proof-upload',p_proof_storage_path:path,
