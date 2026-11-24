@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -290,6 +290,40 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
   const [isStandby, setIsStandby] = useState(false);
   const [viewerPresenceReady, setViewerPresenceReady] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
+  const roomDisconnectedRef = useRef(false);
+  const roomDisconnectWaitersRef = useRef([]);
+
+  const markRoomDisconnected = () => {
+    roomDisconnectedRef.current = true;
+    const waiters = roomDisconnectWaitersRef.current.splice(0);
+    waiters.forEach((finish) => finish());
+  };
+
+  const waitForRoomDisconnect = () => new Promise((resolve) => {
+    if (roomDisconnectedRef.current) {
+      resolve();
+      return;
+    }
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      roomDisconnectWaitersRef.current = roomDisconnectWaitersRef.current.filter((item) => item !== finish);
+      resolve();
+    };
+    const timeout = setTimeout(finish, 2500);
+    roomDisconnectWaitersRef.current.push(finish);
+  });
+
+  useEffect(() => {
+    roomDisconnectedRef.current = false;
+    return () => {
+      const waiters = roomDisconnectWaitersRef.current.splice(0);
+      waiters.forEach((finish) => finish());
+    };
+  }, [roomName]);
+
   useEffect(() => {
     if (isCall || !isHost || !roomName || !userId) return undefined;
     let active = true;
@@ -496,6 +530,13 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
       return;
     }
 
+    if (isHost || isCall) {
+      // Wait for LiveKit's native disconnect callback before unmounting its
+      // Android view, then allow the native renderer a short teardown grace.
+      await waitForRoomDisconnect();
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+
     onClose?.();
   };
 
@@ -534,7 +575,7 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
           audio={connection.isCall || !!isHost}
           video={connection.isCall ? connection.callType === 'video' : !!isHost && !isStandby}
           options={{ adaptiveStream: { pixelDensity: 'screen' } }}
-          onDisconnected={() => { if (!isLeaving) setError('انقطع اتصال غرفة البث. لم نغلق الشاشة تلقائيًا حتى تتمكن من رؤية الخطأ ومحاولة التشخيص.'); }}
+          onDisconnected={() => { markRoomDisconnected(); if (!isLeaving) setError('انقطع اتصال غرفة البث. لم نغلق الشاشة تلقائيًا حتى تتمكن من رؤية الخطأ ومحاولة التشخيص.'); }}
           onError={(roomError) => setError(roomError?.message || 'فشل الاتصال بغرفة LiveKit. ابقَ في الشاشة لعرض التشخيص.')}
         >
           <RoomContent
