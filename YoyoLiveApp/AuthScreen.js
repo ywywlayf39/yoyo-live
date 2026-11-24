@@ -14,6 +14,7 @@ export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUp
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [feedbackType, setFeedbackType] = useState('error');
@@ -33,11 +34,16 @@ export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUp
         showFeedback('كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل.');
         return;
       }
+      if (password !== confirmPassword) {
+        showFeedback('كلمتا المرور غير متطابقتين. اكتب كلمة المرور نفسها في الخانتين.');
+        return;
+      }
       setLoading(true);
       try {
         const { error } = await supabase.auth.updateUser({ password });
         if (error) throw error;
         setPassword('');
+        setConfirmPassword('');
         showFeedback('تم تغيير كلمة المرور بنجاح. يمكنك الآن استخدام كلمة المرور الجديدة.', 'success');
         onPasswordUpdated?.();
       } catch (error) {
@@ -178,13 +184,25 @@ export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUp
         editable={!loading}
       />}
 
-      {!forgotMode && <TextInput
+      {(recoveryMode || !forgotMode) && <TextInput
         style={styles.input}
-        placeholder={recoveryMode ? "كلمة المرور الجديدة" : "كلمة المرور"}
-        placeholderTextColor="#AAA1B8"
+        placeholder={recoveryMode ? "اكتب كلمة المرور الجديدة (6 أحرف على الأقل)" : "كلمة المرور"}
+        placeholderTextColor="#C7BED3"
         secureTextEntry
+        autoCapitalize="none"
         value={password}
         onChangeText={(value) => { setPassword(value); setFeedback(''); }}
+        editable={!loading}
+      />}
+
+      {recoveryMode && <TextInput
+        style={styles.input}
+        placeholder="أعد كتابة كلمة المرور الجديدة"
+        placeholderTextColor="#C7BED3"
+        secureTextEntry
+        autoCapitalize="none"
+        value={confirmPassword}
+        onChangeText={(value) => { setConfirmPassword(value); setFeedback(''); }}
         editable={!loading}
       />}
 
@@ -268,8 +286,11 @@ const styles = StyleSheet.create({
   termsText: { color: '#DDD6E7', flex: 1, textAlign: 'right', lineHeight: 22, fontSize: 13 },
   termsLink: { color: '#F5C451', textDecorationLine: 'underline', fontWeight: 'bold' },
   input: {
-    backgroundColor: '#191424',
+    backgroundColor: '#211A2D',
     color: '#FFFFFF',
+    borderColor: '#7653A8',
+    borderWidth: 1,
+    minHeight: 58,
     borderRadius: 13,
     padding: 16,
     marginBottom: 15,
