@@ -104,7 +104,7 @@ function withYoyoVideoFilters(config) {
     let contents = modConfig.modResults.contents;
     if (!contents.includes('YoyoLiveVideoFilters.register()')) {
       if (!contents.includes('super.onCreate()')) throw new Error('YOYO LIVE filters: could not find MainApplication onCreate()');
-      contents = contents.replace('super.onCreate()', 'super.onCreate()\\n    YoyoLiveVideoFilters.register()');
+      contents = contents.replace('super.onCreate()', 'super.onCreate()\n    YoyoLiveVideoFilters.register()');
     }
     modConfig.modResults.contents = contents;
     return modConfig;
