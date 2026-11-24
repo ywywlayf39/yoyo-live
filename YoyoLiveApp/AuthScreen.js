@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { supabase, supabaseUrl, supabaseAnonKey } from './supabase';
 
-export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUpdated }) {
+export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUpdated, initialReferralCode = '' }) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,7 +20,14 @@ export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUp
   const [feedbackType, setFeedbackType] = useState('error');
   const [forgotMode, setForgotMode] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [referralCode, setReferralCode] = useState('');
+  const [referralCode, setReferralCode] = useState(initialReferralCode || '');
+
+  useEffect(() => {
+    if (!initialReferralCode) return;
+    setReferralCode(String(initialReferralCode).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10));
+    setIsLogin(false);
+    setForgotMode(false);
+  }, [initialReferralCode]);
 
   function showFeedback(message, type = 'error') {
     setFeedback(message);
