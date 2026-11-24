@@ -332,9 +332,12 @@ export default function App() {
     let active = true;
     supabase.rpc('yoyo_apply_referral_code', {
       p_code: String(referralCode).trim().toUpperCase(),
-    }).then(({ error }) => {
-      if (error && active) {
+    }).then(({ data, error }) => {
+      if (!active) return;
+      if (error) {
         console.warn('YOYO LIVE referral attribution failed:', error.message);
+      } else if (data === false) {
+        Alert.alert('كود الدعوة لم يُحتسب', 'تم حفظ حسابك، لكن كود الدعوة غير صحيح أو سبق ربط حسابك بدعوة أخرى.');
       }
     });
     return () => { active = false; };
