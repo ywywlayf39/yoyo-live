@@ -121,6 +121,14 @@ export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUp
 
       if (result.error) throw result.error;
 
+      // Supabase intentionally returns an obfuscated user for an existing
+      // confirmed email when email confirmations are enabled. An empty
+      // identities array means no new account was created.
+      if (!isLogin && Array.isArray(result.data?.user?.identities) && result.data.user.identities.length === 0) {
+        showFeedback('هذا البريد الإلكتروني مسجل بالفعل. ارجع إلى تسجيل الدخول، أو استخدم «نسيت كلمة المرور؟» إذا كنت لا تتذكر كلمة المرور.');
+        return;
+      }
+
       if (!isLogin && !result.data.session) {
         showFeedback(
           'تم إرسال طلب إنشاء الحساب. افتح بريدك الإلكتروني واضغط رابط التأكيد، ثم ارجع وسجّل الدخول.',
