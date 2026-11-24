@@ -28,6 +28,7 @@ export default function ReelsScreen({ userId, onBack }) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [activeId, setActiveId] = useState(null);
+  const [sideActionsOpen, setSideActionsOpen] = useState(true);
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 70 }).current;
 
   const loadReels = useCallback(async () => {
@@ -185,19 +186,27 @@ export default function ReelsScreen({ userId, onBack }) {
   const renderReel = ({ item }) => (
     <View style={[styles.reelCard, { height: reelHeight }]}>
       <ReelPlayer uri={item.videoUrl} active={item.id === activeId} height={reelHeight - 118} />
+      <View style={styles.sideActions}>
+        <TouchableOpacity onPress={() => setSideActionsOpen((value) => !value)} style={styles.sideArrow}>
+          <Text style={styles.sideArrowText}>{sideActionsOpen ? '›' : '‹'}</Text>
+        </TouchableOpacity>
+        {sideActionsOpen && <>
+          <TouchableOpacity onPress={() => toggleLike(item)} style={[styles.sideActionButton, item.likedByMe && styles.actionActive]}>
+            <Text style={[styles.sideActionIcon, item.likedByMe && styles.actionTextActive]}>{item.likedByMe ? '♥' : '♡'}</Text>
+            <Text style={styles.sideActionCount}>{item.likesCount || 0}</Text>
+          </TouchableOpacity>
+          {item.user_id !== userId && <TouchableOpacity onPress={() => toggleFollow(item)} style={[styles.sideActionButton, item.isFollowing && styles.actionFollowing]}>
+            <Text style={styles.sideActionIcon}>{item.isFollowing ? '✓' : '+'}</Text>
+            <Text style={styles.sideActionCount}>{item.isFollowing ? 'متابَع' : 'متابعة'}</Text>
+          </TouchableOpacity>}
+        </>}
+      </View>
       <View style={styles.reelOverlay}>
         <View style={{ flex: 1 }}>
           <Text style={styles.author}>@{item.author}</Text>
           {!!item.caption && <Text style={styles.caption}>{item.caption}</Text>}
           <Text style={styles.meta}>{(item.file_size_bytes / 1024 / 1024).toFixed(1)} MB · {Math.round(item.duration_seconds)} ثانية</Text>
-          <View style={styles.actionsRow}>
-            <TouchableOpacity onPress={() => toggleLike(item)} style={[styles.actionButton, item.likedByMe && styles.actionActive]}>
-              <Text style={[styles.actionText, item.likedByMe && styles.actionTextActive]}>{item.likedByMe ? '♥' : '♡'} إعجاب · {item.likesCount || 0}</Text>
-            </TouchableOpacity>
-            {item.user_id !== userId && <TouchableOpacity onPress={() => toggleFollow(item)} style={[styles.actionButton, item.isFollowing && styles.actionFollowing]}>
-              <Text style={styles.actionText}>{item.isFollowing ? '✓ بتتابعه' : '+ متابعة'}</Text>
-            </TouchableOpacity>}
-          </View>
+
         </View>
         {item.user_id === userId && <TouchableOpacity onPress={() => deleteReel(item)} style={styles.deleteButton}><Text style={styles.deleteText}>حذف</Text></TouchableOpacity>}
       </View>
@@ -252,13 +261,18 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
   emptyIcon: { fontSize: 52, marginBottom: 12 }, emptyTitle: { color: '#fff', fontWeight: 'bold', fontSize: 19 },
   emptyText: { color: '#A99EAE', textAlign: 'center', marginTop: 9, lineHeight: 22 },
-  reelCard: { backgroundColor: '#000', marginBottom: 0 },
+  reelCard: { backgroundColor: '#000', marginBottom: 0, position: 'relative' },
+  sideActions: { position: 'absolute', zIndex: 20, right: 9, top: '34%', alignItems: 'center', gap: 12 },
+  sideArrow: { width: 30, height: 42, borderRadius: 16, backgroundColor: 'rgba(20,14,25,0.88)', borderWidth: 1, borderColor: '#76506A', alignItems: 'center', justifyContent: 'center' },
+  sideArrowText: { color: '#fff', fontSize: 25, fontWeight: 'bold', lineHeight: 28 },
+  sideActionButton: { minWidth: 48, minHeight: 52, paddingHorizontal: 7, paddingVertical: 7, borderRadius: 22, backgroundColor: 'rgba(20,14,25,0.88)', borderWidth: 1, borderColor: '#6C4260', alignItems: 'center', justifyContent: 'center' },
+  sideActionIcon: { color: '#fff', fontSize: 25, fontWeight: '900' },
+  sideActionCount: { color: '#fff', fontSize: 10, fontWeight: 'bold', marginTop: 1 },
   reelOverlay: { minHeight: 118, paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: BG },
   author: { color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'right' },
   caption: { color: '#eee', textAlign: 'right', marginTop: 5, lineHeight: 20 },
   meta: { color: '#A99EAE', textAlign: 'right', fontSize: 11, marginTop: 5 },
   deleteButton: { borderWidth: 1, borderColor: '#C94B69', borderRadius: 9, paddingHorizontal: 12, paddingVertical: 7, marginLeft: 12 },
-  actionsRow: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 9, marginTop: 9, flexWrap: 'wrap' },
   actionButton: { borderWidth: 1, borderColor: '#6C4260', backgroundColor: '#241629', borderRadius: 18, paddingHorizontal: 13, paddingVertical: 7 },
   actionActive: { borderColor: PINK, backgroundColor: '#4A1835' },
   actionFollowing: { borderColor: GOLD, backgroundColor: '#302719' },
