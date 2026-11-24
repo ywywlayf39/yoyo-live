@@ -45,6 +45,8 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
   const [roomStandby, setRoomStandby] = useState(false);
   const [hostAvatar, setHostAvatar] = useState(null);
   const [toolsVisible, setToolsVisible] = useState(false);
+  const [filtersVisible, setFiltersVisible] = useState(false);
+  const [selectedVideoFilter, setSelectedVideoFilter] = useState('none');
   const showStandby = isHost ? isStandby : roomStandby;
 
   useEffect(() => {
@@ -70,6 +72,21 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
     return () => { active = false; supabase.removeChannel(channel); };
   }, [roomName, isCall, isHost, onStandbyChange]);
   const videoTracks = tracks.filter(isTrackReference);
+
+  useEffect(() => {
+    if (!isHost || isCall) return;
+    const publication = localParticipant?.getTrackPublication?.(Track.Source.Camera);
+    const mediaTrack = publication?.track?.mediaStreamTrack;
+    if (!mediaTrack || typeof mediaTrack._setVideoEffects !== 'function') return;
+    try {
+      if (selectedVideoFilter === 'none') mediaTrack._setVideoEffects([]);
+      else mediaTrack._setVideoEffect('yoyo_' + selectedVideoFilter);
+    } catch (filterError) {
+      console.warn('YOYO LIVE camera filter failed:', filterError?.message || filterError);
+      Alert.alert('تعذر تطبيق الفلتر', 'حاول مرة أخرى بعد إعادة تشغيل البث.');
+    }
+  }, [isHost, isCall, localParticipant, selectedVideoFilter, tracks.length]);
+
 
   const reportLiveRoom = () => {
     if (!userId || isHost || isCall) return;
@@ -202,6 +219,36 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
           </TouchableOpacity>
         ) : null}
       </ScrollView>
+      ) : null}
+
+
+      {isHost && !isCall ? (
+        <TouchableOpacity style={styles.filterToggle} onPress={() => setFiltersVisible((visible) => !visible)} activeOpacity={0.85}>
+          <Text style={styles.filterToggleText}>{filtersVisible ? '✕ إغلاق الفلاتر' : '✨ فلاتر الكاميرا'}</Text>
+        </TouchableOpacity>
+      ) : null}
+
+      {isHost && !isCall && filtersVisible ? (
+        <View style={styles.filterPanel}>
+          <Text style={styles.filterPanelTitle}>اختار فلتر البث</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChoices}>
+            {[
+              { id: 'none', label: 'بدون', emoji: '🚫' },
+              { id: 'warm', label: 'دافئ', emoji: '🌅' },
+              { id: 'cool', label: 'بارد', emoji: '❄️' },
+              { id: 'mono', label: 'أبيض وأسود', emoji: '⚫' },
+              { id: 'vintage', label: 'كلاسيك', emoji: '📷' },
+              { id: 'vivid', label: 'ألوان زاهية', emoji: '🌈' },
+              { id: 'bright', label: 'إضاءة', emoji: '☀️' },
+            ].map((item) => (
+              <TouchableOpacity key={item.id} style={[styles.filterChoice, selectedVideoFilter === item.id && styles.filterChoiceActive]} onPress={() => setSelectedVideoFilter(item.id)} activeOpacity={0.8}>
+                <Text style={styles.filterChoiceEmoji}>{item.emoji}</Text>
+                <Text style={styles.filterChoiceLabel}>{item.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+          <Text style={styles.filterHint}>الفلاتر تُطبّق على فيديو البث الذي يشاهده الجمهور.</Text>
+        </View>
       ) : null}
 
       <TouchableOpacity
@@ -510,6 +557,16 @@ const styles = StyleSheet.create({
   videoStage: { ...StyleSheet.absoluteFillObject, backgroundColor: '#05040A', zIndex: 0, elevation: 0 },
   video: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%', backgroundColor: '#05040A', borderRadius: 0 },
   overlayPanelsScroll: { position: 'absolute', top: 150, left: 10, right: 10, bottom: 190, zIndex: 35, elevation: 8 },
+  filterToggle: { position: 'absolute', left: 14, top: 100, zIndex: 115, elevation: 34, backgroundColor: 'rgba(25,20,36,0.94)', borderWidth: 1, borderColor: '#F5C451', borderRadius: 14, paddingHorizontal: 13, paddingVertical: 10 },
+  filterToggleText: { color: '#F5C451', fontSize: 13, fontWeight: '900' },
+  filterPanel: { position: 'absolute', left: 10, right: 10, bottom: 96, zIndex: 118, elevation: 36, backgroundColor: 'rgba(15,11,25,0.97)', borderWidth: 1, borderColor: '#6F4B70', borderRadius: 18, paddingVertical: 12, paddingHorizontal: 10 },
+  filterPanelTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '900', textAlign: 'right', marginBottom: 9 },
+  filterChoices: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 2 },
+  filterChoice: { minWidth: 76, paddingVertical: 9, paddingHorizontal: 8, borderRadius: 12, backgroundColor: '#251D31', borderWidth: 1, borderColor: '#44364F', alignItems: 'center' },
+  filterChoiceActive: { backgroundColor: '#59304D', borderColor: '#F5C451' },
+  filterChoiceEmoji: { fontSize: 21, marginBottom: 4 },
+  filterChoiceLabel: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
+  filterHint: { color: '#BFB3C8', fontSize: 10, textAlign: 'center', marginTop: 8 },
   toolsToggle: { position: 'absolute', right: 10, top: '46%', zIndex: 110, elevation: 30, width: 42, height: 58, borderRadius: 18, borderWidth: 1, borderColor: '#F5C451', backgroundColor: 'rgba(25,20,36,0.92)', alignItems: 'center', justifyContent: 'center' },
   toolsToggleText: { color: '#F5C451', fontSize: 34, lineHeight: 38, fontWeight: '900' }, 
   overlayPanelsContent: { paddingBottom: 12, gap: 10 },
