@@ -159,66 +159,43 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
   useEffect(() => {
     if (!userId || !roomName) return undefined;
     let active = true;
-    let channel = null;
-
-    const joinAndListen = async () => {
-      await supabase.from('live_room_viewers')
-        .delete().eq('room_name', roomName).eq('user_id', userId);
-      const { error: joinError } = await supabase.from('live_room_viewers')
-        .insert({ room_name: roomName, user_id: userId });
-      if (joinError) {
-        console.warn('YOYO live gift room join:', joinError.message);
-        return;
-      }
-      if (!active) {
-        await supabase.from('live_room_viewers')
-          .delete().eq('room_name', roomName).eq('user_id', userId);
-        return;
-      }
-
-      channel = supabase.channel('yoyo-room-gifts-' + roomName)
-        .on('postgres_changes', {
-          event: 'INSERT', schema: 'public', table: 'live_gift_events',
-          filter: 'room_name=eq.' + roomName,
-        }, async (payload) => {
-          const row = payload.new;
-          const [{ data: gift }, { data: sender }] = await Promise.all([
-            supabase.from('gift_catalog')
-              .select('name,emoji,coin_cost,animation_key,sound_key')
-              .eq('id', row.gift_id).maybeSingle(),
-            supabase.from('member_public_profiles')
-              .select('display_name').eq('id', row.sender_id).maybeSingle(),
-          ]);
-          const receivedGift = {
-            id: row.id,
-            emoji: gift?.emoji || '🎁',
-            name: gift?.name || 'هدية جديدة',
-            sender: sender?.display_name || 'أحد المتابعين',
-            quantity: row.quantity || 1,
-            coinCost: Number(gift?.coin_cost || 0),
-            animationKey: gift?.animation_key || '',
-            soundKey: gift?.sound_key || 'soft-chime',
-          };
-          setIncoming(receivedGift);
-          if (soundEnabledRef.current) playGiftSound(receivedGift.soundKey);
-          Vibration.vibrate(receivedGift.coinCost >= 100000 ? [0, 220, 90, 220, 90, 320] : [0, 100, 70, 100]);
-          const effect = effectFor({ animation_key: receivedGift.animationKey });
-          setTimeout(() => setIncoming((current) => current?.id === row.id ? null : current),
-            effect?.duration || 4500);
-        })
-        .subscribe((status) => {
-          if (active) setGiftFeedReady(status === 'SUBSCRIBED');
-        });
-    };
-
-    joinAndListen().catch((error) => console.warn('YOYO gift realtime:', error?.message || error));
+    const channel = supabase.channel('yoyo-room-gifts-' + roomName)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'live_gift_events',
+        filter: 'room_name=eq.' + roomName,
+      }, async (payload) => {
+        const row = payload.new;
+        const [{ data: gift }, { data: sender }] = await Promise.all([
+          supabase.from('gift_catalog')
+            .select('name,emoji,coin_cost,animation_key,sound_key')
+            .eq('id', row.gift_id).maybeSingle(),
+          supabase.from('member_public_profiles')
+            .select('display_name').eq('id', row.sender_id).maybeSingle(),
+        ]);
+        const receivedGift = {
+          id: row.id,
+          emoji: gift?.emoji || '🎁',
+          name: gift?.name || 'هدية جديدة',
+          sender: sender?.display_name || 'أحد المتابعين',
+          quantity: row.quantity || 1,
+          coinCost: Number(gift?.coin_cost || 0),
+          animationKey: gift?.animation_key || '',
+          soundKey: gift?.sound_key || 'soft-chime',
+        };
+        setIncoming(receivedGift);
+        if (soundEnabledRef.current) playGiftSound(receivedGift.soundKey);
+        Vibration.vibrate(receivedGift.coinCost >= 100000 ? [0, 220, 90, 220, 90, 320] : [0, 100, 70, 100]);
+        const effect = effectFor({ animation_key: receivedGift.animationKey });
+        setTimeout(() => setIncoming((current) => current?.id === row.id ? null : current),
+          effect?.duration || 4500);
+      })
+      .subscribe((status) => {
+        if (active) setGiftFeedReady(status === 'SUBSCRIBED');
+      });
     return () => {
       active = false;
       setGiftFeedReady(false);
-      if (channel) supabase.removeChannel(channel);
-      supabase.from('live_room_viewers')
-        .delete().eq('room_name', roomName).eq('user_id', userId)
-        .then(() => {});
+      supabase.removeChannel(channel);
     };
   }, [userId, roomName]);
 
