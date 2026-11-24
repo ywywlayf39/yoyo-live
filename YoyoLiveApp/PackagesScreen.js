@@ -106,9 +106,11 @@ export default function PackagesScreen({ userId, onBack }) {
             const mime = proof.mimeType || (ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg');
             uploadedPath = userId + '/' + Date.now() + '.' + (mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg');
             const response = await fetch(proof.uri);
-            const blob = await response.blob();
+            if (!response.ok) throw new Error('تعذر قراءة صورة الإيصال من الهاتف.');
+            const bytes = await response.arrayBuffer();
+            const imageBlob = new Blob([bytes], { type: mime });
             const { error: uploadError } = await supabase.storage.from('payment-proofs')
-              .upload(uploadedPath, blob, { contentType: mime, upsert: false });
+              .upload(uploadedPath, imageBlob, { contentType: mime, upsert: false });
             if (uploadError) throw uploadError;
             const { data: requestId, error: insertError } = await supabase.rpc('yoyo_create_coin_purchase_request', {
               p_package_id: selected.id,
