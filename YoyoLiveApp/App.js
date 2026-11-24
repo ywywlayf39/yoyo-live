@@ -1029,7 +1029,7 @@ export default function App() {
 
                                                                                                                                                                                                                                                                                <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>الأعضاء 👥</Text>
-              <Text style={styles.more}>أعضاء YOYO LIVE</Text>
+              <Text style={styles.more}>أعضاء YOYO LIVE ({members.length})</Text>
             </View>
 
             {membersLoading ? (
@@ -1039,7 +1039,9 @@ export default function App() {
             ) : members.length === 0 ? (
               <Text style={styles.memberStatus}>لا يوجد أعضاء آخرون مسجلون حتى الآن</Text>
             ) : (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <>
+                <Text style={styles.memberStatus}>اسحب يمينًا ويسارًا لعرض باقي الأعضاء • {members.length} عضو</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 {members.map((member) => (
                   <TouchableOpacity
                     key={member.id}
@@ -1062,7 +1064,8 @@ export default function App() {
                     )}
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+                </ScrollView>
+              </>
             )}
 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
