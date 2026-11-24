@@ -115,8 +115,8 @@ export default function ReferralScreen({ userId, onBack }) {
             <Text style={styles.statLabel}>أصدقاء سجلوا بكودك</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{loading ? '—' : summary?.qualified_invites ?? 0}</Text>
-            <Text style={styles.statLabel}>دعوات مؤهلة</Text>
+            <Text style={[styles.statNumber, { fontSize: 17, marginTop: 5 }]}>قريبًا</Text>
+            <Text style={styles.statLabel}>مكافآت الدعوات غير مفعّلة حاليًا</Text>
           </View>
         </View>
 
