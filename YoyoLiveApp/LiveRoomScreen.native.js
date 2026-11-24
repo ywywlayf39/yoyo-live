@@ -239,6 +239,7 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
   const [clockNow, setClockNow] = useState(Date.now());
   const [isStandby, setIsStandby] = useState(false);
   const [viewerPresenceReady, setViewerPresenceReady] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
   useEffect(() => {
     if (isCall || !isHost || !roomName || !userId) return undefined;
     let active = true;
@@ -385,47 +386,40 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
   }, [roomName, isCall]);
 
   const leaveRoom = async () => {
-    // Start the authoritative server-side end request, then leave the full-screen
-    // LiveKit route immediately. Waiting for the network response before changing
-    // the parent route could strand Android on a blank screen during teardown.
+    if (isLeaving) return;
+    setIsLeaving(true);
+
+    // Start server cleanup, then detach the native LiveKit view before
+    // returning to the parent screen to avoid a blank Android surface.
     const shouldEndRoom = isHost || isCall;
     const endRequest = shouldEndRoom
       ? supabase.functions.invoke('livekit-token', { body: { roomName, action: 'end' } })
-      : null;
+      : Promise.resolve({ data: { ended: true }, error: null });
 
+    setConnection(null);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await AudioSession.stopAudioSession().catch(() => {});
     onClose?.();
-
-    if (!endRequest) return;
 
     try {
       const { data, error: endError } = await endRequest;
       if (endError || data?.ended !== true) {
-        Alert.alert(
-          'تعذر تأكيد إنهاء البث',
-          endError?.message || data?.error || 'رجعنا للرئيسية، لكن لم نتأكد من إغلاق البث على الخادم. افتح البث مرة أخرى أو حاول إنهاءه.'
-        );
+        Alert.alert('تعذر تأكيد إنهاء البث', endError?.message || data?.error || 'تم الرجوع للرئيسية، لكن لم نتأكد من إغلاق البث على الخادم.');
         return;
       }
-
-      // Secondary cleanup is best-effort and must not delay navigation home.
       if (isHost && !isCall) {
         await Promise.allSettled([
           (async () => {
             const { data: sharedMusic } = await supabase.from('live_room_music')
               .select('storage_path').eq('room_name', roomName).maybeSingle();
             await supabase.rpc('yoyo_live_music_control', { p_room_name: roomName, p_action: 'stop' });
-            if (sharedMusic?.storage_path) {
-              await supabase.storage.from('live-music').remove([sharedMusic.storage_path]);
-            }
+            if (sharedMusic?.storage_path) await supabase.storage.from('live-music').remove([sharedMusic.storage_path]);
           })(),
           supabase.rpc('yoyo_battle_interrupt_for_host', { p_room_name: roomName }),
         ]);
       }
     } catch (endError) {
-      Alert.alert(
-        'تعذر تأكيد إنهاء البث',
-        endError?.message || 'رجعنا للرئيسية، لكن حصل خطأ أثناء إغلاق البث على الخادم.'
-      );
+      Alert.alert('تعذر تأكيد إنهاء البث', endError?.message || 'تم الرجوع للرئيسية، لكن حصل خطأ أثناء إغلاق البث على الخادم.');
     }
   };
 
@@ -440,7 +434,12 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" hidden />
-      {!connection ? (
+      {isLeaving ? (
+        <View style={styles.loading}>
+          <ActivityIndicator size="large" color="#F34E9B" />
+          <Text style={styles.loadingText}>جارٍ إنهاء البث والعودة للرئيسية...</Text>
+        </View>
+      ) : !connection ? (
         <View style={styles.loading}>
           {error ? (
             <>
