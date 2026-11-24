@@ -678,7 +678,12 @@ export default function App() {
   }
 
   if (!session) {
-    return <AuthScreen onLogin={setSession} initialReferralCode={pendingReferralCode} />;
+    return (
+      <AuthScreen
+        onLogin={(newSession) => { setSession(newSession); setPendingReferralCode(''); }}
+        initialReferralCode={pendingReferralCode}
+      />
+    );
   }
 
   if (profileLoading) {
