@@ -6,6 +6,7 @@ on:
     branches:
       - fix/production-android-build
       - feature/livekit-live-stream
+      - fix/live-room-music-exit
     paths:
       - "YoyoLiveApp/**"
       - ".github/workflows/build-android-apk.yml"
@@ -47,6 +48,14 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+
+      - name: Run YOYO LIVE regression tests
+        run: |
+          set -euo pipefail
+          for test_file in scripts/test-*.cjs; do
+            echo "Running ${test_file}"
+            node "${test_file}"
+          done
 
       - name: Prepare YOYO LIVE app icon
         run: |

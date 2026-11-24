@@ -18,6 +18,7 @@ import { supabase } from './supabase';
 import {
   Alert,
   Linking,
+  Modal,
   View,
     Text,
       StyleSheet,
@@ -729,6 +730,35 @@ export default function App() {
   }
 
 
+  // Keep the LiveKit tree mounted while opening coin packages over the live room.
+  // Returning from the package sheet must not disconnect the broadcaster/viewer.
+  if (selectedLive) {
+    return (
+      <View style={{ flex: 1, backgroundColor: C.bg }}>
+        <LiveRoomScreen
+          roomName={selectedLive.roomName}
+          isHost={selectedLive.isHost}
+          hostName={selectedLive.name}
+          userId={session.user.id}
+          receiverId={selectedLive.hostId}
+          onOpenPackages={() => setShowPackages(true)}
+          onClose={returnHomeAfterLive}
+        />
+        <Modal
+          visible={showPackages}
+          animationType="slide"
+          presentationStyle="fullScreen"
+          onRequestClose={() => setShowPackages(false)}
+        >
+          <PackagesScreen
+            userId={session.user.id}
+            onBack={() => setShowPackages(false)}
+          />
+        </Modal>
+      </View>
+    );
+  }
+
   if (showReferrals) {
     return <ReferralScreen userId={session.user.id} onBack={() => setShowReferrals(false)} />;
   }
@@ -963,20 +993,6 @@ export default function App() {
 
     setSelectedLive({ roomName, isHost: true, hostId: session.user.id, name: hostName });
   };
-
-  if (selectedLive) {
-    return (
-      <LiveRoomScreen
-        roomName={selectedLive.roomName}
-        isHost={selectedLive.isHost}
-        hostName={selectedLive.name}
-        userId={session.user.id}
-        receiverId={selectedLive.hostId}
-        onOpenPackages={() => setShowPackages(true)}
-        onClose={returnHomeAfterLive}
-      />
-    );
-  }
 
                                                                                                                                                                                                                                                                                                                                                     return (
                                                                                                                                                                                                                                                                                                                                                         <SafeAreaView style={styles.container}>

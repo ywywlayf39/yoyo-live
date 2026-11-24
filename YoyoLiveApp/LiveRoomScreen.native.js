@@ -272,7 +272,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
         <Text style={styles.leaveButtonText}>{isCall ? 'إنهاء المكالمة' : isHost ? 'إنهاء البث' : 'مغادرة البث'}</Text>
       </TouchableOpacity>
 
-      {!isCall && userId && (isHost || viewerPresenceReady) ? <LiveMusicSync roomName={roomName} userId={userId} isHost={isHost} visible={toolsVisible} /> : null}
+      {!isCall && userId && (isHost || viewerPresenceReady) ? <LiveMusicSync roomName={roomName} userId={userId} isHost={isHost} /> : null}
       {!isCall && userId ? <LiveRoomChat roomName={roomName} userId={userId} isHost={isHost} /> : null}
       {!isCall && userId ? <LiveGiftPanel userId={userId} receiverId={receiverId} isHost={isHost} roomName={roomName} onOpenPackages={onOpenPackages} /> : null}
 
@@ -439,16 +439,45 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
     if (isLeaving) return;
     setIsLeaving(true);
 
-    // For hosts, finish the server-side room shutdown before unmounting
-    // LiveKitRoom. Unmounting while deleteRoom is still disconnecting the
-    // native Android participant can race with LiveKit's own teardown and
-    // briefly leave the app on a blank screen.
+    // Stop room-scoped features while the live room is still valid.
+    // Cleanup failures are isolated so they cannot prevent ending the broadcast.
+    if (isHost && !isCall) {
+      await Promise.allSettled([
+        (async () => {
+          const { data: sharedMusic, error: lookupError } = await supabase
+            .from('live_room_music')
+            .select('storage_path')
+            .eq('room_name', roomName)
+            .maybeSingle();
+          if (lookupError) throw lookupError;
+          const { error: stopError } = await supabase.rpc('yoyo_live_music_control', {
+            p_room_name: roomName,
+            p_action: 'stop',
+          });
+          if (stopError) throw stopError;
+          if (sharedMusic?.storage_path) {
+            const { error: removeError } = await supabase.storage
+              .from('live-music')
+              .remove([sharedMusic.storage_path]);
+            if (removeError) throw removeError;
+          }
+        })(),
+        (async () => {
+          const { error: battleError } = await supabase.rpc(
+            'yoyo_battle_interrupt_for_host',
+            { p_room_name: roomName },
+          );
+          if (battleError) throw battleError;
+        })(),
+      ]);
+    }
+
     let endFailure = null;
     if (isHost || isCall) {
       try {
         const { data, error: endError } = await supabase.functions.invoke(
           'livekit-token',
-          { body: { roomName, action: 'end' } }
+          { body: { roomName, action: 'end' } },
         );
         if (endError || data?.ended !== true) {
           endFailure = endError?.message || data?.error || 'لم نتأكد من إغلاق البث على الخادم.';
@@ -458,25 +487,16 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
       }
     }
 
-    // Only unmount the native LiveKit view after the end request has settled.
-    onClose?.();
-
+    // Do not unmount LiveKit or return home when the server could not confirm
+    // the shutdown. Keep the room visible and let the host retry safely.
     if (endFailure) {
+      setIsLeaving(false);
+      setError('تعذر تأكيد إنهاء البث: ' + endFailure);
       Alert.alert('تعذر تأكيد إنهاء البث', endFailure);
       return;
     }
 
-    if (isHost && !isCall) {
-      Promise.allSettled([
-        (async () => {
-          const { data: sharedMusic } = await supabase.from('live_room_music')
-            .select('storage_path').eq('room_name', roomName).maybeSingle();
-          await supabase.rpc('yoyo_live_music_control', { p_room_name: roomName, p_action: 'stop' });
-          if (sharedMusic?.storage_path) await supabase.storage.from('live-music').remove([sharedMusic.storage_path]);
-        })(),
-        supabase.rpc('yoyo_battle_interrupt_for_host', { p_room_name: roomName }),
-      ]);
-    }
+    onClose?.();
   };
 
   const exitAfterConnectionError = async () => {

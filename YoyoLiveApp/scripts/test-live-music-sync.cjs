@@ -7,8 +7,8 @@ const library = fs.readFileSync(path.join(root, 'LiveMusicLibrary.js'), 'utf8');
 const sync = fs.readFileSync(path.join(root, 'LiveMusicSync.js'), 'utf8');
 const room = fs.readFileSync(path.join(root, 'LiveRoomScreen.native.js'), 'utf8');
 
-assert.ok(library.includes('await file.bytes()'), 'Native file bytes must be read through Expo FileSystem');
-assert.ok(library.includes('bytes.buffer.slice'), 'Storage upload must use an ArrayBuffer in React Native');
+assert.ok(library.includes("upload(storagePath, file, {"), 'Expo File Blob must be uploaded directly without a full JS memory copy');
+assert.ok(!library.includes('await file.bytes()'), 'Live audio upload must not buffer the entire file in JS memory');
 assert.ok(library.includes("from('live-music').upload"), 'Host must upload shared audio to the private bucket');
 assert.ok(library.includes("rpc('yoyo_live_music_control'"), 'Host must publish playback state through the server RPC');
 assert.ok(library.includes('20 * 1024 * 1024'), 'Shared audio upload must enforce the 20 MB cap');
@@ -19,6 +19,8 @@ for (const action of ['pause', 'resume', 'stop']) {
   assert.ok(sync.includes("control('" + action + "')"), 'Missing host shared-music action: ' + action);
 }
 assert.ok(room.includes('<LiveMusicSync') && room.includes('isHost={isHost}'), 'Shared music sync must run for hosts and viewers');
+assert.ok(!sync.includes('if (!visible) return null'), 'Shared music playback must not depend on opening the tools panel');
+assert.ok(!room.includes('visible={toolsVisible}'), 'Room tools visibility must not gate audience music playback');
 assert.ok(room.includes('<LiveMusicLibrary roomName={roomName} userId={userId} />'), 'Host library must receive room and user context');
 assert.ok(room.includes("p_action: 'stop'"), 'Shared music must stop when the host ends the room');
 

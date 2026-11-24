@@ -168,10 +168,10 @@ export default function LiveMusicLibrary({ roomName, userId }) {
       await stopPlayback();
       const { data: previousMusic } = await supabase.from('live_room_music')
         .select('storage_path').eq('room_name', roomName).maybeSingle();
-      const bytes = await file.bytes();
-      const arrayBuffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
       const storagePath = userId + '/' + Date.now() + '-' + safeFileName(song.name);
-      const { error: uploadError } = await supabase.storage.from('live-music').upload(storagePath, arrayBuffer, {
+      // Expo SDK 58 File implements Blob; upload it directly to avoid buffering
+      // the entire audio file in JS memory while LiveKit camera/audio are active.
+      const { error: uploadError } = await supabase.storage.from('live-music').upload(storagePath, file, {
         contentType,
         cacheControl: '3600',
         upsert: false,
