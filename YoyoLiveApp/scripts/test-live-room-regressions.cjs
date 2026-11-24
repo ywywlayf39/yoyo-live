@@ -30,5 +30,9 @@ assert.ok(failureGuard >= 0 && closeCall > failureGuard,
 const failureSection = room.slice(failureGuard, closeCall);
 assert.ok(failureSection.includes('setIsLeaving(false)'),
   'Failed room shutdown must reset the leaving overlay so the host can retry');
+assert.ok(room.indexOf('await waitForRoomDisconnect()') < closeCall,
+  'Host shutdown must wait for the native LiveKit disconnect before unmounting the room');
+assert.ok(room.includes('markRoomDisconnected();'),
+  'LiveKit disconnect callback must release the host shutdown wait');
 
 console.log('YOYO LIVE room navigation, music memory, playback, and exit regression checks passed.');
