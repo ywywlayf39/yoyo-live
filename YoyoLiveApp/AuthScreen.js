@@ -20,6 +20,7 @@ export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUp
   const [feedbackType, setFeedbackType] = useState('error');
   const [forgotMode, setForgotMode] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [referralCode, setReferralCode] = useState('');
 
   function showFeedback(message, type = 'error') {
     setFeedback(message);
@@ -117,6 +118,11 @@ export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUp
         : await supabase.auth.signUp({
             email: cleanEmail,
             password,
+            options: {
+              data: referralCode.trim()
+                ? { referral_code: referralCode.trim().toUpperCase() }
+                : {},
+            },
           });
 
       if (result.error) throw result.error;
@@ -169,6 +175,7 @@ export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUp
     setFeedback('');
     setPassword('');
     setAcceptedTerms(false);
+    setReferralCode('');
   }
 
   return (
@@ -191,6 +198,19 @@ export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUp
         onChangeText={(value) => { setEmail(value); setFeedback(''); }}
         editable={!loading}
       />}
+
+      {!recoveryMode && !isLogin && !forgotMode && (
+        <TextInput
+          style={styles.input}
+          placeholder="كود دعوة صديق (اختياري)"
+          placeholderTextColor="#AAA1B8"
+          autoCapitalize="characters"
+          autoCorrect={false}
+          value={referralCode}
+          onChangeText={(value) => { setReferralCode(value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10)); setFeedback(''); }}
+          editable={!loading}
+        />
+      )}
 
       {(recoveryMode || !forgotMode) && <TextInput
         style={styles.input}
