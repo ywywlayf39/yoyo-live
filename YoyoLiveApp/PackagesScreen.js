@@ -108,9 +108,11 @@ export default function PackagesScreen({ userId, onBack }) {
             const response = await fetch(proof.uri);
             if (!response.ok) throw new Error('تعذر قراءة صورة الإيصال من الهاتف.');
             const bytes = await response.arrayBuffer();
-            const imageBlob = new Blob([bytes], { type: mime });
+            // React Native's Blob implementation cannot wrap ArrayBuffer reliably.
+            // Supabase Storage accepts Uint8Array directly; avoid constructing Blob.
+            const fileBytes = new Uint8Array(bytes);
             const { error: uploadError } = await supabase.storage.from('payment-proofs')
-              .upload(uploadedPath, imageBlob, { contentType: mime, upsert: false });
+              .upload(uploadedPath, fileBytes, { contentType: mime, upsert: false });
             if (uploadError) throw uploadError;
             const { data: requestId, error: insertError } = await supabase.rpc('yoyo_create_coin_purchase_request', {
               p_package_id: selected.id,
