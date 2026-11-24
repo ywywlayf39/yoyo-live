@@ -621,6 +621,26 @@ export default function App() {
     ]);
   };
 
+  // Always restore the home screen after leaving a live broadcast.
+  // Clear every full-screen route so stale modal/navigation state cannot
+  // leave the app rendering an empty screen after LiveKit unmounts.
+  const returnHomeAfterLive = () => {
+    setSelectedLive(null);
+    setSelectedCall(null);
+    setShowDiscover(false);
+    setShowPackages(false);
+    setShowVIP(false);
+    setShowWallet(false);
+    setShowAccount(false);
+    setShowAdmin(false);
+    setShowInbox(false);
+    setShowFollowScreen(false);
+    setShowReels(false);
+    setShowReferrals(false);
+    setSelectedMember(null);
+    setChatMember(null);
+  };
+
   // Close every previously opened full-screen section before navigating.
   const navigateMainTab = (tabIndex) => {
     setSelectedLive(null);
@@ -953,7 +973,7 @@ export default function App() {
         userId={session.user.id}
         receiverId={selectedLive.hostId}
         onOpenPackages={() => setShowPackages(true)}
-        onClose={() => setSelectedLive(null)}
+        onClose={returnHomeAfterLive}
       />
     );
   }
