@@ -216,7 +216,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
 
       <TouchableOpacity style={styles.leaveButton} onPress={() => Alert.alert(
         isCall ? 'إنهاء المكالمة' : isHost ? 'إنهاء البث المباشر' : 'مغادرة البث',
-        isCall ? 'هل أنت متأكد أنك تريد إنهاء المكالمة؟' : isHost ? 'هل أنت متأكد؟ سيتم إنهاء البث وفصل جميع المشاهدين، وإنهاء أي تحدٍ نشط دون إعلان فائز.' : 'هل تريد مغادرة البث؟',
+        isCall ? 'هل أنت متأكد أنك تريد إنهاء المكالمة؟' : isHost ? 'هل تريد إنهاء البث المباشر وفصل جميع المشاهدين؟' : 'هل تريد مغادرة البث؟',
         [
           { text: 'استمرار', style: 'cancel' },
           { text: isHost ? 'إنهاء البث' : isCall ? 'إنهاء المكالمة' : 'مغادرة', style: 'destructive', onPress: () => onLeave?.() },
@@ -443,12 +443,7 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" hidden />
-      {isLeaving ? (
-        <View style={styles.loading}>
-          <ActivityIndicator size="large" color="#F34E9B" />
-          <Text style={styles.loadingText}>جارٍ إنهاء البث والعودة للرئيسية...</Text>
-        </View>
-      ) : !connection ? (
+      {!connection ? (
         <View style={styles.loading}>
           {error ? (
             <>
@@ -493,6 +488,12 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
           />
         </LiveKitRoom>
       )}
+      {isLeaving ? (
+        <View style={styles.leavingOverlay}>
+          <ActivityIndicator size="large" color="#F34E9B" />
+          <Text style={styles.loadingText}>جارٍ إنهاء البث والعودة للرئيسية...</Text>
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -529,6 +530,7 @@ const styles = StyleSheet.create({
   waitingEmoji: { fontSize: 44, marginBottom: 12 },
   waitingText: { color: '#FFFFFF', fontSize: 15, textAlign: 'center' },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 18 },
+  leavingOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 500, elevation: 500, backgroundColor: '#0B0912', alignItems: 'center', justifyContent: 'center', padding: 24, gap: 18 },
   loadingText: { color: '#FFFFFF', fontSize: 15 },
   error: { color: '#FF9EAD', textAlign: 'center', marginVertical: 12, lineHeight: 22 },
   reportButton: { backgroundColor: '#34263F', borderWidth: 1, borderColor: '#8A5578', borderRadius: 12, padding: 12, alignItems: 'center', marginTop: 12 },
