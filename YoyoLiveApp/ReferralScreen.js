@@ -52,11 +52,13 @@ export default function ReferralScreen({ userId, onBack }) {
     if (!summary?.referral_code || sharing) return;
     setSharing(true);
     try {
+      const inviteLink = 'yoyolive://invite?ref=' + encodeURIComponent(summary.referral_code);
       await Share.share({
         message:
           'انضم إلى عائلة YOYO LIVE 💗\n' +
           'افتح إنشاء حساب جديد واكتب كود دعوتي:\n' +
           summary.referral_code +
+          '\nافتح الرابط لو التطبيق مثبت عندك: ' + inviteLink +
           '\nمستنيك تنورنا في البثوث والفعاليات!',
       });
     } catch (error) {
