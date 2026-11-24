@@ -1,4 +1,5 @@
 name: Build YOYO LIVE Android release APK
+# Rebuild the native app when LiveKit room teardown changes.
 
 on:
   push:
