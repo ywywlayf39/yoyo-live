@@ -17,6 +17,7 @@ import {
   isTrackReference,
   useTracks,
   useLocalParticipant,
+  useRoomContext,
 } from '@livekit/react-native';
 import { Track } from 'livekit-client';
 import { StatusBar } from 'expo-status-bar';
@@ -38,6 +39,7 @@ function formatBroadcastDuration(totalSeconds) {
 }
 
 function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userId, receiverId, roomName, broadcastDuration, isStandby, onStandbyChange, onOpenPackages, viewerPresenceReady }) {
+  const room = useRoomContext();
   const tracks = useTracks([Track.Source.Camera]);
   const { localParticipant, isMicrophoneEnabled } = useLocalParticipant();
   const [micBusy, setMicBusy] = useState(false);
@@ -385,26 +387,38 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
     };
   }, [roomName, isCall]);
 
-  const leaveRoom = async () => {
+  const leaveRoom = async (liveKitRoom) => {
     if (isLeaving) return;
     setIsLeaving(true);
 
-    // Start server cleanup, then detach the native LiveKit view before
-    // returning to the parent screen to avoid a blank Android surface.
+    // Ask the LiveKit Room to disconnect and release its native camera/audio
+    // tracks before removing the React Native screen from the navigation tree.
     const shouldEndRoom = isHost || isCall;
     const endRequest = shouldEndRoom
       ? supabase.functions.invoke('livekit-token', { body: { roomName, action: 'end' } })
       : Promise.resolve({ data: { ended: true }, error: null });
 
+    try {
+      if (liveKitRoom) {
+        await Promise.race([
+          liveKitRoom.disconnect(),
+          new Promise((resolve) => setTimeout(resolve, 5000)),
+        ]);
+      }
+    } catch (disconnectError) {
+      console.warn('YOYO LIVE LiveKit disconnect failed:', disconnectError?.message || disconnectError);
+    }
+
+    // Only now unmount LiveKitRoom; give Android one frame window to detach
+    // the native video surface before the parent renders the home screen.
     setConnection(null);
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    await AudioSession.stopAudioSession().catch(() => {});
+    await new Promise((resolve) => setTimeout(resolve, 350));
     onClose?.();
 
     try {
       const { data, error: endError } = await endRequest;
       if (endError || data?.ended !== true) {
-        Alert.alert('تعذر تأكيد إنهاء البث', endError?.message || data?.error || 'تم الرجوع للرئيسية، لكن لم نتأكد من إغلاق البث على الخادم.');
+        Alert.alert('تعذر تأكيد إنهاء البث', endError?.message || data?.error || 'رجعنا للرئيسية، لكن لم نتأكد من إغلاق البث على الخادم.');
         return;
       }
       if (isHost && !isCall) {
@@ -419,7 +433,7 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
         ]);
       }
     } catch (endError) {
-      Alert.alert('تعذر تأكيد إنهاء البث', endError?.message || 'تم الرجوع للرئيسية، لكن حصل خطأ أثناء إغلاق البث على الخادم.');
+      Alert.alert('تعذر تأكيد إنهاء البث', endError?.message || 'رجعنا للرئيسية، لكن حصل خطأ أثناء إغلاق البث على الخادم.');
     }
   };
 
@@ -463,7 +477,7 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
           audio={connection.isCall || !!isHost}
           video={connection.isCall ? connection.callType === 'video' : !!isHost && !isStandby}
           options={{ adaptiveStream: { pixelDensity: 'screen' } }}
-          onDisconnected={() => setError('انقطع اتصال غرفة البث. لم نغلق الشاشة تلقائيًا حتى تتمكن من رؤية الخطأ ومحاولة التشخيص.')}
+          onDisconnected={() => { if (!isLeaving) setError('انقطع اتصال غرفة البث. لم نغلق الشاشة تلقائيًا حتى تتمكن من رؤية الخطأ ومحاولة التشخيص.'); }}
           onError={(roomError) => setError(roomError?.message || 'فشل الاتصال بغرفة LiveKit. ابقَ في الشاشة لعرض التشخيص.')}
         >
           <RoomContent
@@ -471,7 +485,7 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
             isCall={connection.isCall}
             callType={connection.callType}
             hostName={hostName}
-            onLeave={leaveRoom}
+            onLeave={() => leaveRoom(room)}
             error={error}
             userId={userId}
             receiverId={receiverId}
