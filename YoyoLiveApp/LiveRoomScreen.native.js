@@ -385,22 +385,31 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
   }, [roomName, isCall]);
 
   const leaveRoom = async () => {
-    if (isHost || isCall) {
-      // The authenticated Edge Function owns the authoritative server-side end.
-      const { data, error: endError } = await supabase.functions.invoke('livekit-token', {
-        body: { roomName, action: 'end' },
-      });
+    // Start the authoritative server-side end request, then leave the full-screen
+    // LiveKit route immediately. Waiting for the network response before changing
+    // the parent route could strand Android on a blank screen during teardown.
+    const shouldEndRoom = isHost || isCall;
+    const endRequest = shouldEndRoom
+      ? supabase.functions.invoke('livekit-token', { body: { roomName, action: 'end' } })
+      : null;
+
+    onClose?.();
+
+    if (!endRequest) return;
+
+    try {
+      const { data, error: endError } = await endRequest;
       if (endError || data?.ended !== true) {
         Alert.alert(
-          'تعذر إنهاء البث',
-          endError?.message || data?.error || 'لم نتأكد من إغلاق البث على الخادم. حاول مرة أخرى.'
+          'تعذر تأكيد إنهاء البث',
+          endError?.message || data?.error || 'رجعنا للرئيسية، لكن لم نتأكد من إغلاق البث على الخادم. افتح البث مرة أخرى أو حاول إنهاءه.'
         );
         return;
       }
 
-      // Secondary cleanup is best-effort and must not undo a confirmed end.
+      // Secondary cleanup is best-effort and must not delay navigation home.
       if (isHost && !isCall) {
-        Promise.allSettled([
+        await Promise.allSettled([
           (async () => {
             const { data: sharedMusic } = await supabase.from('live_room_music')
               .select('storage_path').eq('room_name', roomName).maybeSingle();
@@ -412,8 +421,12 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
           supabase.rpc('yoyo_battle_interrupt_for_host', { p_room_name: roomName }),
         ]);
       }
+    } catch (endError) {
+      Alert.alert(
+        'تعذر تأكيد إنهاء البث',
+        endError?.message || 'رجعنا للرئيسية، لكن حصل خطأ أثناء إغلاق البث على الخادم.'
+      );
     }
-    onClose?.();
   };
 
   const exitAfterConnectionError = async () => {
