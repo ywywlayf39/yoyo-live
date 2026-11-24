@@ -111,7 +111,7 @@ begin
   select v_user_id,v_period_start,m.milestone_invites,m.target_vip_days
   from (values (3,7),(5,15),(10,30)) as m(milestone_invites,target_vip_days)
   where v_qualified >= m.milestone_invites
-  on conflict (user_id,period_start,milestone_invites) do nothing;
+  on conflict on constraint yoyo_referral_vip_rewards_user_id_period_start_milestone_in_key do nothing;
   return query
   select v_qualified,m.milestone_invites,m.target_vip_days,coalesce(w.status,'not_reached'),coalesce(w.granted_days,0)
   from (values (3,7),(5,15),(10,30)) as m(milestone_invites,target_vip_days)
