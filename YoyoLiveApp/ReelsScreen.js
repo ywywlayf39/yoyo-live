@@ -46,9 +46,26 @@ export default function ReelsScreen({ userId, onBack }) {
         profiles = rows || [];
       }
       const names = new Map(profiles.map((row) => [row.id, row.display_name]));
+      const reelIds = (data || []).map((item) => item.id);
+      const [likesResult, followsResult] = await Promise.all([
+        reelIds.length ? supabase.from('reel_likes').select('reel_id,user_id').in('reel_id', reelIds) : Promise.resolve({ data: [], error: null }),
+        (userId && ids.length) ? supabase.from('user_follows').select('following_id').eq('follower_id', userId).in('following_id', ids) : Promise.resolve({ data: [], error: null }),
+      ]);
+      if (likesResult.error) throw likesResult.error;
+      if (followsResult.error) throw followsResult.error;
+      const likeCounts = new Map();
+      const likedByMe = new Set();
+      (likesResult.data || []).forEach((like) => {
+        likeCounts.set(like.reel_id, (likeCounts.get(like.reel_id) || 0) + 1);
+        if (like.user_id === userId) likedByMe.add(like.reel_id);
+      });
+      const followingIds = new Set((followsResult.data || []).map((row) => row.following_id));
       const mapped = (data || []).map((item) => ({
         ...item,
         author: names.get(item.user_id) || 'عضو YOYO LIVE',
+        likesCount: likeCounts.get(item.id) || 0,
+        likedByMe: likedByMe.has(item.id),
+        isFollowing: followingIds.has(item.user_id),
         videoUrl: supabase.storage.from('reels').getPublicUrl(item.video_path).data.publicUrl,
       }));
       setReels(mapped);
@@ -119,6 +136,37 @@ export default function ReelsScreen({ userId, onBack }) {
     } finally { setUploading(false); setProgress(0); }
   };
 
+  const toggleLike = async (item) => {
+    if (!userId) { Alert.alert('سجل الدخول أولًا', 'سجل الدخول للإعجاب بالريلز.'); return; }
+    const alreadyLiked = !!item.likedByMe;
+    setReels((current) => current.map((row) => row.id === item.id
+      ? { ...row, likedByMe: !alreadyLiked, likesCount: Math.max(0, (row.likesCount || 0) + (alreadyLiked ? -1 : 1)) }
+      : row));
+    const result = alreadyLiked
+      ? await supabase.from('reel_likes').delete().eq('reel_id', item.id).eq('user_id', userId)
+      : await supabase.from('reel_likes').insert({ reel_id: item.id, user_id: userId });
+    if (result.error) {
+      setReels((current) => current.map((row) => row.id === item.id
+        ? { ...row, likedByMe: alreadyLiked, likesCount: Math.max(0, (row.likesCount || 0) + (alreadyLiked ? 1 : -1)) }
+        : row));
+      Alert.alert('تعذر تسجيل الإعجاب', result.error.message || 'حاول مرة أخرى.');
+    }
+  };
+
+  const toggleFollow = async (item) => {
+    if (!userId) { Alert.alert('سجل الدخول أولًا', 'سجل الدخول لمتابعة صاحب الريل.'); return; }
+    if (item.user_id === userId) return;
+    const alreadyFollowing = !!item.isFollowing;
+    setReels((current) => current.map((row) => row.user_id === item.user_id ? { ...row, isFollowing: !alreadyFollowing } : row));
+    const result = alreadyFollowing
+      ? await supabase.from('user_follows').delete().eq('follower_id', userId).eq('following_id', item.user_id)
+      : await supabase.from('user_follows').insert({ follower_id: userId, following_id: item.user_id });
+    if (result.error) {
+      setReels((current) => current.map((row) => row.user_id === item.user_id ? { ...row, isFollowing: alreadyFollowing } : row));
+      Alert.alert('تعذرت المتابعة', result.error.message || 'حاول مرة أخرى.');
+    }
+  };
+
   const deleteReel = (item) => {
     if (item.user_id !== userId) return;
     Alert.alert('حذف الريل', 'متأكد إنك عايز تحذف الفيديو؟', [
@@ -136,12 +184,20 @@ export default function ReelsScreen({ userId, onBack }) {
 
   const renderReel = ({ item }) => (
     <View style={[styles.reelCard, { height: reelHeight }]}>
-      <ReelPlayer uri={item.videoUrl} active={item.id === activeId} height={reelHeight - 90} />
+      <ReelPlayer uri={item.videoUrl} active={item.id === activeId} height={reelHeight - 118} />
       <View style={styles.reelOverlay}>
         <View style={{ flex: 1 }}>
           <Text style={styles.author}>@{item.author}</Text>
           {!!item.caption && <Text style={styles.caption}>{item.caption}</Text>}
           <Text style={styles.meta}>{(item.file_size_bytes / 1024 / 1024).toFixed(1)} MB · {Math.round(item.duration_seconds)} ثانية</Text>
+          <View style={styles.actionsRow}>
+            <TouchableOpacity onPress={() => toggleLike(item)} style={[styles.actionButton, item.likedByMe && styles.actionActive]}>
+              <Text style={[styles.actionText, item.likedByMe && styles.actionTextActive]}>{item.likedByMe ? '♥' : '♡'} إعجاب · {item.likesCount || 0}</Text>
+            </TouchableOpacity>
+            {item.user_id !== userId && <TouchableOpacity onPress={() => toggleFollow(item)} style={[styles.actionButton, item.isFollowing && styles.actionFollowing]}>
+              <Text style={styles.actionText}>{item.isFollowing ? '✓ بتتابعه' : '+ متابعة'}</Text>
+            </TouchableOpacity>}
+          </View>
         </View>
         {item.user_id === userId && <TouchableOpacity onPress={() => deleteReel(item)} style={styles.deleteButton}><Text style={styles.deleteText}>حذف</Text></TouchableOpacity>}
       </View>
@@ -197,10 +253,16 @@ const styles = StyleSheet.create({
   emptyIcon: { fontSize: 52, marginBottom: 12 }, emptyTitle: { color: '#fff', fontWeight: 'bold', fontSize: 19 },
   emptyText: { color: '#A99EAE', textAlign: 'center', marginTop: 9, lineHeight: 22 },
   reelCard: { backgroundColor: '#000', marginBottom: 0 },
-  reelOverlay: { minHeight: 90, paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: BG },
+  reelOverlay: { minHeight: 118, paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: BG },
   author: { color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'right' },
   caption: { color: '#eee', textAlign: 'right', marginTop: 5, lineHeight: 20 },
   meta: { color: '#A99EAE', textAlign: 'right', fontSize: 11, marginTop: 5 },
   deleteButton: { borderWidth: 1, borderColor: '#C94B69', borderRadius: 9, paddingHorizontal: 12, paddingVertical: 7, marginLeft: 12 },
+  actionsRow: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 9, marginTop: 9, flexWrap: 'wrap' },
+  actionButton: { borderWidth: 1, borderColor: '#6C4260', backgroundColor: '#241629', borderRadius: 18, paddingHorizontal: 13, paddingVertical: 7 },
+  actionActive: { borderColor: PINK, backgroundColor: '#4A1835' },
+  actionFollowing: { borderColor: GOLD, backgroundColor: '#302719' },
+  actionText: { color: '#F4EAF2', fontWeight: 'bold', fontSize: 12 },
+  actionTextActive: { color: '#FF78B6' },
   deleteText: { color: '#FF8FA8', fontWeight: 'bold' },
 });
