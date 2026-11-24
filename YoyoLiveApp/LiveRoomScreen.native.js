@@ -401,9 +401,8 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
       ? supabase.functions.invoke('livekit-token', { body: { roomName, action: 'end' } })
       : Promise.resolve({ data: { ended: true }, error: null });
 
-    // Unmount LiveKitRoom once, then return to the home route.
-    setConnection(null);
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    // Return to the home route immediately. The parent unmounts LiveKitRoom
+    // exactly once; do not wait on a timer or set local state before navigation.
     onClose?.();
 
     // Finish server cleanup in the background after navigation has returned.
