@@ -95,6 +95,7 @@ export default function App() {
   const [showDiscover, setShowDiscover] = useState(false);
   const [showReels, setShowReels] = useState(false);
   const [showReferrals, setShowReferrals] = useState(false);
+  const [pendingReferralCode, setPendingReferralCode] = useState('');
   const [selectedCall, setSelectedCall] = useState(null);
   const [incomingCall, setIncomingCall] = useState(null);
 
@@ -389,6 +390,13 @@ export default function App() {
         const query = new URLSearchParams(parsed.search);
         const hash = new URLSearchParams(parsed.hash.replace(/^#/, ''));
         const params = new URLSearchParams([...query.entries(), ...hash.entries()]);
+        const inviteCode = params.get('ref');
+        if (parsed.protocol === 'yoyolive:' && parsed.hostname === 'invite' && inviteCode) {
+          setPendingReferralCode(inviteCode.trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10));
+          setAuthLoading(false);
+          return;
+        }
+
         const authError = params.get('error_description') || params.get('error');
 
         if (authError) {
@@ -670,7 +678,7 @@ export default function App() {
   }
 
   if (!session) {
-    return <AuthScreen onLogin={setSession} />;
+    return <AuthScreen onLogin={setSession} initialReferralCode={pendingReferralCode} />;
   }
 
   if (profileLoading) {
