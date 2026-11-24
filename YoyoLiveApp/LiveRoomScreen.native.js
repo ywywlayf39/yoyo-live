@@ -191,7 +191,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
         nestedScrollEnabled
       >
         {!isCall && isHost && userId ? <LiveMusicLibrary roomName={roomName} userId={userId} /> : null}
-        {!isCall && userId && (isHost || viewerPresenceReady) ? <LiveMusicSync roomName={roomName} userId={userId} isHost={isHost} /> : null}
+        
         {!isCall && isHost && userId ? <LiveBattlePanel userId={userId} roomName={roomName} isHost={isHost} /> : null}
         {!isCall && userId && (isHost || viewerPresenceReady) ? <LiveQuizPanel roomName={roomName} userId={userId} isHost={isHost} /> : null}
         {!isCall && userId ? <LiveBattleVote roomName={roomName} userId={userId} /> : null}
@@ -224,6 +224,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
         <Text style={styles.leaveButtonText}>{isCall ? 'إنهاء المكالمة' : isHost ? 'إنهاء البث' : 'مغادرة البث'}</Text>
       </TouchableOpacity>
 
+      {!isCall && userId && (isHost || viewerPresenceReady) ? <LiveMusicSync roomName={roomName} userId={userId} isHost={isHost} visible={toolsVisible} /> : null}
       {!isCall && userId ? <LiveRoomChat roomName={roomName} userId={userId} isHost={isHost} /> : null}
       {!isCall && userId ? <LiveGiftPanel userId={userId} receiverId={receiverId} isHost={isHost} roomName={roomName} onOpenPackages={onOpenPackages} /> : null}
 
