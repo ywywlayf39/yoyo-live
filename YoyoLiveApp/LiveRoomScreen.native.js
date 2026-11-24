@@ -21,6 +21,7 @@ import {
 } from '@livekit/react-native';
 import { Track } from 'livekit-client';
 import { StatusBar } from 'expo-status-bar';
+import { useKeepAwake } from 'expo-keep-awake';
 import { supabase } from './supabase';
 import LiveGiftPanel from './LiveGiftPanel';
 import LiveBattlePanel from './LiveBattlePanel';
@@ -220,7 +221,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
         isCall ? 'هل أنت متأكد أنك تريد إنهاء المكالمة؟' : isHost ? 'هل أنت متأكد؟ سيتم إنهاء البث وفصل جميع المشاهدين، وإنهاء أي تحدٍ نشط دون إعلان فائز.' : 'هل تريد مغادرة البث؟',
         [
           { text: 'استمرار', style: 'cancel' },
-          { text: isHost ? 'إنهاء البث' : isCall ? 'إنهاء المكالمة' : 'مغادرة', style: 'destructive', onPress: onLeave },
+          { text: isHost ? 'إنهاء البث' : isCall ? 'إنهاء المكالمة' : 'مغادرة', style: 'destructive', onPress: () => onLeave?.(room) },
         ],
       )} activeOpacity={0.85}>
         <Text style={styles.leaveButtonText}>{isCall ? 'إنهاء المكالمة' : isHost ? 'إنهاء البث' : 'مغادرة البث'}</Text>
@@ -235,6 +236,8 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
 }
 
 export default function LiveRoomScreen({ roomName, isHost, isCall = false, callType = 'video', hostName, onClose, userId, receiverId, onOpenPackages }) {
+  // Keep the display awake for the entire live room / call; release it on exit.
+  useKeepAwake();
   const [connection, setConnection] = useState(null);
   const [error, setError] = useState('');
   const [broadcastStartedAt, setBroadcastStartedAt] = useState(null);
@@ -485,7 +488,7 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
             isCall={connection.isCall}
             callType={connection.callType}
             hostName={hostName}
-            onLeave={() => leaveRoom(room)}
+            onLeave={leaveRoom}
             error={error}
             userId={userId}
             receiverId={receiverId}
