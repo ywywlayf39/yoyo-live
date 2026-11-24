@@ -189,7 +189,12 @@ export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUp
         placeholder={recoveryMode ? "اكتب كلمة المرور الجديدة (6 أحرف على الأقل)" : "كلمة المرور"}
         placeholderTextColor="#C7BED3"
         secureTextEntry
+        autoFocus={recoveryMode}
+        showSoftInputOnFocus={true}
+        textContentType="newPassword"
+        autoComplete="new-password"
         autoCapitalize="none"
+        importantForAutofill="yes"
         value={password}
         onChangeText={(value) => { setPassword(value); setFeedback(''); }}
         editable={!loading}
@@ -200,7 +205,11 @@ export default function AuthScreen({ onLogin, recoveryMode = false, onPasswordUp
         placeholder="أعد كتابة كلمة المرور الجديدة"
         placeholderTextColor="#C7BED3"
         secureTextEntry
+        showSoftInputOnFocus={true}
+        textContentType="newPassword"
+        autoComplete="new-password"
         autoCapitalize="none"
+        importantForAutofill="yes"
         value={confirmPassword}
         onChangeText={(value) => { setConfirmPassword(value); setFeedback(''); }}
         editable={!loading}
@@ -290,6 +299,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     borderColor: '#7653A8',
     borderWidth: 1,
+    height: 58,
     minHeight: 58,
     borderRadius: 13,
     padding: 16,
