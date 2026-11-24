@@ -266,29 +266,33 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
       setViewerPresenceReady(true);
       return undefined;
     }
+    // The broadcaster is not a viewer and must never inflate the audience count.
+    if (isHost) {
+      setViewerPresenceReady(true);
+      return undefined;
+    }
     setViewerPresenceReady(false);
     let active = true;
-    supabase.from('live_room_viewers')
-      .insert({ room_name: roomName, user_id: userId })
-      .then(({ error: joinError }) => {
-        if (active) {
-          if (joinError && String(joinError.code || '') !== '23505') {
-            console.warn('YOYO LIVE viewer presence:', joinError.message);
-            setViewerPresenceReady(false);
-            Alert.alert('تعذر تسجيل دخول المشاهد', 'لم نتمكن من تسجيل وجودك داخل غرفة البث، لذلك قد لا تظهر المسابقة أو لا تُقبل إجابتك. اخرج من البث وادخل مرة أخرى. ' + (joinError.message || ''));
-            return;
-          }
-          // A duplicate row means this viewer is already registered in the room.
-          setViewerPresenceReady(true);
-        }
+    const sendViewerHeartbeat = async () => {
+      const { error: heartbeatError } = await supabase.rpc('yoyo_live_viewer_heartbeat', {
+        p_room_name: roomName,
       });
+      if (!active) return;
+      if (heartbeatError) {
+        console.warn('YOYO LIVE viewer heartbeat failed:', heartbeatError.message);
+        setViewerPresenceReady(false);
+        return;
+      }
+      setViewerPresenceReady(true);
+    };
+    sendViewerHeartbeat();
+    const timer = setInterval(sendViewerHeartbeat, 15000);
     return () => {
       active = false;
-      supabase.from('live_room_viewers')
-        .delete()
-        .eq('room_name', roomName)
-        .eq('user_id', userId)
-        .then(() => {});
+      clearInterval(timer);
+      // Best-effort immediate leave; the 45-second heartbeat expiry is the
+      // fallback when Android kills the app or the network disappears.
+      supabase.rpc('yoyo_live_viewer_leave', { p_room_name: roomName }).then(() => {});
     };
   }, [roomName, userId, isHost, isCall]);
 
