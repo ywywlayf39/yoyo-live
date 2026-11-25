@@ -123,7 +123,7 @@ export default function LiveMusicLibrary({ roomName, userId }) {
         const id = `${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`;
         const destination = new File(MUSIC_FOLDER, `${id}-${safeFileName(name)}`);
         await source.copy(destination);
-        nextSongs.push({ id, name, uri: destination.uri, size, addedAt: Date.now() });
+        nextSongs.push({ id, name, uri: destination.uri, size, mimeType: source.mimeType || source.type || null, addedAt: Date.now() });
       }
       await saveSongs(nextSongs);
       Alert.alert('مكتبتي الموسيقية', `تم حفظ ${pickedFiles.length - skipped} أغنية في مكتبة التطبيق.${skipped ? ` تم تخطي ${skipped} ملف لأن حجمه أكبر من 50 ميجابايت.` : ''}`);
@@ -147,8 +147,9 @@ export default function LiveMusicLibrary({ roomName, userId }) {
       Alert.alert('حجم الأغنية كبير', 'مشاركة الأغاني متاحة للملفات حتى 20 ميجابايت.');
       return;
     }
-    const extension = String(song.name || '').split('.').pop().toLowerCase();
-    const mimeTypes = {
+    const extension = String(song.name || file.name || '').split('?')[0].split('.').pop().toLowerCase();
+    const declaredMime = String(song.mimeType || file.mimeType || file.type || '').toLowerCase().split(';')[0].trim();
+    const mimeByExtension = {
       mp3: 'audio/mpeg',
       m4a: 'audio/mp4',
       mp4: 'audio/mp4',
@@ -156,10 +157,15 @@ export default function LiveMusicLibrary({ roomName, userId }) {
       wav: 'audio/wav',
       ogg: 'audio/ogg',
       oga: 'audio/ogg',
+      opus: 'audio/opus',
+      flac: 'audio/flac',
     };
-    const contentType = mimeTypes[extension];
+    const supportedMimes = new Set(Object.values(mimeByExtension));
+    const contentType = supportedMimes.has(declaredMime)
+      ? declaredMime
+      : (mimeByExtension[extension] || null);
     if (!contentType) {
-      Alert.alert('صيغة غير مدعومة للمشاركة', 'استخدم MP3 أو M4A أو AAC أو WAV أو OGG.');
+      Alert.alert('صيغة غير مدعومة للمشاركة', 'نوع الملف الذي اختاره الهاتف غير واضح. جرّب MP3 أو M4A أو AAC أو WAV أو OGG.');
       return;
     }
 
