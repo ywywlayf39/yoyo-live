@@ -12,6 +12,7 @@ create table if not exists public.yoyo_profile_frames (
 alter table public.yoyo_profile_frames enable row level security;
 revoke all on public.yoyo_profile_frames from anon, public;
 grant select on public.yoyo_profile_frames to authenticated;
+drop policy if exists "Authenticated users can view active profile frames" on public.yoyo_profile_frames;
 create policy "Authenticated users can view active profile frames"
 on public.yoyo_profile_frames for select to authenticated using (active = true);
 
