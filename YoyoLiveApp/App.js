@@ -774,6 +774,10 @@ export default function App() {
         userId={session.user.id}
         email={session.user.email}
         onAvatarChanged={(avatarUrl) => setCurrentProfile(current => current ? { ...current, avatar_url: avatarUrl } : current)}
+        onFrameChanged={(frameCode) => {
+          setMembers(current => current.map(member => member.id === session.user.id ? { ...member, selected_frame_code: frameCode === 'classic' ? null : frameCode } : member));
+          setSelectedMember(current => current ? { ...current, selected_frame_code: frameCode === 'classic' ? null : frameCode } : current);
+        }}
         onBack={() => setShowAccount(false)}
       />
     );
