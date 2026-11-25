@@ -48,7 +48,8 @@ export default function AccountScreen({ userId, email, onBack, onAvatarChanged, 
       setVipActive(hasActiveVip);
       const savedFrameCode = data?.selected_frame_code || 'classic';
       const savedFrame = (frameRows || []).find((frame) => frame.code === savedFrameCode);
-      setSelectedFrameCode(savedFrame?.vip_only && !hasActiveVip ? 'classic' : savedFrameCode);
+      const ownsSavedFrame = (ownedRows || []).some((row) => row.frame_code === savedFrameCode);
+      setSelectedFrameCode(savedFrame?.vip_only && !hasActiveVip && !ownsSavedFrame ? 'classic' : savedFrameCode);
       setName(data?.display_name || '');
       setCountry(data?.country || 'مصر');
       setGender(data?.gender || '');
