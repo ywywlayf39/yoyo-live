@@ -349,10 +349,6 @@ export default function ReelsScreen({ userId, onBack }) {
         try { await deleteFile(mixedOutputPath); } catch (cleanupError) { console.warn('YOYO reel music temp cleanup:', cleanupError?.message || cleanupError); }
         mixedOutputPath = null;
       }
-      if (mixedOutputPath) {
-        try { await deleteFile(mixedOutputPath); } catch (cleanupError) { console.warn('YOYO reel music temp cleanup:', cleanupError?.message || cleanupError); }
-        mixedOutputPath = null;
-      }
       const compressedFile = new File(compressedUri);
       if (!compressedFile.exists || !compressedFile.size) throw new Error('تعذر تجهيز الفيديو بعد الضغط.');
       if (compressedFile.size > MAX_VIDEO_BYTES) throw new Error('حجم الفيديو بعد الضغط أكبر من 50 ميجابايت. جرّب جودة أو مدة أقل.');
