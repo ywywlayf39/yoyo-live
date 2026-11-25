@@ -29,6 +29,7 @@ import LiveMusicSync from './LiveMusicSync';
 import LiveRoomChat from './LiveRoomChat';
 import LiveBattleVote from './LiveBattleVote';
 import LiveQuizPanel from './LiveQuizPanel';
+import ProfileFrame from './ProfileFrame';
 
 function formatBroadcastDuration(totalSeconds) {
   const seconds = Math.max(0, Math.floor(totalSeconds || 0));
@@ -44,6 +45,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
   const [micBusy, setMicBusy] = useState(false);
   const [roomStandby, setRoomStandby] = useState(false);
   const [hostAvatar, setHostAvatar] = useState(null);
+  const [hostFrameCode, setHostFrameCode] = useState(null);
   const [toolsVisible, setToolsVisible] = useState(false);
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [selectedVideoFilter, setSelectedVideoFilter] = useState('none');
@@ -59,9 +61,12 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
       setRoomStandby(room.is_standby === true);
       if (isHost) onStandbyChange?.(room.is_standby === true);
       if (room.host_id) {
-        const { data: profile } = await supabase.from('profiles')
-          .select('avatar_url').eq('id', room.host_id).maybeSingle();
-        if (active && profile?.avatar_url) setHostAvatar(profile.avatar_url);
+        const { data: profile } = await supabase.from('member_public_profiles')
+          .select('avatar_url,selected_frame_code').eq('id', room.host_id).maybeSingle();
+        if (active && profile) {
+          setHostAvatar(profile.avatar_url || null);
+          setHostFrameCode(profile.selected_frame_code || null);
+        }
       }
     };
     loadRoomHost();
@@ -129,10 +134,15 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
   return (
     <View style={styles.room}>
       <View style={styles.roomHeader}>
-        <View>
-          <Text style={styles.hostName}>{hostName || 'بث YOYO LIVE'}</Text>
-          <Text style={styles.roomStatus}>{isCall ? (callType === 'audio' ? 'مكالمة صوتية' : 'مكالمة فيديو') : isHost ? 'أنت تبث الآن' : 'أنت تشاهد البث المباشر'} 🔴</Text>
-          {!isCall ? <Text style={styles.durationText}>مدة البث: {broadcastDuration || '00:00:00'}</Text> : null}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
+          <ProfileFrame frameCode={hostFrameCode} size={42}>
+            {hostAvatar ? <Image source={{ uri: hostAvatar }} style={{ width: '100%', height: '100%' }} /> : <View style={{ flex: 1, backgroundColor: '#34263F', alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#fff' }}>👤</Text></View>}
+          </ProfileFrame>
+          <View>
+            <Text style={styles.hostName}>{hostName || 'بث YOYO LIVE'}</Text>
+            <Text style={styles.roomStatus}>{isCall ? (callType === 'audio' ? 'مكالمة صوتية' : 'مكالمة فيديو') : isHost ? 'أنت تبث الآن' : 'أنت تشاهد البث المباشر'} 🔴</Text>
+            {!isCall ? <Text style={styles.durationText}>مدة البث: {broadcastDuration || '00:00:00'}</Text> : null}
+          </View>
         </View>
         <View style={styles.livePill}><Text style={styles.livePillText}>LIVE</Text></View>
       </View>
@@ -182,7 +192,9 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
       <View pointerEvents="none" style={styles.videoStage}>
         {showStandby && !isCall ? (
           <View style={styles.standbyView}>
-            {hostAvatar ? <Image source={{ uri: hostAvatar }} style={styles.standbyAvatar} /> : <View style={styles.standbyAvatarFallback}><Text style={styles.standbyAvatarEmoji}>👤</Text></View>}
+            <ProfileFrame frameCode={hostFrameCode} size={136}>
+              {hostAvatar ? <Image source={{ uri: hostAvatar }} style={{ width: '100%', height: '100%' }} /> : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#34263F' }}><Text style={styles.standbyAvatarEmoji}>👤</Text></View>}
+            </ProfileFrame>
             <Text style={styles.standbyTitle}>{hostName || 'صاحب البث'}</Text>
             <Text style={styles.standbyText}>في وضع الانتظار</Text>
             <Text style={styles.standbySubtext}>الصوت مستمر ويمكنك الاستماع للبث</Text>
