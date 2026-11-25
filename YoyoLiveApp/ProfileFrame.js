@@ -15,13 +15,14 @@ const FRAME_STYLES = {
 export default function ProfileFrame({ frameCode, size = 112, children }) {
   const pulse = useRef(new Animated.Value(0)).current;
   useEffect(() => {
+    if (!FRAME_STYLES[frameCode]) return undefined;
     const animation = Animated.loop(Animated.sequence([
       Animated.timing(pulse, { toValue: 1, duration: 1250, useNativeDriver: true }),
       Animated.timing(pulse, { toValue: 0, duration: 1250, useNativeDriver: true }),
     ]));
     animation.start();
     return () => animation.stop();
-  }, [pulse]);
+  }, [pulse, frameCode]);
 
   const frame = FRAME_STYLES[frameCode];
   if (!frame) return <View style={{ width: size, height: size }}>{children}</View>;
