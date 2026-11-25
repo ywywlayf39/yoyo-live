@@ -181,7 +181,6 @@ export default function ReelsScreen({ userId, onBack }) {
       const result = await cameraRef.current.recordAsync({
         maxDuration: 180,
         maxFileSize: MAX_ORIGINAL_BYTES,
-        videoBitrate: 1800000,
         progressUpdateInterval: 0.5,
       });
       if (result?.uri) {
@@ -385,7 +384,7 @@ export default function ReelsScreen({ userId, onBack }) {
 
       <Modal visible={cameraOpen} animationType="slide" onRequestClose={() => { if (!recording) setCameraOpen(false); }}>
         <View style={{ flex: 1, backgroundColor: '#000' }}>
-          <CameraView ref={cameraRef} style={{ flex: 1 }} facing={cameraFacing} mode="video" videoQuality="720p"
+          <CameraView ref={cameraRef} style={{ flex: 1 }} facing={cameraFacing} mode="video" videoQuality="720p" videoBitrate={1800000}
             onCameraReady={() => setCameraReady(true)}
             onMountError={(event) => Alert.alert('الكاميرا غير متاحة', event.message || 'تعذر تشغيل الكاميرا.')}
             onRecordingProgress={(event) => setRecordingSeconds(Math.min(180, event.duration || 0))} />
