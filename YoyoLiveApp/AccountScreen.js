@@ -32,13 +32,16 @@ export default function AccountScreen({ userId, email, onBack, onAvatarChanged, 
     if (loadError) setError('تعذر تحميل بيانات الحساب: ' + loadError.message);
     else {
       setProfile(data);
-      setSelectedFrameCode(data?.selected_frame_code || 'classic');
       const [{ data: frameRows }, { data: vipRow }] = await Promise.all([
         supabase.from('yoyo_profile_frames').select('code,name,tier,coin_cost,vip_only').eq('active', true).order('sort_order'),
         supabase.from('user_vip_subscriptions').select('status,expires_at').eq('user_id', userId).maybeSingle(),
       ]);
       setFrames(frameRows || []);
-      setVipActive(vipRow?.status === 'active' && (!vipRow.expires_at || new Date(vipRow.expires_at).getTime() > Date.now()));
+      const hasActiveVip = vipRow?.status === 'active' && !!vipRow.expires_at && new Date(vipRow.expires_at).getTime() > Date.now();
+      setVipActive(hasActiveVip);
+      const savedFrameCode = data?.selected_frame_code || 'classic';
+      const savedFrame = (frameRows || []).find((frame) => frame.code === savedFrameCode);
+      setSelectedFrameCode(savedFrame?.vip_only && !hasActiveVip ? 'classic' : savedFrameCode);
       setName(data?.display_name || '');
       setCountry(data?.country || 'مصر');
       setGender(data?.gender || '');
