@@ -206,6 +206,7 @@ export default function ReelsScreen({ userId, onBack }) {
   const uploadReelAsset = async (asset, knownDurationSeconds = null) => {
     if (uploading) return false;
     if (!userId) { Alert.alert('سجل الدخول أولًا', 'لازم تسجل الدخول قبل نشر فيديو.'); return false; }
+    let mixedOutputPath = null;
     try {
       const durationSeconds = Math.ceil(knownDurationSeconds || ((asset.duration || 0) / 1000));
       if (!durationSeconds || durationSeconds > 180) {
@@ -219,6 +220,10 @@ export default function ReelsScreen({ userId, onBack }) {
         compressionMethod: 'manual', maxSize: 720, bitrate: 900000,
         minimumFileSizeForCompress: 0, preserveMetadata: false,
       }, (value) => setProgress(Math.max(0, Math.min(100, Math.round(value * 100)))));
+      if (mixedOutputPath) {
+        try { await deleteFile(mixedOutputPath); } catch (cleanupError) { console.warn('YOYO reel music temp cleanup:', cleanupError?.message || cleanupError); }
+        mixedOutputPath = null;
+      }
       const compressedFile = new File(compressedUri);
       if (!compressedFile.exists || !compressedFile.size) throw new Error('تعذر تجهيز الفيديو بعد الضغط.');
       if (compressedFile.size > MAX_VIDEO_BYTES) throw new Error('حجم الفيديو بعد الضغط أكبر من 50 ميجابايت. جرّب جودة أو مدة أقل.');
@@ -241,6 +246,7 @@ export default function ReelsScreen({ userId, onBack }) {
       await loadReels();
       return true;
     } catch (error) {
+      if (mixedOutputPath) { try { await deleteFile(mixedOutputPath); } catch (_) {} }
       console.error('YOYO reel upload failed:', error);
       Alert.alert('تعذر نشر الفيديو', error?.message || 'حصلت مشكلة أثناء ضغط الفيديو أو رفعه.');
       return false;
