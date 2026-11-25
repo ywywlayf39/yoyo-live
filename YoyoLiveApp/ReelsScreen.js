@@ -1,14 +1,21 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, FlatList, KeyboardAvoidingView, Modal, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
 import { Video } from 'react-native-compressor';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { File } from 'expo-file-system';
 import { supabase } from './supabase';
 
 const BG = '#0B0912', CARD = '#1A1423', PINK = '#F34E9B', GOLD = '#C5A15C';
-const MAX_VIDEO_BYTES = 30 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
 const MAX_ORIGINAL_BYTES = 200 * 1024 * 1024;
+
+function ReelPreviewPlayer({ uri }) {
+  const player = useVideoPlayer(uri, (instance) => { instance.loop = true; });
+  useEffect(() => { player.play(); return () => { try { player.pause(); } catch (_) {} }; }, [player]);
+  return <VideoView player={player} style={{ flex: 1, width: '100%', backgroundColor: '#000' }} contentFit="contain" nativeControls allowsFullscreen={false} allowsPictureInPicture={false} />;
+}
 
 function ReelPlayer({ uri, active, height }) {
   const player = useVideoPlayer(uri, (instance) => { instance.loop = true; });
@@ -36,6 +43,15 @@ export default function ReelsScreen({ userId, onBack }) {
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentSending, setCommentSending] = useState(false);
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 70 }).current;
+  const cameraRef = useRef(null);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const [microphonePermission, requestMicrophonePermission] = useMicrophonePermissions();
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [cameraFacing, setCameraFacing] = useState('back');
+  const [recording, setRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [capturedVideo, setCapturedVideo] = useState(null);
 
   const loadReels = useCallback(async () => {
     setLoading(true);
@@ -143,32 +159,68 @@ export default function ReelsScreen({ userId, onBack }) {
     setCommentBody('');
   };
 
-  const publishReel = async () => {
-    if (uploading) return;
-    if (!userId) { Alert.alert('سجل الدخول أولًا', 'لازم تسجل الدخول قبل نشر فيديو.'); return; }
+  const openReelCamera = async () => {
     try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) { Alert.alert('إذن المعرض مطلوب', 'اسمح ليويو لايف بالوصول للفيديوهات.'); return; }
-      const picked = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['videos'], allowsEditing: false, videoMaxDuration: 60, quality: 1,
+      const camera = cameraPermission?.granted ? cameraPermission : await requestCameraPermission();
+      if (!camera?.granted) { Alert.alert('إذن الكاميرا مطلوب', 'اسمح ليويو لايف باستخدام الكاميرا لتصوير الريلز.'); return; }
+      const microphone = microphonePermission?.granted ? microphonePermission : await requestMicrophonePermission();
+      if (!microphone?.granted) { Alert.alert('إذن الميكروفون مطلوب', 'اسمح بالميكروفون لتسجيل صوت الفيديو.'); return; }
+      setCameraReady(false);
+      setRecordingSeconds(0);
+      setCameraOpen(true);
+    } catch (error) {
+      Alert.alert('تعذر فتح الكاميرا', error?.message || 'حاول مرة أخرى.');
+    }
+  };
+
+  const startCameraRecording = async () => {
+    if (!cameraRef.current || !cameraReady || recording) return;
+    setRecording(true);
+    setRecordingSeconds(0);
+    try {
+      const result = await cameraRef.current.recordAsync({
+        maxDuration: 180,
+        maxFileSize: MAX_ORIGINAL_BYTES,
+        videoBitrate: 1800000,
+        progressUpdateInterval: 0.5,
       });
-      if (picked.canceled || !picked.assets?.[0]) return;
-      const asset = picked.assets[0];
-      const durationSeconds = Math.ceil((asset.duration || 0) / 1000);
-      if (!durationSeconds || durationSeconds > 60) {
-        Alert.alert('مدة الفيديو', 'اختار فيديو مدته من ثانية إلى 60 ثانية.'); return;
+      if (result?.uri) {
+        setCapturedVideo({
+          uri: result.uri,
+          durationSeconds: Math.max(1, Math.min(180, Math.ceil(recordingSeconds || 1))),
+        });
+        setCameraOpen(false);
+      }
+    } catch (error) {
+      Alert.alert('تعذر تسجيل الفيديو', error?.message || 'حاول مرة أخرى.');
+    } finally {
+      setRecording(false);
+    }
+  };
+
+  const stopCameraRecording = () => {
+    if (recording) cameraRef.current?.stopRecording();
+  };
+
+  const uploadReelAsset = async (asset, knownDurationSeconds = null) => {
+    if (uploading) return false;
+    if (!userId) { Alert.alert('سجل الدخول أولًا', 'لازم تسجل الدخول قبل نشر فيديو.'); return false; }
+    try {
+      const durationSeconds = Math.ceil(knownDurationSeconds || ((asset.duration || 0) / 1000));
+      if (!durationSeconds || durationSeconds > 180) {
+        Alert.alert('مدة الفيديو', 'اختار فيديو مدته من ثانية إلى 3 دقائق كحد أقصى.'); return false;
       }
       if (asset.fileSize && asset.fileSize > MAX_ORIGINAL_BYTES) {
-        Alert.alert('حجم الفيديو كبير', 'اختار فيديو أصلي أقل من 200 ميجابايت عشان الموبايل يقدر يضغطه بأمان.'); return;
+        Alert.alert('حجم الفيديو كبير', 'اختار فيديو أصلي أقل من 200 ميجابايت عشان الموبايل يقدر يضغطه بأمان.'); return false;
       }
       setUploading(true); setProgress(0);
       const compressedUri = await Video.compress(asset.uri, {
-        compressionMethod: 'manual', maxSize: 720, bitrate: 1200000,
+        compressionMethod: 'manual', maxSize: 720, bitrate: 900000,
         minimumFileSizeForCompress: 0, preserveMetadata: false,
       }, (value) => setProgress(Math.max(0, Math.min(100, Math.round(value * 100)))));
       const compressedFile = new File(compressedUri);
       if (!compressedFile.exists || !compressedFile.size) throw new Error('تعذر تجهيز الفيديو بعد الضغط.');
-      if (compressedFile.size > MAX_VIDEO_BYTES) throw new Error('حجم الفيديو بعد الضغط أكبر من 30 ميجابايت. اختار فيديو أقصر.');
+      if (compressedFile.size > MAX_VIDEO_BYTES) throw new Error('حجم الفيديو بعد الضغط أكبر من 50 ميجابايت. جرّب جودة أو مدة أقل.');
       const bytes = await compressedFile.arrayBuffer();
       const storagePath = `${userId}/${Date.now()}.mp4`;
       const { error: uploadError } = await supabase.storage.from('reels').upload(storagePath, bytes, {
@@ -186,10 +238,33 @@ export default function ReelsScreen({ userId, onBack }) {
       setCaption('');
       Alert.alert('تم النشر 🎉', 'الريل اتنشر بنجاح.');
       await loadReels();
+      return true;
     } catch (error) {
       console.error('YOYO reel upload failed:', error);
       Alert.alert('تعذر نشر الفيديو', error?.message || 'حصلت مشكلة أثناء ضغط الفيديو أو رفعه.');
+      return false;
     } finally { setUploading(false); setProgress(0); }
+  };
+
+  const publishReel = async () => {
+    if (uploading) return;
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) { Alert.alert('إذن المعرض مطلوب', 'اسمح ليويو لايف بالوصول للفيديوهات.'); return; }
+      const picked = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['videos'], allowsEditing: false, videoMaxDuration: 180, quality: 1,
+      });
+      if (picked.canceled || !picked.assets?.[0]) return;
+      await uploadReelAsset(picked.assets[0]);
+    } catch (error) {
+      Alert.alert('تعذر اختيار الفيديو', error?.message || 'حاول مرة أخرى.');
+    }
+  };
+
+  const publishCapturedReel = async () => {
+    if (!capturedVideo || uploading) return;
+    const published = await uploadReelAsset({ uri: capturedVideo.uri }, capturedVideo.durationSeconds);
+    if (published) setCapturedVideo(null);
   };
 
   const toggleLike = async (item) => {
@@ -286,11 +361,14 @@ export default function ReelsScreen({ userId, onBack }) {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.publishBox}>
           <TextInput value={caption} onChangeText={setCaption} placeholder="اكتب وصف الريل (اختياري)" placeholderTextColor="#9B91A5" maxLength={300} textAlign="right" style={styles.captionInput} />
-          <TouchableOpacity onPress={publishReel} disabled={uploading} style={[styles.publishButton, uploading && { opacity: 0.65 }]}>
-            {uploading ? <ActivityIndicator color="#fff" /> : <Text style={styles.publishText}>＋ اختار فيديو وانشر ريل</Text>}
+          <TouchableOpacity onPress={openReelCamera} disabled={uploading} style={[styles.publishButton, uploading && { opacity: 0.65 }]}>
+            <Text style={styles.publishText}>● صوّر ريل بالكاميرا · حتى 3 دقائق</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={publishReel} disabled={uploading} style={[styles.galleryButton, uploading && { opacity: 0.65 }]}>
+            {uploading ? <ActivityIndicator color="#fff" /> : <Text style={styles.publishText}>اختار فيديو من المعرض</Text>}
           </TouchableOpacity>
           {uploading && <Text style={styles.progressText}>جارٍ ضغط الفيديو وتجهيزه للرفع… {progress}%</Text>}
-          <Text style={styles.limits}>عمودي 9:16 · حتى 60 ثانية · ضغط 720p · أقصى حجم بعد الضغط 30MB</Text>
+          <Text style={styles.limits}>تصوير مباشر أو من المعرض · حتى 3 دقائق · ضغط 720p · أقصى حجم بعد الضغط 50MB</Text>
         </View>
       </KeyboardAvoidingView>
       {loading ? (
@@ -304,6 +382,49 @@ export default function ReelsScreen({ userId, onBack }) {
           maxToRenderPerBatch={2} windowSize={3}
           getItemLayout={(_, index) => ({ length: reelHeight, offset: reelHeight * index, index })} />
       )}
+
+      <Modal visible={cameraOpen} animationType="slide" onRequestClose={() => { if (!recording) setCameraOpen(false); }}>
+        <View style={{ flex: 1, backgroundColor: '#000' }}>
+          <CameraView ref={cameraRef} style={{ flex: 1 }} facing={cameraFacing} mode="video" videoQuality="720p"
+            onCameraReady={() => setCameraReady(true)}
+            onMountError={(event) => Alert.alert('الكاميرا غير متاحة', event.message || 'تعذر تشغيل الكاميرا.')}
+            onRecordingProgress={(event) => setRecordingSeconds(Math.min(180, event.duration || 0))} />
+          <View style={{ position: 'absolute', top: 42, left: 18, right: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <TouchableOpacity disabled={recording} onPress={() => setCameraOpen(false)} style={styles.cameraControl}><Text style={styles.cameraControlText}>إغلاق ✕</Text></TouchableOpacity>
+            <TouchableOpacity disabled={recording} onPress={() => setCameraFacing((value) => value === 'back' ? 'front' : 'back')} style={styles.cameraControl}><Text style={styles.cameraControlText}>تبديل الكاميرا ↻</Text></TouchableOpacity>
+          </View>
+          <View style={{ position: 'absolute', bottom: 42, left: 0, right: 0, alignItems: 'center', gap: 14 }}>
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: '900' }}>{recording ? `● ${Math.floor(recordingSeconds / 60)}:${String(Math.floor(recordingSeconds % 60)).padStart(2, '0')} / 3:00` : 'جاهز لتصوير ريل'}</Text>
+            <TouchableOpacity disabled={!cameraReady} onPress={recording ? stopCameraRecording : startCameraRecording}
+              style={{ width: 76, height: 76, borderRadius: 38, borderWidth: 5, borderColor: '#fff', backgroundColor: recording ? '#E33D55' : PINK, alignItems: 'center', justifyContent: 'center', opacity: cameraReady ? 1 : 0.45 }}>
+              <View style={{ width: recording ? 25 : 48, height: recording ? 25 : 48, borderRadius: recording ? 6 : 24, backgroundColor: '#fff' }} />
+            </TouchableOpacity>
+            <Text style={{ color: '#fff', fontSize: 12 }}>الحد الأقصى 3 دقائق · التسجيل بالصوت والصورة</Text>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={!!capturedVideo} animationType="slide" onRequestClose={() => setCapturedVideo(null)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: BG }}>
+          <View style={{ padding: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <TouchableOpacity onPress={() => setCapturedVideo(null)}><Text style={{ color: PINK, fontWeight: 'bold' }}>إلغاء</Text></TouchableOpacity>
+            <Text style={{ color: '#fff', fontWeight: '900', fontSize: 18 }}>معاينة الريل</Text>
+          </View>
+          <View style={{ flex: 1, backgroundColor: '#000' }}>
+            {capturedVideo?.uri ? <ReelPreviewPlayer uri={capturedVideo.uri} /> : null}
+          </View>
+          <View style={{ padding: 16, gap: 10 }}>
+            <Text style={{ color: GOLD, textAlign: 'center' }}>مدة الفيديو: {Math.floor((capturedVideo?.durationSeconds || 0) / 60)}:{String((capturedVideo?.durationSeconds || 0) % 60).padStart(2, '0')}</Text>
+            <TouchableOpacity onPress={publishCapturedReel} disabled={uploading} style={styles.publishButton}>
+              {uploading ? <ActivityIndicator color="#fff" /> : <Text style={styles.publishText}>انشر الريل الآن</Text>}
+            </TouchableOpacity>
+            {uploading && <Text style={styles.progressText}>جارٍ تجهيز ورفع الفيديو… {progress}%</Text>}
+            <TouchableOpacity onPress={() => { setCapturedVideo(null); openReelCamera(); }} disabled={uploading} style={styles.galleryButton}>
+              <Text style={styles.publishText}>إعادة التصوير</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
 
       <Modal visible={!!commentsReel} transparent animationType="slide" onRequestClose={() => setCommentsReel(null)}>
         <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.62)' }}>
@@ -345,7 +466,10 @@ const styles = StyleSheet.create({
   title: { color: '#fff', fontSize: 21, fontWeight: '900' }, subtitle: { color: '#A99EAE', fontSize: 11, marginTop: 3 },
   publishBox: { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#302537' },
   captionInput: { minHeight: 42, backgroundColor: CARD, borderRadius: 11, paddingHorizontal: 12, color: '#fff', marginBottom: 8 },
-  publishButton: { backgroundColor: PINK, minHeight: 44, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  publishButton: { backgroundColor: PINK, minHeight: 46, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  galleryButton: { backgroundColor: '#38283F', minHeight: 43, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginTop: 8, borderWidth: 1, borderColor: '#65465F' },
+  cameraControl: { backgroundColor: 'rgba(20,14,25,0.82)', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20, borderWidth: 1, borderColor: '#A46B91' },
+  cameraControlText: { color: '#fff', fontWeight: 'bold' },
   publishText: { color: '#fff', fontWeight: 'bold', fontSize: 15 }, progressText: { color: GOLD, textAlign: 'center', marginTop: 7, fontSize: 12 },
   limits: { color: '#9B91A5', textAlign: 'center', fontSize: 10, marginTop: 7 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
