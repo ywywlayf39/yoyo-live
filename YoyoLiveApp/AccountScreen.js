@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator
 import * as ImagePicker from 'expo-image-picker';
 import { File } from 'expo-file-system';
 import { supabase } from './supabase';
+import ProfileFrame from './ProfileFrame';
 
 const countries = ['مصر','السعودية','الإمارات','الكويت','قطر','البحرين','عمان','الأردن','العراق','لبنان','المغرب','الجزائر','تونس','ليبيا','السودان','فلسطين','اليمن','سوريا','تركيا','ألمانيا','فرنسا','بريطانيا','أمريكا','كندا','أخرى'];
 
@@ -19,15 +20,25 @@ export default function AccountScreen({ userId, email, onBack, onAvatarChanged }
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showCountries, setShowCountries] = useState(false);
+  const [frames, setFrames] = useState([]);
+  const [selectedFrameCode, setSelectedFrameCode] = useState('classic');
+  const [vipActive, setVipActive] = useState(false);
 
   const loadProfile = async () => {
     setLoading(true);
     const { data, error: loadError } = await supabase.from('profiles')
-      .select('display_name,country,gender,birth_date,avatar_url')
+      .select('display_name,country,gender,birth_date,avatar_url,selected_frame_code')
       .eq('id', userId).maybeSingle();
     if (loadError) setError('تعذر تحميل بيانات الحساب: ' + loadError.message);
     else {
       setProfile(data);
+      setSelectedFrameCode(data?.selected_frame_code || 'classic');
+      const [{ data: frameRows }, { data: vipRow }] = await Promise.all([
+        supabase.from('yoyo_profile_frames').select('code,name,tier,coin_cost,vip_only').eq('active', true).order('sort_order'),
+        supabase.from('user_vip_subscriptions').select('status,expires_at').eq('user_id', userId).maybeSingle(),
+      ]);
+      setFrames(frameRows || []);
+      setVipActive(vipRow?.status === 'active' && (!vipRow.expires_at || new Date(vipRow.expires_at).getTime() > Date.now()));
       setName(data?.display_name || '');
       setCountry(data?.country || 'مصر');
       setGender(data?.gender || '');
@@ -56,7 +67,7 @@ export default function AccountScreen({ userId, email, onBack, onAvatarChanged }
     const formattedBirthDate = year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
     setSaving(true); setError(''); setSuccess('');
     const { data: savedProfile, error: saveError } = await supabase.from('profiles')
-      .update({ display_name: name.trim(), country, gender, birth_date: formattedBirthDate, updated_at: new Date().toISOString() })
+      .update({ display_name: name.trim(), country, gender, birth_date: formattedBirthDate, selected_frame_code: selectedFrameCode === 'classic' ? null : selectedFrameCode, updated_at: new Date().toISOString() })
       .eq('id', userId)
       .select('display_name,country,gender,birth_date')
       .maybeSingle();
@@ -164,6 +175,24 @@ export default function AccountScreen({ userId, email, onBack, onAvatarChanged }
               {profile?.avatar_url ? <Image source={{ uri: profile.avatar_url }} style={styles.avatar} /> : <View style={styles.avatarPlaceholder}><Text style={styles.avatarEmoji}>👤</Text></View>}
               <Text style={styles.changePhoto}>{uploading ? 'جارٍ رفع الصورة...' : '📷 تغيير صورة البروفايل'}</Text>
             </TouchableOpacity>
+            <View style={styles.frameSection}>
+              <Text style={styles.frameTitle}>إطار صورتك الشخصية</Text>
+              <Text style={styles.frameHint}>اختار الإطار، وسيظهر للأعضاء الآخرين بعد الحفظ.</Text>
+              <View style={styles.framePreview}>
+                <ProfileFrame frameCode={selectedFrameCode} size={104}>
+                  {profile?.avatar_url ? <Image source={{ uri: profile.avatar_url }} style={{ width: '100%', height: '100%' }} /> : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 42 }}>👤</Text></View>}
+                </ProfileFrame>
+              </View>
+              <View style={styles.frameChoices}>
+                {frames.map((frame) => {
+                  const locked = (frame.vip_only && !vipActive) || Number(frame.coin_cost || 0) > 0;
+                  return <TouchableOpacity key={frame.code} disabled={locked} onPress={() => setSelectedFrameCode(frame.code)} style={[styles.frameOption, selectedFrameCode === frame.code && styles.frameOptionActive, locked && styles.frameOptionLocked]}>
+                    <Text style={styles.frameOptionName}>{frame.name}</Text>
+                    <Text style={styles.frameOptionMeta}>{locked ? (frame.vip_only && !vipActive ? 'يتطلب VIP' : Number(frame.coin_cost).toLocaleString('ar-EG') + ' نقطة قريبًا') : 'متاح'}</Text>
+                  </TouchableOpacity>;
+                })}
+              </View>
+            </View>
             <Text style={styles.label}>الاسم</Text>
             <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="اكتب اسمك" placeholderTextColor="#8e8798" textAlign="right" />
             <Text style={styles.label}>البريد الإلكتروني</Text><Text style={styles.value}>{email || 'غير متاح'}</Text>
@@ -217,6 +246,16 @@ const styles = StyleSheet.create({
   avatar: { width: 112, height: 112, borderRadius: 56, borderWidth: 3, borderColor: '#F5C451' },
   avatarPlaceholder: { width: 112, height: 112, borderRadius: 56, backgroundColor: '#30243e', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#F5C451' },
   avatarEmoji: { fontSize: 48 },
+  frameSection: { marginTop: 18, padding: 14, borderRadius: 15, backgroundColor: '#21192E', borderWidth: 1, borderColor: '#59476b' },
+  frameTitle: { color: '#F5C451', fontSize: 16, fontWeight: '900', textAlign: 'right' },
+  frameHint: { color: '#AAA1B8', fontSize: 12, textAlign: 'right', marginTop: 5 },
+  framePreview: { alignItems: 'center', marginVertical: 18 },
+  frameChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end' },
+  frameOption: { minWidth: '46%', padding: 10, borderRadius: 11, borderWidth: 1, borderColor: '#59476b', backgroundColor: '#30243e' },
+  frameOptionActive: { borderColor: '#F5C451', backgroundColor: '#49371D' },
+  frameOptionLocked: { opacity: 0.48 },
+  frameOptionName: { color: '#FFFFFF', fontSize: 12, fontWeight: '800', textAlign: 'right' },
+  frameOptionMeta: { color: '#F5C451', fontSize: 10, marginTop: 5, textAlign: 'right' },
   changePhoto: { color: '#F5C451', fontWeight: 'bold', marginTop: 12, fontSize: 15 },
   label: { color: '#AAA1B8', textAlign: 'right', marginTop: 14, fontSize: 13 },
   value: { color: '#fff', textAlign: 'right', fontSize: 16, marginTop: 5 },
