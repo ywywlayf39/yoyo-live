@@ -245,7 +245,17 @@ export default function ReelsScreen({ userId, onBack }) {
 
   const renderReel = ({ item }) => (
     <View style={[styles.reelCard, { height: reelHeight }]}>
-      <ReelPlayer uri={item.videoUrl} active={item.id === activeId} height={reelHeight - 118} />
+      <ReelPlayer uri={item.videoUrl} active={item.id === activeId} height={reelHeight} />
+      <View style={styles.reelOverlay}>
+        <View style={{ flex: 1 }}>
+          <View style={styles.authorRow}>
+            {item.authorAvatar ? <Image source={{ uri: item.authorAvatar }} style={styles.authorAvatar} /> : <View style={styles.authorAvatarFallback}><Text style={{ color: '#fff', fontWeight: 'bold' }}>☺</Text></View>}
+            <Text numberOfLines={1} style={styles.author}>@{item.author}</Text>
+          </View>
+          {!!item.caption && <Text numberOfLines={2} style={styles.caption}>{item.caption}</Text>}
+        </View>
+        {item.user_id === userId && <TouchableOpacity onPress={() => deleteReel(item)} style={styles.deleteButton}><Text style={styles.deleteText}>حذف</Text></TouchableOpacity>}
+      </View>
       <View style={styles.sideActions}>
         <TouchableOpacity onPress={() => setSideActionsOpen((value) => !value)} style={styles.sideArrow}>
           <Text style={styles.sideArrowText}>{sideActionsOpen ? '›' : '‹'}</Text>
@@ -264,18 +274,6 @@ export default function ReelsScreen({ userId, onBack }) {
             <Text style={styles.sideActionCount}>{item.isFollowing ? 'متابَع' : 'متابعة'}</Text>
           </TouchableOpacity>}
         </>}
-      </View>
-      <View style={styles.reelOverlay}>
-        <View style={{ flex: 1 }}>
-          <View style={styles.authorRow}>
-            {item.authorAvatar ? <Image source={{ uri: item.authorAvatar }} style={styles.authorAvatar} /> : <View style={styles.authorAvatarFallback}><Text style={{ color: '#fff', fontWeight: 'bold' }}>☺</Text></View>}
-            <Text style={styles.author}>@{item.author}</Text>
-          </View>
-          {!!item.caption && <Text style={styles.caption}>{item.caption}</Text>}
-          <Text style={styles.meta}>{(item.file_size_bytes / 1024 / 1024).toFixed(1)} MB · {Math.round(item.duration_seconds)} ثانية</Text>
-
-        </View>
-        {item.user_id === userId && <TouchableOpacity onPress={() => deleteReel(item)} style={styles.deleteButton}><Text style={styles.deleteText}>حذف</Text></TouchableOpacity>}
       </View>
     </View>
   );
@@ -365,11 +363,11 @@ const styles = StyleSheet.create({
   sideActionButton: { minWidth: 48, minHeight: 52, paddingHorizontal: 7, paddingVertical: 7, borderRadius: 22, backgroundColor: 'rgba(20,14,25,0.88)', borderWidth: 1, borderColor: '#6C4260', alignItems: 'center', justifyContent: 'center' },
   sideActionIcon: { color: '#fff', fontSize: 25, fontWeight: '900' },
   sideActionCount: { color: '#fff', fontSize: 10, fontWeight: 'bold', marginTop: 1 },
-  reelOverlay: { minHeight: 118, paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: BG },
-  authorRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8 },
-  authorAvatar: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: PINK },
-  authorAvatarFallback: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#49334F', alignItems: 'center', justifyContent: 'center' },
-  author: { color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'right' },
+  reelOverlay: { position: 'absolute', top: 12, left: 12, right: 68, minHeight: 62, paddingHorizontal: 12, paddingVertical: 9, flexDirection: 'row', alignItems: 'flex-start', backgroundColor: 'rgba(11,9,18,0.78)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(243,78,155,0.55)', zIndex: 15 },
+  authorRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 10, minHeight: 42 },
+  authorAvatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: PINK },
+  authorAvatarFallback: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#49334F', alignItems: 'center', justifyContent: 'center' },
+  author: { color: '#fff', fontSize: 20, fontWeight: '900', textAlign: 'right', flexShrink: 1 },
   caption: { color: '#eee', textAlign: 'right', marginTop: 5, lineHeight: 20 },
   meta: { color: '#A99EAE', textAlign: 'right', fontSize: 11, marginTop: 5 },
   deleteButton: { borderWidth: 1, borderColor: '#C94B69', borderRadius: 9, paddingHorizontal: 12, paddingVertical: 7, marginLeft: 12 },
