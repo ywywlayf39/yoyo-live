@@ -772,7 +772,7 @@ const styles = StyleSheet.create({
   sideActionButton: { minWidth: 48, minHeight: 52, paddingHorizontal: 7, paddingVertical: 7, borderRadius: 22, backgroundColor: 'rgba(20,14,25,0.88)', borderWidth: 1, borderColor: '#6C4260', alignItems: 'center', justifyContent: 'center' },
   sideActionIcon: { color: '#fff', fontSize: 25, fontWeight: '900' },
   sideActionCount: { color: '#fff', fontSize: 10, fontWeight: 'bold', marginTop: 1 },
-  reelOverlay: { position: 'absolute', top: 14, left: 12, right: 72, minHeight: 62, paddingHorizontal: 12, paddingVertical: 9, flexDirection: 'row', alignItems: 'flex-start', backgroundColor: 'rgba(11,9,18,0.82)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(243,78,155,0.55)', zIndex: 15 },
+  reelOverlay: { position: 'absolute', top: 12, left: 12, right: 72, minHeight: 62, paddingHorizontal: 12, paddingVertical: 9, flexDirection: 'row', alignItems: 'flex-start', backgroundColor: 'rgba(11,9,18,0.82)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(243,78,155,0.55)', zIndex: 15 },
   authorRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 10, minHeight: 42 },
   authorAvatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: PINK },
   authorAvatarFallback: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#49334F', alignItems: 'center', justifyContent: 'center' },
