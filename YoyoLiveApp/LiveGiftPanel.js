@@ -107,6 +107,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
   const [sending, setSending] = useState(false);
   const [giftFeedReady, setGiftFeedReady] = useState(false);
   const [incoming, setIncoming] = useState(null);
+  const [giftQueue, setGiftQueue] = useState([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const soundEnabledRef = useRef(true);
   const pulse = useRef(new Animated.Value(0.86)).current;
@@ -182,12 +183,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
           animationKey: gift?.animation_key || '',
           soundKey: gift?.sound_key || 'soft-chime',
         };
-        setIncoming(receivedGift);
-        if (soundEnabledRef.current) playGiftSound(receivedGift.soundKey);
-        Vibration.vibrate(receivedGift.coinCost >= 100000 ? [0, 220, 90, 220, 90, 320] : [0, 100, 70, 100]);
-        const effect = effectFor({ animation_key: receivedGift.animationKey });
-        setTimeout(() => setIncoming((current) => current?.id === row.id ? null : current),
-          effect?.duration || 4500);
+        setGiftQueue((current) => [...current, receivedGift].slice(-12));
       })
       .subscribe((status) => {
         if (active) setGiftFeedReady(status === 'SUBSCRIBED');
@@ -200,12 +196,21 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
   }, [userId, roomName]);
 
   useEffect(() => {
+    if (!incoming && giftQueue.length) {
+      setIncoming(giftQueue[0]);
+      setGiftQueue((current) => current.slice(1));
+    }
+  }, [incoming, giftQueue]);
+
+  useEffect(() => {
     if (!incoming) return undefined;
     entrance.setValue(0);
     glow.setValue(0.25);
     drift.setValue(0);
     shake.setValue(0);
     const effect = effectFor({ animation_key: incoming.animationKey });
+    if (soundEnabledRef.current) playGiftSound(incoming.soundKey);
+    Vibration.vibrate(incoming.coinCost >= 100000 ? [0, 220, 90, 220, 90, 320] : [0, 100, 70, 100]);
     const animations = [
       Animated.spring(entrance, { toValue: 1, friction: 5, tension: 55, useNativeDriver: true }),
       Animated.loop(Animated.sequence([
@@ -226,7 +231,8 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
     }
     const runner = Animated.parallel(animations);
     runner.start();
-    return () => runner.stop();
+    const timer = setTimeout(() => setIncoming((current) => current?.id === incoming.id ? null : current), effect?.duration || 4500);
+    return () => { runner.stop(); clearTimeout(timer); };
   }, [incoming, entrance, glow, drift, shake]);
 
   const visibleGifts = useMemo(
