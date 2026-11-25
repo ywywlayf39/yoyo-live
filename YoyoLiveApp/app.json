@@ -106,7 +106,15 @@
         }
       ],
       "react-native-compressor",
-      "./plugins/withYoyoVideoFilters"
+      "./plugins/withYoyoVideoFilters",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "اسمح ليويو لايف باستخدام الكاميرا لتصوير الريلز.",
+          "microphonePermission": "اسمح ليويو لايف باستخدام الميكروفون لتسجيل صوت الريلز.",
+          "recordAudioAndroid": true
+        }
+      ]
     ],
     "owner": "ebrahim2211s-team",
     "extra": {
