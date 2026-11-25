@@ -1,9 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { createAudioPlayer } from 'expo-audio';
+import { RoomEvent } from 'livekit-client';
+import { useRoomContext } from '@livekit/react-native';
 import { supabase } from './supabase';
 
 export default function LiveMusicSync({ roomName, userId, isHost }) {
+  const room = useRoomContext();
   const [sharedMusic, setSharedMusic] = useState(null);
   const [busy, setBusy] = useState(false);
   const [musicError, setMusicError] = useState('');
@@ -40,6 +43,21 @@ export default function LiveMusicSync({ roomName, userId, isHost }) {
     playerPathRef.current = null;
     playerKeyRef.current = null;
   }, []);
+
+  useEffect(() => {
+    if (!room) return undefined;
+    const onMusicData = (payload) => {
+      try {
+        const message = JSON.parse(new TextDecoder().decode(payload));
+        if (message?.type !== 'yoyo_music_state' || message.roomName !== roomName || !message.music) return;
+        setSharedMusic(message.music);
+      } catch (error) {
+        console.warn('YOYO LiveKit music packet:', error?.message || error);
+      }
+    };
+    room.on(RoomEvent.DataReceived, onMusicData);
+    return () => { room.off(RoomEvent.DataReceived, onMusicData); };
+  }, [room, roomName]);
 
   useEffect(() => {
     refresh();
@@ -94,12 +112,16 @@ export default function LiveMusicSync({ roomName, userId, isHost }) {
       try {
         if (await startExisting()) return;
         releasePlayer();
-        const { data, error } = await supabase.storage.from('live-music')
-          .createSignedUrl(sharedMusic.storage_path, 7200);
-        if (error || !data?.signedUrl) throw error || new Error('signed_url_missing');
+        let signedUrl = sharedMusic.signed_url || null;
+        if (!signedUrl) {
+          const { data, error } = await supabase.storage.from('live-music')
+            .createSignedUrl(sharedMusic.storage_path, 7200);
+          if (error || !data?.signedUrl) throw error || new Error('signed_url_missing');
+          signedUrl = data.signedUrl;
+        }
         if (processingRef.current !== operation) return;
 
-        const player = createAudioPlayer(data.signedUrl, { updateInterval: 500 });
+        const player = createAudioPlayer(signedUrl, { updateInterval: 250 });
         player.muted = mutedRef.current;
         playerRef.current = player;
         playerPathRef.current = sharedMusic.storage_path;
@@ -162,6 +184,29 @@ export default function LiveMusicSync({ roomName, userId, isHost }) {
       return;
     }
     await refresh();
+    if (room && isHost) {
+      const { data: currentMusic } = await supabase.from('live_room_music')
+        .select('room_name,host_id,storage_path,track_name,status,started_at,position_seconds,updated_at')
+        .eq('room_name', roomName).maybeSingle();
+      if (currentMusic) {
+        let signedUrl = null;
+        if (currentMusic.status === 'playing' && currentMusic.storage_path) {
+          const { data: signed } = await supabase.storage.from('live-music')
+            .createSignedUrl(currentMusic.storage_path, 7200);
+          signedUrl = signed?.signedUrl || null;
+        }
+        try {
+          await room.localParticipant.publishData(
+            new TextEncoder().encode(JSON.stringify({
+              type: 'yoyo_music_state', roomName, music: { ...currentMusic, signed_url: signedUrl },
+            })),
+            { reliable: true, topic: 'yoyo-live-music' },
+          );
+        } catch (broadcastError) {
+          console.warn('YOYO LiveKit music state broadcast:', broadcastError?.message || broadcastError);
+        }
+      }
+    }
   };
 
   if (!sharedMusic || sharedMusic.status === 'stopped') {
