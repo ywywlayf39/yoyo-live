@@ -13,7 +13,10 @@ assert.ok(library.includes("from('live-music').upload"), 'Host must upload share
 assert.ok(library.includes("rpc('yoyo_live_music_control'"), 'Host must publish playback state through the server RPC');
 assert.ok(library.includes('20 * 1024 * 1024'), 'Shared audio upload must enforce the 20 MB cap');
 assert.ok(sync.includes("createSignedUrl(sharedMusic.storage_path, 7200)"), 'Viewers must receive time-limited signed URLs');
-assert.ok(sync.includes('createAudioPlayer(data.signedUrl'), 'Viewers must play the shared audio source locally');
+assert.ok(sync.includes('createAudioPlayer(signedUrl'), 'Viewers must play the shared audio source locally');
+assert.ok(sync.includes("RoomEvent.DataReceived"), 'Viewers must receive immediate music state over LiveKit');
+assert.ok(sync.includes("topic: 'yoyo-live-music'"), 'Shared music state must use its dedicated LiveKit data topic');
+assert.ok(library.includes("topic: 'yoyo-live-music'"), 'Host must broadcast prepared music state to LiveKit viewers');
 assert.ok(sync.includes('player.seekTo(target)'), 'Playback must seek to the server-clock offset for synchronization');
 for (const action of ['pause', 'resume', 'stop']) {
   assert.ok(sync.includes("control('" + action + "')"), 'Missing host shared-music action: ' + action);
