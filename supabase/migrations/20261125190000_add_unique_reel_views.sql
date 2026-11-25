@@ -1,4 +1,8 @@
--- Count one reel view per authenticated member, without exposing viewer identities.
+-- Persist one view per signed-in member and reel.
+-- Viewer identities are never exposed through the Data API.
+alter table public.reels
+  add column if not exists views_count bigint not null default 0;
+
 create table if not exists public.reel_views (
   reel_id uuid not null references public.reels(id) on delete cascade,
   viewer_id uuid not null references auth.users(id) on delete cascade,
@@ -11,57 +15,37 @@ create index if not exists reel_views_reel_created_idx
 
 alter table public.reel_views enable row level security;
 revoke all on public.reel_views from public, anon, authenticated;
+grant insert on public.reel_views to authenticated;
 
-create or replace function public.record_reel_view(p_reel_id uuid)
-returns boolean
+drop policy if exists "Members record unique views on other published reels" on public.reel_views;
+create policy "Members record unique views on other published reels"
+  on public.reel_views for insert to authenticated
+  with check (
+    viewer_id = (select auth.uid())
+    and exists (
+      select 1 from public.reels r
+      where r.id = reel_id
+        and r.status = 'published'
+        and r.user_id <> (select auth.uid())
+    )
+  );
+
+create or replace function public.increment_reel_view_count()
+returns trigger
 language plpgsql
 security definer
 set search_path = ''
 as $$
-declare
-  v_viewer_id uuid := auth.uid();
-  v_owner_id uuid;
-  v_inserted integer := 0;
 begin
-  if v_viewer_id is null then
-    raise exception 'Authentication required';
-  end if;
-
-  select r.user_id into v_owner_id
-  from public.reels r
-  where r.id = p_reel_id
-    and r.status = 'published';
-
-  if v_owner_id is null or v_owner_id = v_viewer_id then
-    return false;
-  end if;
-
-  insert into public.reel_views (reel_id, viewer_id)
-  values (p_reel_id, v_viewer_id)
-  on conflict (reel_id, viewer_id) do nothing;
-
-  get diagnostics v_inserted = row_count;
-  return v_inserted = 1;
+  update public.reels
+  set views_count = views_count + 1
+  where id = new.reel_id;
+  return new;
 end;
 $$;
 
-create or replace function public.get_my_reel_view_counts(p_reel_ids uuid[])
-returns table (reel_id uuid, views_count bigint)
-language sql
-stable
-security definer
-set search_path = ''
-as $$
-  select r.id, count(rv.viewer_id)::bigint
-  from public.reels r
-  left join public.reel_views rv on rv.reel_id = r.id
-  where auth.uid() is not null
-    and r.user_id = auth.uid()
-    and r.id = any(coalesce(p_reel_ids, array[]::uuid[]))
-  group by r.id;
-$$;
-
-revoke all on function public.record_reel_view(uuid) from public, anon;
-revoke all on function public.get_my_reel_view_counts(uuid[]) from public, anon;
-grant execute on function public.record_reel_view(uuid) to authenticated;
-grant execute on function public.get_my_reel_view_counts(uuid[]) to authenticated;
+revoke all on function public.increment_reel_view_count() from public, anon, authenticated;
+drop trigger if exists reel_views_increment_count on public.reel_views;
+create trigger reel_views_increment_count
+  after insert on public.reel_views
+  for each row execute function public.increment_reel_view_count();
