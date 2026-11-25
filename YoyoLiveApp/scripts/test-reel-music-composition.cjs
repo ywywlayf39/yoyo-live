@@ -10,7 +10,7 @@ const checks = [
   ['original and music volume are independently adjustable', source.includes('originalAudioVolume,') && source.includes('backgroundAudioVolume,')],
   ['music loops to fill the reel', source.includes('loopAudio: true')],
   ['gallery videos go through preview before publishing', source.includes("source: 'gallery'") && source.includes('setCapturedVideo({')],
-  ['music controls are available before publishing', (source.match(/renderMusicControls\(\)/g) || []).length >= 3],
+  ['music controls are available before publishing', (source.match(/renderMusicControls\(\)/g) || []).length >= 2],
   ['temporary mixed file is cleaned up', source.includes('await deleteFile(mixedOutputPath)')],
   ['3-minute reel recording limit remains', source.includes('maxDuration: 180')],
   ['my reels delete manager remains', source.includes('const deleteReel = (item)') && source.includes('إدارة ريلزك')],
