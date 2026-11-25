@@ -9,7 +9,12 @@ const packages = read('PackagesScreen.js');
 const checks = [
   ['creator identity card sits inside the reel at the bottom', /reelOverlay:\s*\{[^}]*position:\s*'absolute'[^}]*bottom:\s*18/s.test(reels)],
   ['each reel uses the measured full feed viewport height', /const \[feedHeight, setFeedHeight\] = useState\(0\)/.test(reels) && /onLayout=\{\(event\) =>/.test(reels)],
-  ['like and comment actions stay above the Android navigation area', /sideActions:\s*\{[^}]*bottom:\s*38/s.test(reels)],
+  ['like and comment actions are spaced well above the identity card and Android navigation', /sideActions:\s*\{[^}]*bottom:\s*142/s.test(reels) && /reelOverlay:\s*\{[^}]*bottom:\s*24[^}]*right:\s*104/s.test(reels)],
+  ['Android safe-area inset is reserved below the reels viewport', /useSafeAreaInsets/.test(reels) && /paddingBottom:\s*Math\.max\(insets\.bottom,\s*26\)/.test(reels)],
+  ['playback and volume controls have full-size touch targets above the bottom card', /playerControls:\s*\{[^}]*bottom:\s*112/s.test(reels) && /playerControl:\s*\{[^}]*width:\s*46[^}]*height:\s*46/s.test(reels)],
+  ['username and date are rendered left-to-right and readable', /metaHandle:[^\n]*writingDirection:\s*'ltr'/.test(reels) && /metaDate:[^\n]*toLocaleDateString/.test(reels) === false && /toLocaleDateString\('en-GB'\)/.test(reels)],
+  ['reel video shows its complete frame without bottom cropping', /contentFit="contain"/.test(reels)],
+  ['back arrow points in the expected navigation direction and header has no overlapping star', /→ رجوع/.test(reels) && /YOYO REELS<\/Text>/.test(reels)],
   ['progress bar is full width directly below the video', /progressTrack:\s*\{[^}]*width:\s*'100%'[^}]*height:\s*4/s.test(reels)],
   ['top header actions use fixed spacing', /header:\s*\{[^}]*justifyContent:\s*'space-between'[^}]*gap:\s*12/s.test(reels)],
   ['delete remains available from the three-dot menu and My Reels', /setDeleteMenuId\(\(current\) => current === item\.id/.test(reels) && /onPress=\{\(\) => deleteReel\(item\)\}/.test(reels)],
