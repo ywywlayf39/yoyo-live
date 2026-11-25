@@ -29,6 +29,12 @@ export default function ReelsScreen({ userId, onBack }) {
   const [progress, setProgress] = useState(0);
   const [activeId, setActiveId] = useState(null);
   const [sideActionsOpen, setSideActionsOpen] = useState(true);
+  const [commentsReel, setCommentsReel] = useState(null);
+  const [comments, setComments] = useState([]);
+  const [commentBody, setCommentBody] = useState('');
+  const [commentCounts, setCommentCounts] = useState({});
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentSending, setCommentSending] = useState(false);
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 70 }).current;
 
   const loadReels = useCallback(async () => {
@@ -48,12 +54,14 @@ export default function ReelsScreen({ userId, onBack }) {
       }
       const names = new Map(profiles.map((row) => [row.id, row.display_name]));
       const reelIds = (data || []).map((item) => item.id);
-      const [likesResult, followsResult] = await Promise.all([
+      const [likesResult, followsResult, commentsResult] = await Promise.all([
         reelIds.length ? supabase.from('reel_likes').select('reel_id,user_id').in('reel_id', reelIds) : Promise.resolve({ data: [], error: null }),
         (userId && ids.length) ? supabase.from('user_follows').select('following_id').eq('follower_id', userId).in('following_id', ids) : Promise.resolve({ data: [], error: null }),
+        reelIds.length ? supabase.from('reel_comments').select('id,reel_id').in('reel_id', reelIds) : Promise.resolve({ data: [], error: null }),
       ]);
       if (likesResult.error) throw likesResult.error;
       if (followsResult.error) throw followsResult.error;
+      if (commentsResult.error) throw commentsResult.error;
       const likeCounts = new Map();
       const likedByMe = new Set();
       (likesResult.data || []).forEach((like) => {
@@ -61,11 +69,15 @@ export default function ReelsScreen({ userId, onBack }) {
         if (like.user_id === userId) likedByMe.add(like.reel_id);
       });
       const followingIds = new Set((followsResult.data || []).map((row) => row.following_id));
+      const counts = {};
+      (commentsResult.data || []).forEach((row) => { counts[row.reel_id] = (counts[row.reel_id] || 0) + 1; });
+      setCommentCounts(counts);
       const mapped = (data || []).map((item) => ({
         ...item,
         author: names.get(item.user_id) || 'عضو YOYO LIVE',
         likesCount: likeCounts.get(item.id) || 0,
         likedByMe: likedByMe.has(item.id),
+        commentsCount: counts[item.id] || 0,
         isFollowing: followingIds.has(item.user_id),
         videoUrl: supabase.storage.from('reels').getPublicUrl(item.video_path).data.publicUrl,
       }));
@@ -82,6 +94,50 @@ export default function ReelsScreen({ userId, onBack }) {
     const first = viewableItems?.find((entry) => entry.isViewable)?.item;
     if (first?.id) setActiveId(first.id);
   }).current;
+
+
+  const loadComments = useCallback(async (reel) => {
+    setCommentsReel(reel);
+    setCommentsLoading(true);
+    setCommentBody('');
+    const { data, error } = await supabase.from('reel_comments')
+      .select('id,reel_id,user_id,body,created_at')
+      .eq('reel_id', reel.id).order('created_at', { ascending: true }).limit(100);
+    if (error) {
+      Alert.alert('تعذر تحميل التعليقات', error.message || 'حاول مرة أخرى.');
+      setComments([]);
+      setCommentsLoading(false);
+      return;
+    }
+    const ids = [...new Set((data || []).map((row) => row.user_id))];
+    const { data: profiles } = ids.length
+      ? await supabase.from('profiles').select('id,display_name').in('id', ids)
+      : { data: [] };
+    const names = new Map((profiles || []).map((row) => [row.id, row.display_name]));
+    setComments((data || []).map((row) => ({ ...row, author: names.get(row.user_id) || 'عضو YOYO LIVE' })));
+    setCommentsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (!commentsReel?.id) return undefined;
+    const channel = supabase.channel('reel-comments-' + commentsReel.id)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reel_comments', filter: 'reel_id=eq.' + commentsReel.id }, async (payload) => {
+        const { data: profile } = await supabase.from('profiles').select('display_name').eq('id', payload.new.user_id).maybeSingle();
+        setComments((current) => current.some((row) => row.id === payload.new.id) ? current : [...current, { ...payload.new, author: profile?.display_name || 'عضو YOYO LIVE' }].slice(-100));
+        setCommentCounts((current) => ({ ...current, [commentsReel.id]: (current[commentsReel.id] || 0) + 1 }));
+      }).subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [commentsReel?.id]);
+
+  const sendComment = async () => {
+    const body = commentBody.trim();
+    if (!body || !commentsReel || commentSending) return;
+    setCommentSending(true);
+    const { error } = await supabase.from('reel_comments').insert({ reel_id: commentsReel.id, user_id: userId, body });
+    setCommentSending(false);
+    if (error) { Alert.alert('تعذر إرسال التعليق', error.message || 'حاول مرة أخرى.'); return; }
+    setCommentBody('');
+  };
 
   const publishReel = async () => {
     if (uploading) return;
@@ -195,6 +251,10 @@ export default function ReelsScreen({ userId, onBack }) {
             <Text style={[styles.sideActionIcon, item.likedByMe && styles.actionTextActive]}>{item.likedByMe ? '♥' : '♡'}</Text>
             <Text style={styles.sideActionCount}>{item.likesCount || 0}</Text>
           </TouchableOpacity>
+          <TouchableOpacity onPress={() => loadComments(item)} style={styles.sideActionButton}>
+            <Text style={styles.sideActionIcon}>💬</Text>
+            <Text style={styles.sideActionCount}>{item.commentsCount ?? commentCounts[item.id] ?? 0}</Text>
+          </TouchableOpacity>
           {item.user_id !== userId && <TouchableOpacity onPress={() => toggleFollow(item)} style={[styles.sideActionButton, item.isFollowing && styles.actionFollowing]}>
             <Text style={styles.sideActionIcon}>{item.isFollowing ? '✓' : '+'}</Text>
             <Text style={styles.sideActionCount}>{item.isFollowing ? 'متابَع' : 'متابعة'}</Text>
@@ -244,6 +304,33 @@ export default function ReelsScreen({ userId, onBack }) {
           maxToRenderPerBatch={2} windowSize={3}
           getItemLayout={(_, index) => ({ length: reelHeight, offset: reelHeight * index, index })} />
       )}
+
+      <Modal visible={!!commentsReel} transparent animationType="slide" onRequestClose={() => setCommentsReel(null)}>
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.62)' }}>
+          <View style={{ height: '68%', backgroundColor: CARD, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 16 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <TouchableOpacity onPress={() => setCommentsReel(null)}><Text style={{ color: PINK, fontWeight: 'bold' }}>إغلاق</Text></TouchableOpacity>
+              <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>تعليقات الريل 💬</Text>
+            </View>
+            {commentsLoading ? <ActivityIndicator color={PINK} /> : (
+              <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
+                {comments.length ? comments.map((row) => (
+                  <View key={row.id} style={{ padding: 10, marginBottom: 7, borderRadius: 12, backgroundColor: '#2A2035' }}>
+                    <Text style={{ color: GOLD, fontWeight: 'bold', textAlign: 'right' }}>{row.author}</Text>
+                    <Text style={{ color: '#fff', textAlign: 'right', marginTop: 4 }}>{row.body}</Text>
+                  </View>
+                )) : <Text style={{ color: '#BDB3C7', textAlign: 'center', marginTop: 30 }}>لسه مفيش تعليقات. اكتب أول تعليق 👋</Text>}
+              </ScrollView>
+            )}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 10 }}>
+              <TouchableOpacity onPress={sendComment} disabled={!commentBody.trim() || commentSending} style={{ backgroundColor: PINK, borderRadius: 13, paddingHorizontal: 16, paddingVertical: 12 }}>
+                <Text style={{ color: '#fff', fontWeight: 'bold' }}>{commentSending ? '...' : 'إرسال'}</Text>
+              </TouchableOpacity>
+              <TextInput value={commentBody} onChangeText={setCommentBody} placeholder="اكتب تعليقك على الريل..." placeholderTextColor="#9B91A5" maxLength={240} multiline style={{ flex: 1, minHeight: 44, maxHeight: 90, backgroundColor: '#120E19', borderRadius: 13, paddingHorizontal: 12, color: '#fff', textAlign: 'right' }} />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
