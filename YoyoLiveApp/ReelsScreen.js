@@ -6,7 +6,6 @@ import { Video } from 'react-native-compressor';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { Directory, File, Paths } from 'expo-file-system';
 import VideoTrim, { showEditor, mixAudio, deleteFile } from 'react-native-video-trim';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from './supabase';
 
 const BG = '#0B0912', CARD = '#1A1423', PINK = '#F34E9B', GOLD = '#C5A15C';
@@ -59,7 +58,6 @@ function ReelPlayer({ uri, active, height }) {
 
 export default function ReelsScreen({ userId, onBack }) {
   const { height: windowHeight } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
   const [feedHeight, setFeedHeight] = useState(0);
   const reelHeight = feedHeight || Math.max(420, windowHeight - 100);
   const [reels, setReels] = useState([]);
@@ -571,7 +569,7 @@ export default function ReelsScreen({ userId, onBack }) {
   );
 
   return (
-    <SafeAreaView style={[styles.screen, { paddingBottom: Math.max(insets.bottom, 26) }]}>
+    <SafeAreaView style={[styles.screen, { paddingBottom: 26 }]}>
       <StatusBar barStyle="light-content" backgroundColor={BG} />
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}><Text style={styles.backText}>→ رجوع</Text></TouchableOpacity>
