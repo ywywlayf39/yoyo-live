@@ -116,7 +116,9 @@ Deno.serve(async (req: Request) => {
     let callParticipantReceiverId: string | null = null;
 
     if (liveRoom) {
-      if (liveRoom.status !== "live") {
+      // Ending a room is idempotent: a retry after the first successful
+      // shutdown must not turn an already-ended room into a 404.
+      if (liveRoom.status !== "live" && action !== "end") {
         return json({ error: "Live room not found or already ended" }, 404);
       }
       isHost = liveRoom.host_id === user.id;
@@ -229,12 +231,28 @@ Deno.serve(async (req: Request) => {
         .select("id")
         .maybeSingle();
 
-      if (endError || !endedRoom) {
-        console.error("Live room end update failed:", endError?.message ?? "Room was not updated");
+      if (endError) {
+        console.error("Live room end update failed:", endError.message);
         return json({ error: "Live room could not be marked as ended" }, 500);
       }
 
-      return json({ ended: true, isCall: false, roomName });
+      if (!endedRoom) {
+        // A second tap/retry can arrive after the first request committed.
+        // Confirm ownership and the terminal state before returning success.
+        const { data: alreadyEnded, error: verifyError } = await service
+          .from("live_rooms")
+          .select("id")
+          .eq("room_name", roomName)
+          .eq("host_id", user.id)
+          .eq("status", "ended")
+          .maybeSingle();
+        if (verifyError || !alreadyEnded) {
+          console.error("Live room end verification failed:", verifyError?.message ?? "Room was not found as ended");
+          return json({ error: "Live room could not be confirmed as ended" }, 500);
+        }
+      }
+
+      return json({ ended: true, alreadyEnded: !endedRoom, isCall: false, roomName });
     }
 
     const accessToken = new AccessToken(apiKey, apiSecret, {
