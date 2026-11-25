@@ -117,7 +117,7 @@ export default function PackagesScreen({ userId, onBack }) {
             const { data: requestId, error: insertError } = await supabase.rpc('yoyo_create_coin_purchase_request', {
               p_package_id: selected.id,
               p_payment_method: method,
-              p_transfer_reference: 'proof-upload',
+              p_transfer_reference: null,
               p_proof_storage_path: uploadedPath,
             });
             if (insertError || !requestId) throw insertError || new Error('تعذر إنشاء طلب الشحن.');
