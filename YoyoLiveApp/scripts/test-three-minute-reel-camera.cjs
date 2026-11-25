@@ -15,6 +15,9 @@ const checks = [
   ['Upload size guard is 50 MB', source.includes('MAX_VIDEO_BYTES = 50 * 1024 * 1024')],
   ['Database accepts 180 seconds', migration.includes('duration_seconds <= 180')],
   ['Storage and database accept 50 MB', migration.includes('52428800')],
+  ['Compact reels header create action', source.includes('styles.createArrow') && source.includes('setCreatePanelOpen(true)')],
+  ['My reels manager exists', source.includes('إدارة ريلزك') && source.includes('reels.filter((item) => item.user_id === userId)')],
+  ['Delete action is confirmed', source.includes("Alert.alert('حذف الريل'") && source.includes("style: 'destructive'")],
 ];
 for (const [name, ok] of checks) {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`);
