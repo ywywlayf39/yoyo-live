@@ -15,10 +15,25 @@ const REEL_MUSIC_FOLDER = new Directory(Paths.document, 'yoyo-reel-music');
 const localFilePath = (uri) => decodeURIComponent(String(uri || '').replace(/^file:\/\//, ''));
 const fileUri = (path) => String(path || '').startsWith('file://') ? path : `file://${path}`;
 
-function ReelPreviewPlayer({ uri }) {
+function ReelPreviewPlayer({ uri, onDuration }) {
   const player = useVideoPlayer(uri, (instance) => { instance.loop = true; });
-  useEffect(() => { player.play(); return () => { try { player.pause(); } catch (_) {} }; }, [player]);
-  return <VideoView player={player} style={{ flex: 1, width: '100%', backgroundColor: '#000' }} contentFit="contain" nativeControls allowsFullscreen={false} allowsPictureInPicture={false} />;
+  useEffect(() => {
+    const updateDuration = (duration) => {
+      const seconds = Number(duration || player.duration || 0);
+      if (Number.isFinite(seconds) && seconds > 0) onDuration?.(Math.max(1, Math.min(180, Math.round(seconds))));
+    };
+    const sourceSub = player.addListener('sourceLoad', (event) => updateDuration(event?.duration));
+    const statusSub = player.addListener('statusChange', (event) => {
+      if (event?.status === 'readyToPlay') updateDuration(player.duration);
+    });
+    try { player.play(); } catch (_) {}
+    return () => {
+      sourceSub?.remove?.();
+      statusSub?.remove?.();
+      try { player.pause(); } catch (_) {}
+    };
+  }, [player, onDuration]);
+  return <VideoView player={player} style={{ flex: 1, width: '100%', backgroundColor: '#000' }} contentFit="cover" nativeControls={false} allowsFullscreen={false} allowsPictureInPicture={false} />;
 }
 
 function ReelPlayer({ uri, active, height }) {
@@ -58,6 +73,9 @@ function ReelPlayer({ uri, active, height }) {
 
 export default function ReelsScreen({ userId, onBack }) {
   const { height: windowHeight } = useWindowDimensions();
+  const handlePreviewDuration = useCallback((seconds) => {
+    setCapturedVideo((current) => current ? { ...current, durationSeconds: seconds } : current);
+  }, []);
   const [feedHeight, setFeedHeight] = useState(0);
   const reelHeight = feedHeight || Math.max(420, windowHeight - 100);
   const [reels, setReels] = useState([]);
@@ -539,12 +557,16 @@ export default function ReelsScreen({ userId, onBack }) {
           <View style={styles.authorRow}>
             {item.authorAvatar ? <Image source={{ uri: item.authorAvatar }} style={styles.authorAvatar} /> : <View style={styles.authorAvatarFallback}><Text style={{ color: '#fff', fontWeight: 'bold' }}>☺</Text></View>}
             <Text numberOfLines={1} style={styles.author}>{item.author}</Text>
+            {item.user_id !== userId && <TouchableOpacity onPress={() => toggleFollow(item)} style={[styles.inlineFollowButton, item.isFollowing && styles.actionFollowing]}>
+              <Text style={styles.inlineFollowText}>{item.isFollowing ? 'متابَع ✓' : '+ متابعة'}</Text>
+            </TouchableOpacity>}
             {item.user_id === userId && <TouchableOpacity onPress={() => setDeleteMenuId((current) => current === item.id ? null : item.id)} style={styles.moreButton}><Text style={styles.moreButtonText}>⋯</Text></TouchableOpacity>}
           </View>
           {!!item.caption && <Text numberOfLines={3} style={styles.caption}>{item.caption}</Text>}
           <View style={styles.metaRow}>
             <Text style={styles.metaDate}>{new Date(item.created_at).toLocaleDateString('en-GB')}</Text>
             <Text style={styles.metaHandle}>@{String(item.user_id).slice(0, 6)}</Text>
+            {item.user_id === userId && <Text style={styles.metaViews}>👁 {Number(item.viewsCount || 0).toLocaleString('ar-EG')} مشاهدة</Text>}
           </View>
           {deleteMenuId === item.id && <TouchableOpacity onPress={() => { setDeleteMenuId(null); deleteReel(item); }} style={styles.deleteMenu}><Text style={styles.deleteText}>حذف الريل</Text></TouchableOpacity>}
         </View>
@@ -559,10 +581,6 @@ export default function ReelsScreen({ userId, onBack }) {
             <Text style={styles.sideActionIcon}>💬</Text>
             <Text style={styles.sideActionCount}>{item.commentsCount ?? commentCounts[item.id] ?? 0}</Text>
           </TouchableOpacity>
-          {item.user_id !== userId && <TouchableOpacity onPress={() => toggleFollow(item)} style={[styles.sideActionButton, item.isFollowing && styles.actionFollowing]}>
-            <Text style={styles.sideActionIcon}>{item.isFollowing ? '✓' : '+'}</Text>
-            <Text style={styles.sideActionCount}>{item.isFollowing ? 'متابَع' : 'متابعة'}</Text>
-          </TouchableOpacity>}
         </>}
       </View>
     </View>
@@ -678,14 +696,17 @@ export default function ReelsScreen({ userId, onBack }) {
 
       <Modal visible={!!capturedVideo} animationType="slide" onRequestClose={() => setCapturedVideo(null)}>
         <SafeAreaView style={{ flex: 1, backgroundColor: BG }}>
-          <View style={{ padding: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <TouchableOpacity onPress={() => setCapturedVideo(null)}><Text style={{ color: PINK, fontWeight: 'bold' }}>إلغاء</Text></TouchableOpacity>
-            <Text style={{ color: '#fff', fontWeight: '900', fontSize: 18 }}>معاينة الريل</Text>
+          <View style={{ minHeight: 58, paddingHorizontal: 16, paddingVertical: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: BG }}>
+            <View style={{ width: 64 }} />
+            <Text style={{ flex: 1, color: '#fff', fontWeight: '900', fontSize: 18, textAlign: 'center' }}>معاينة الريل</Text>
+            <TouchableOpacity onPress={() => setCapturedVideo(null)} style={{ width: 64, minHeight: 42, alignItems: 'flex-end', justifyContent: 'center', paddingVertical: 8 }}>
+              <Text style={{ color: PINK, fontWeight: 'bold' }}>إلغاء</Text>
+            </TouchableOpacity>
           </View>
           <View style={{ flex: 1, backgroundColor: '#000' }}>
-            {capturedVideo?.uri ? <ReelPreviewPlayer uri={capturedVideo.uri} /> : null}
+            {capturedVideo?.uri ? <ReelPreviewPlayer uri={capturedVideo.uri} onDuration={handlePreviewDuration} /> : null}
           </View>
-          <View style={{ padding: 16, gap: 10 }}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: Platform.OS === 'android' ? 56 : 20, gap: 10 }}>
             <TouchableOpacity onPress={editReelVideo} style={styles.videoEditButton}>
               <Text style={styles.videoEditText}>🎬 قص وتدوير وتغيير سرعة الفيديو</Text>
             </TouchableOpacity>
@@ -698,7 +719,7 @@ export default function ReelsScreen({ userId, onBack }) {
             <TouchableOpacity onPress={() => { setCapturedVideo(null); openReelCamera(); }} disabled={uploading} style={styles.galleryButton}>
               <Text style={styles.publishText}>إعادة التصوير</Text>
             </TouchableOpacity>
-          </View>
+          </ScrollView>
         </SafeAreaView>
       </Modal>
 
@@ -757,6 +778,9 @@ const styles = StyleSheet.create({
   myReelCaption: { color: '#fff', textAlign: 'right', fontWeight: 'bold' },
   myReelDate: { color: '#A99EAE', textAlign: 'right', fontSize: 11, marginTop: 4 },
   myReelViews: { color: GOLD, textAlign: 'right', fontSize: 12, fontWeight: '800', marginTop: 5 },
+  metaViews: { color: GOLD, fontSize: 10, fontWeight: '800', writingDirection: 'rtl' },
+  inlineFollowButton: { minHeight: 32, paddingHorizontal: 9, borderRadius: 16, backgroundColor: '#8A3568', borderWidth: 1, borderColor: PINK, alignItems: 'center', justifyContent: 'center' },
+  inlineFollowText: { color: '#fff', fontSize: 11, fontWeight: '900' },
   myReelDelete: { backgroundColor: '#592538', borderColor: '#C94B69', borderWidth: 1, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 9 },
   myReelDeleteText: { color: '#FF9EAD', fontWeight: 'bold' },
   captionInput: { minHeight: 42, backgroundColor: CARD, borderRadius: 11, paddingHorizontal: 12, color: '#fff', marginBottom: 8 },
