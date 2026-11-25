@@ -8,16 +8,23 @@ export default function LiveRoomChat({ roomName, userId, isHost }) {
   const [messages, setMessages] = useState([]);
   const [body, setBody] = useState('');
   const [enabled, setEnabled] = useState(true);
+  const [canManageComments, setCanManageComments] = useState(false);
   const [sending, setSending] = useState(false);
   const listRef = useRef(null);
 
   const load = useCallback(async () => {
     if (!roomName || !userId) return;
     const [roomResult, messageResult] = await Promise.all([
-      supabase.from('live_rooms').select('comments_enabled').eq('room_name', roomName).eq('status', 'live').maybeSingle(),
+      supabase.from('live_rooms').select('comments_enabled,host_id').eq('room_name', roomName).eq('status', 'live').maybeSingle(),
       supabase.from('live_room_comments').select('id,display_name,body,created_at').eq('room_name', roomName).order('created_at', { ascending: false }).limit(30),
     ]);
-    if (!roomResult.error && roomResult.data) setEnabled(roomResult.data.comments_enabled !== false);
+    if (!roomResult.error && roomResult.data) {
+      setEnabled(roomResult.data.comments_enabled !== false);
+      // The database room owner is the source of truth; never trust a stale UI isHost prop.
+      setCanManageComments(roomResult.data.host_id === userId);
+    } else {
+      setCanManageComments(false);
+    }
     if (!messageResult.error) setMessages((messageResult.data || []).reverse());
   }, [roomName, userId]);
 
@@ -29,6 +36,7 @@ export default function LiveRoomChat({ roomName, userId, isHost }) {
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'live_rooms', filter: 'room_name=eq.' + roomName }, (payload) => {
         setEnabled(payload.new?.comments_enabled !== false);
+        setCanManageComments(payload.new?.host_id === userId);
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -52,6 +60,7 @@ export default function LiveRoomChat({ roomName, userId, isHost }) {
   };
 
   const toggle = async () => {
+    if (!canManageComments) return;
     const next = !enabled;
     const { error } = await supabase.rpc('yoyo_set_live_comments', { p_room_name: roomName, p_enabled: next });
     if (error) {
@@ -66,7 +75,7 @@ export default function LiveRoomChat({ roomName, userId, isHost }) {
     <View style={styles.wrap}>
       <View style={styles.header}>
         <Text style={styles.title}>💬 تعليقات البث</Text>
-        {isHost ? (
+        {canManageComments ? (
           <TouchableOpacity onPress={toggle} style={[styles.toggle, enabled ? styles.open : styles.closed]}>
             <Text style={styles.toggleText}>{enabled ? 'إغلاق التعليقات' : 'فتح التعليقات'}</Text>
           </TouchableOpacity>
