@@ -7,7 +7,7 @@ import ProfileFrame from './ProfileFrame';
 
 const countries = ['مصر','السعودية','الإمارات','الكويت','قطر','البحرين','عمان','الأردن','العراق','لبنان','المغرب','الجزائر','تونس','ليبيا','السودان','فلسطين','اليمن','سوريا','تركيا','ألمانيا','فرنسا','بريطانيا','أمريكا','كندا','أخرى'];
 
-export default function AccountScreen({ userId, email, onBack, onAvatarChanged }) {
+export default function AccountScreen({ userId, email, onBack, onAvatarChanged, onFrameChanged }) {
   const [profile, setProfile] = useState(null);
   const [name, setName] = useState('');
   const [country, setCountry] = useState('مصر');
@@ -69,12 +69,13 @@ export default function AccountScreen({ userId, email, onBack, onAvatarChanged }
     const { data: savedProfile, error: saveError } = await supabase.from('profiles')
       .update({ display_name: name.trim(), country, gender, birth_date: formattedBirthDate, selected_frame_code: selectedFrameCode === 'classic' ? null : selectedFrameCode, updated_at: new Date().toISOString() })
       .eq('id', userId)
-      .select('display_name,country,gender,birth_date')
+      .select('display_name,country,gender,birth_date,selected_frame_code')
       .maybeSingle();
     if (saveError) setError('تعذر حفظ التعديلات: ' + saveError.message);
     else if (!savedProfile) setError('لم يتم حفظ التعديلات. تأكد من تسجيل الدخول ثم حاول مرة أخرى.');
     else {
       setProfile(current => ({ ...current, ...savedProfile }));
+      onFrameChanged?.(savedProfile.selected_frame_code || 'classic');
       setSuccess('تم الحفظ بنجاح ✓');
     }
     setSaving(false);
