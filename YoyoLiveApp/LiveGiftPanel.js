@@ -115,6 +115,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
   const glow = useRef(new Animated.Value(0.35)).current;
   const drift = useRef(new Animated.Value(0)).current;
   const shake = useRef(new Animated.Value(0)).current;
+  const depthSpin = useRef(new Animated.Value(0)).current;
 
 
   useEffect(() => {
@@ -208,6 +209,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
     glow.setValue(0.25);
     drift.setValue(0);
     shake.setValue(0);
+    depthSpin.setValue(0);
     const effect = effectFor({ animation_key: incoming.animationKey });
     if (soundEnabledRef.current) playGiftSound(incoming.soundKey);
     Vibration.vibrate(incoming.coinCost >= 100000 ? [0, 220, 90, 220, 90, 320] : [0, 100, 70, 100]);
@@ -221,6 +223,10 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
         Animated.timing(drift, { toValue: 1, duration: 1500, useNativeDriver: true }),
         Animated.timing(drift, { toValue: 0, duration: 1500, useNativeDriver: true }),
       ])),
+      Animated.loop(Animated.sequence([
+        Animated.timing(depthSpin, { toValue: 1, duration: 1800, useNativeDriver: true }),
+        Animated.timing(depthSpin, { toValue: 0, duration: 1800, useNativeDriver: true }),
+      ])),
     ];
     if (effect?.shake) {
       animations.push(Animated.sequence([
@@ -233,7 +239,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
     runner.start();
     const timer = setTimeout(() => setIncoming((current) => current?.id === incoming.id ? null : current), effect?.duration || 4500);
     return () => { runner.stop(); clearTimeout(timer); };
-  }, [incoming, entrance, glow, drift, shake]);
+  }, [incoming, entrance, glow, drift, shake, depthSpin]);
 
   const visibleGifts = useMemo(
     () => gifts.filter((gift) => gift.category === selectedCategory),
@@ -276,6 +282,8 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
   const particles = effect?.particles || (incoming ? [incoming.emoji, '✨', '💗'] : []);
   const translateY = drift.interpolate({ inputRange: [0, 1], outputRange: [8, -14] });
   const shakeX = shake.interpolate({ inputRange: [-1, 0, 1], outputRange: [-5, 0, 5] });
+  const rotateY = depthSpin.interpolate({ inputRange: [0, 1], outputRange: ['-16deg', '16deg'] });
+  const rotateX = depthSpin.interpolate({ inputRange: [0, 0.5, 1], outputRange: ['7deg', '-7deg', '7deg'] });
   const liveSoundToggle = (
     <TouchableOpacity style={styles.liveSoundToggle} onPress={toggleGiftSounds}>
       <Text style={styles.soundToggleText}>{soundEnabled ? '🔊 صوت الهدايا' : '🔇 صامت'}</Text>
@@ -290,7 +298,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
       <Animated.View style={[styles.effectCard, {
         borderColor: tint,
         opacity: entrance,
-        transform: [{ scale: entrance }, { translateY }, { translateX: shakeX }],
+        transform: [{ perspective: 900 }, { rotateY }, { rotateX }, { scale: entrance }, { translateY }, { translateX: shakeX }],
         shadowColor: tint,
       }]}>
         <View style={styles.particleRow}>
@@ -299,7 +307,9 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
           ))}
         </View>
         <Text style={styles.megaLabel}>{incoming.coinCost >= 100000 ? 'هدية أسطورية وصلت!' : 'هدية وصلت!'}</Text>
-        <Text style={[styles.effectEmoji, incoming.coinCost >= 100000 && styles.megaEmoji]}>{incoming.emoji}</Text>
+        <Animated.View style={{ transform: [{ perspective: 700 }, { rotateY }, { rotateX }, { scale: entrance.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1.08] }) }] }}>
+          <Text style={[styles.effectEmoji, incoming.coinCost >= 100000 && styles.megaEmoji]}>{incoming.emoji}</Text>
+        </Animated.View>
         <Text style={[styles.effectTitle, { color: tint }]}>{incoming.name}</Text>
         <Text style={styles.effectSubtitle}>
           {incoming.sender} أرسل الهدية {incoming.quantity > 1 ? '× ' + incoming.quantity : ''}
