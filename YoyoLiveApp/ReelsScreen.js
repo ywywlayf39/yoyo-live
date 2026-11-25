@@ -63,6 +63,7 @@ export default function ReelsScreen({ userId, onBack }) {
   const [originalAudioVolume, setOriginalAudioVolume] = useState(0.75);
   const [backgroundAudioVolume, setBackgroundAudioVolume] = useState(0.8);
   const pendingMusicNameRef = useRef(null);
+  const pendingEditorKindRef = useRef(null);
 
   const loadReels = useCallback(async () => {
     setLoading(true);
@@ -215,6 +216,17 @@ export default function ReelsScreen({ userId, onBack }) {
 
   useEffect(() => {
     const finishSub = VideoTrim.onFinishTrimming(({ outputPath, duration }) => {
+      const kind = pendingEditorKindRef.current || 'music';
+      pendingEditorKindRef.current = null;
+      if (kind === 'video') {
+        setCapturedVideo((current) => current ? {
+          ...current,
+          uri: fileUri(outputPath),
+          durationSeconds: Math.max(1, Math.ceil(Number(duration || 1000) / 1000)),
+        } : current);
+        Alert.alert('تم تعديل الفيديو 🎬', 'اتحفظت تعديلات القص والتدوير والسرعة على نسخة المعاينة.');
+        return;
+      }
       const name = pendingMusicNameRef.current || 'مقطع موسيقي';
       pendingMusicNameRef.current = null;
       setMusicTrack({ uri: fileUri(outputPath), name, durationMs: Number(duration || 0) });
@@ -223,12 +235,14 @@ export default function ReelsScreen({ userId, onBack }) {
     });
     const cancelSub = VideoTrim.onCancel(() => {
       pendingMusicNameRef.current = null;
+      pendingEditorKindRef.current = null;
       setMusicImporting(false);
     });
     const errorSub = VideoTrim.onError(({ message }) => {
       pendingMusicNameRef.current = null;
+      pendingEditorKindRef.current = null;
       setMusicImporting(false);
-      Alert.alert('تعذر تجهيز الأغنية', message || 'اختار ملف صوت آخر.');
+      Alert.alert('تعذر تجهيز الوسائط', message || 'حاول مرة أخرى.');
     });
     return () => {
       finishSub?.remove?.();
@@ -255,6 +269,7 @@ export default function ReelsScreen({ userId, onBack }) {
       const saved = new File(REEL_MUSIC_FOLDER, Date.now() + '-' + safeName);
       await source.copy(saved);
       pendingMusicNameRef.current = source.name || 'مقطع موسيقي';
+      pendingEditorKindRef.current = 'music';
       showEditor(saved.uri, {
         type: 'audio',
         outputExt: 'm4a',
@@ -269,6 +284,20 @@ export default function ReelsScreen({ userId, onBack }) {
       setMusicImporting(false);
       Alert.alert('تعذر اختيار الموسيقى', error?.message || 'اختار ملف MP3 أو M4A أو WAV من هاتفك.');
     }
+  };
+
+
+  const editReelVideo = () => {
+    if (!capturedVideo?.uri || uploading) return;
+    pendingEditorKindRef.current = 'video';
+    showEditor(capturedVideo.uri, {
+      type: 'video',
+      maxDuration: 180000,
+      headerText: 'تعديل الريل',
+      saveButtonText: 'حفظ التعديلات',
+      cancelButtonText: 'إلغاء',
+      theme: 'dark',
+    });
   };
 
   const clearReelMusic = async () => {
@@ -605,6 +634,9 @@ export default function ReelsScreen({ userId, onBack }) {
             {capturedVideo?.uri ? <ReelPreviewPlayer uri={capturedVideo.uri} /> : null}
           </View>
           <View style={{ padding: 16, gap: 10 }}>
+            <TouchableOpacity onPress={editReelVideo} style={styles.videoEditButton}>
+              <Text style={styles.videoEditText}>🎬 قص وتدوير وتغيير سرعة الفيديو</Text>
+            </TouchableOpacity>
             {renderMusicControls()}
             <Text style={{ color: GOLD, textAlign: 'center' }}>مدة الفيديو: {Math.floor((capturedVideo?.durationSeconds || 0) / 60)}:{String((capturedVideo?.durationSeconds || 0) % 60).padStart(2, '0')}</Text>
             <TouchableOpacity onPress={publishCapturedReel} disabled={uploading} style={styles.publishButton}>
@@ -680,6 +712,8 @@ const styles = StyleSheet.create({
   cameraControl: { backgroundColor: 'rgba(20,14,25,0.82)', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20, borderWidth: 1, borderColor: '#A46B91' },
   cameraControlText: { color: '#fff', fontWeight: 'bold' },
   publishText: { color: '#fff', fontWeight: 'bold', fontSize: 15 }, progressText: { color: GOLD, textAlign: 'center', marginTop: 7, fontSize: 12 },
+  videoEditButton: { minHeight: 42, borderRadius: 10, backgroundColor: '#27364B', borderWidth: 1, borderColor: '#58749B', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  videoEditText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
   musicEditorBox: { backgroundColor: '#120E19', borderRadius: 13, padding: 11, marginBottom: 10, borderWidth: 1, borderColor: '#49344F' },
   musicChooseButton: { minHeight: 42, borderRadius: 10, backgroundColor: '#61305C', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
   musicChooseText: { color: '#fff', fontWeight: 'bold', fontSize: 13 },
