@@ -14,26 +14,34 @@ const FRAME_STYLES = {
 
 export default function ProfileFrame({ frameCode, size = 112, children }) {
   const pulse = useRef(new Animated.Value(0)).current;
+  const tilt = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     if (!FRAME_STYLES[frameCode]) return undefined;
     const animation = Animated.loop(Animated.sequence([
       Animated.timing(pulse, { toValue: 1, duration: 1250, useNativeDriver: true }),
       Animated.timing(pulse, { toValue: 0, duration: 1250, useNativeDriver: true }),
     ]));
+    const tiltAnimation = Animated.loop(Animated.sequence([
+      Animated.timing(tilt, { toValue: 1, duration: 1800, useNativeDriver: true }),
+      Animated.timing(tilt, { toValue: 0, duration: 1800, useNativeDriver: true }),
+    ]));
     animation.start();
-    return () => animation.stop();
-  }, [pulse, frameCode]);
+    tiltAnimation.start();
+    return () => { animation.stop(); tiltAnimation.stop(); };
+  }, [pulse, tilt, frameCode]);
 
   const frame = FRAME_STYLES[frameCode];
   if (!frame) return <View style={{ width: size, height: size }}>{children}</View>;
   const scale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] });
+  const rotateY = tilt.interpolate({ inputRange: [0, 1], outputRange: ['-5deg', '5deg'] });
+  const rotateX = tilt.interpolate({ inputRange: [0, 1], outputRange: ['3deg', '-3deg'] });
   return (
     <Animated.View style={{
       width: size, height: size, borderRadius: size / 2, padding: Math.max(3, size * 0.035),
       borderWidth: 3, borderColor: frame.edge, backgroundColor: '#171020',
       shadowColor: frame.glow, shadowOpacity: 0.95, shadowRadius: 12,
       shadowOffset: { width: 0, height: 0 }, elevation: 12,
-      transform: [{ scale }],
+      transform: [{ perspective: 700 }, { rotateY }, { rotateX }, { scale }],
     }}>
       <View style={{
         flex: 1, borderRadius: size / 2, overflow: 'hidden',
