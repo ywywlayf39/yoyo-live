@@ -6,6 +6,7 @@ import { Video } from 'react-native-compressor';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { Directory, File, Paths } from 'expo-file-system';
 import VideoTrim, { showEditor, mixAudio, deleteFile } from 'react-native-video-trim';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from './supabase';
 
 const BG = '#0B0912', CARD = '#1A1423', PINK = '#F34E9B', GOLD = '#C5A15C';
@@ -46,7 +47,7 @@ function ReelPlayer({ uri, active, height }) {
   const progress = duration > 0 ? Math.min(1, playhead / duration) : 0;
   return (
     <View style={{ width: '100%', height, backgroundColor: '#000' }}>
-      <VideoView player={player} style={{ width: '100%', height: Math.max(1, height - 4) }} contentFit="cover" nativeControls={false} allowsFullscreen={false} allowsPictureInPicture={false} />
+      <VideoView player={player} style={{ width: '100%', height: Math.max(1, height - 4) }} contentFit="contain" nativeControls={false} allowsFullscreen={false} allowsPictureInPicture={false} />
       <View style={styles.playerControls}>
         <TouchableOpacity onPress={togglePlayback} style={styles.playerControl}><Text style={styles.playerControlText}>{playing ? 'Ⅱ' : '▶'}</Text></TouchableOpacity>
         <TouchableOpacity onPress={toggleMute} style={styles.playerControl}><Text style={styles.playerControlText}>{muted ? '🔇' : '🔊'}</Text></TouchableOpacity>
@@ -58,6 +59,7 @@ function ReelPlayer({ uri, active, height }) {
 
 export default function ReelsScreen({ userId, onBack }) {
   const { height: windowHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [feedHeight, setFeedHeight] = useState(0);
   const reelHeight = feedHeight || Math.max(420, windowHeight - 100);
   const [reels, setReels] = useState([]);
@@ -527,7 +529,10 @@ export default function ReelsScreen({ userId, onBack }) {
             {item.user_id === userId && <TouchableOpacity onPress={() => setDeleteMenuId((current) => current === item.id ? null : item.id)} style={styles.moreButton}><Text style={styles.moreButtonText}>⋯</Text></TouchableOpacity>}
           </View>
           {!!item.caption && <Text numberOfLines={3} style={styles.caption}>{item.caption}</Text>}
-          <Text style={styles.meta}>{new Date(item.created_at).toLocaleDateString('ar-EG')} · @{String(item.user_id).slice(0, 6)}</Text>
+          <View style={styles.metaRow}>
+            <Text style={styles.metaDate}>{new Date(item.created_at).toLocaleDateString('en-GB')}</Text>
+            <Text style={styles.metaHandle}>@{String(item.user_id).slice(0, 6)}</Text>
+          </View>
           {deleteMenuId === item.id && <TouchableOpacity onPress={() => { setDeleteMenuId(null); deleteReel(item); }} style={styles.deleteMenu}><Text style={styles.deleteText}>حذف الريل</Text></TouchableOpacity>}
         </View>
       </View>
@@ -551,12 +556,12 @@ export default function ReelsScreen({ userId, onBack }) {
   );
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <SafeAreaView style={[styles.screen, { paddingBottom: Math.max(insets.bottom, 26) }]}>
       <StatusBar barStyle="light-content" backgroundColor={BG} />
       <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}><Text style={styles.backText}>رجوع ➜</Text></TouchableOpacity>
+        <TouchableOpacity onPress={onBack} style={styles.backButton}><Text style={styles.backText}>→ رجوع</Text></TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'flex-end' }}>
-          <Text style={styles.title}>YOYO REELS ✨</Text>
+          <Text style={styles.title}>YOYO REELS</Text>
           <Text style={styles.subtitle}>فيديوهات قصيرة</Text>
         </View>
         <TouchableOpacity onPress={() => setMyReelsOpen(true)} style={styles.headerAction}>
@@ -717,14 +722,14 @@ export default function ReelsScreen({ userId, onBack }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: BG, paddingBottom: 8 },
+  screen: { flex: 1, backgroundColor: BG },
   header: { minHeight: 60, paddingTop: 8, paddingHorizontal: 12, flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#302537', gap: 12 },
   headerAction: { width: 62, minHeight: 42, paddingHorizontal: 8, paddingVertical: 8, borderRadius: 12, backgroundColor: '#2B2033', borderWidth: 1, borderColor: '#68445F', alignItems: 'center', justifyContent: 'center' },
   headerActionText: { color: '#F4D9EA', fontSize: 12, fontWeight: 'bold' },
   createArrow: { width: 52, minHeight: 42, paddingHorizontal: 6, borderRadius: 13, backgroundColor: PINK, alignItems: 'center', justifyContent: 'center' },
   createArrowText: { color: '#fff', fontSize: 19, fontWeight: '900', lineHeight: 21 },
   createArrowLabel: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
-  backButton: { padding: 10 }, backText: { color: PINK, fontWeight: 'bold', fontSize: 15 },
+  backButton: { padding: 10, minWidth: 76, alignItems: 'center' }, backText: { color: PINK, fontWeight: 'bold', fontSize: 15, writingDirection: 'rtl' },
   title: { color: '#fff', fontSize: 21, fontWeight: '900' }, subtitle: { color: '#A99EAE', fontSize: 11, marginTop: 3 },
   panelBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
   panelWrap: { width: '100%' },
@@ -765,9 +770,9 @@ const styles = StyleSheet.create({
   emptyIcon: { fontSize: 52, marginBottom: 12 }, emptyTitle: { color: '#fff', fontWeight: 'bold', fontSize: 19 },
   emptyText: { color: '#A99EAE', textAlign: 'center', marginTop: 9, lineHeight: 22 },
   reelCard: { backgroundColor: '#000', marginBottom: 0, position: 'relative', paddingBottom: 0, overflow: 'hidden' },
-  sideActions: { position: 'absolute', zIndex: 20, right: 12, bottom: 38, alignItems: 'center', gap: 14 },
-  playerControls: { position: 'absolute', left: 14, bottom: 22, flexDirection: 'row', gap: 10, zIndex: 25 },
-  playerControl: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(10,8,14,0.72)', alignItems: 'center', justifyContent: 'center' },
+  sideActions: { position: 'absolute', zIndex: 20, right: 14, bottom: 142, alignItems: 'center', gap: 16 },
+  playerControls: { position: 'absolute', left: 14, bottom: 112, flexDirection: 'row', gap: 12, zIndex: 25 },
+  playerControl: { width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(10,8,14,0.88)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   playerControlText: { color: '#fff', fontSize: 17, fontWeight: '900' },
   progressTrack: { width: '100%', height: 4, backgroundColor: 'rgba(255,255,255,0.25)', zIndex: 30 },
   progressFill: { height: 4, backgroundColor: PINK },
@@ -777,13 +782,15 @@ const styles = StyleSheet.create({
   sideActionButton: { minWidth: 48, minHeight: 52, paddingHorizontal: 7, paddingVertical: 7, borderRadius: 22, backgroundColor: 'rgba(20,14,25,0.88)', borderWidth: 1, borderColor: '#6C4260', alignItems: 'center', justifyContent: 'center' },
   sideActionIcon: { color: '#fff', fontSize: 25, fontWeight: '900' },
   sideActionCount: { color: '#fff', fontSize: 10, fontWeight: 'bold', marginTop: 1 },
-  reelOverlay: { position: 'absolute', bottom: 18, left: 12, right: 76, minHeight: 62, paddingHorizontal: 12, paddingVertical: 9, flexDirection: 'row', alignItems: 'flex-start', backgroundColor: 'rgba(11,9,18,0.82)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(243,78,155,0.55)', zIndex: 15 },
+  reelOverlay: { position: 'absolute', bottom: 24, left: 12, right: 104, minHeight: 62, paddingHorizontal: 12, paddingVertical: 9, flexDirection: 'row', alignItems: 'flex-start', backgroundColor: 'rgba(11,9,18,0.82)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(243,78,155,0.55)', zIndex: 15 },
   authorRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 10, minHeight: 42 },
   authorAvatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: PINK },
   authorAvatarFallback: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#49334F', alignItems: 'center', justifyContent: 'center' },
   author: { color: '#fff', fontSize: 20, fontWeight: '900', textAlign: 'right', flexShrink: 1 },
   caption: { color: '#eee', textAlign: 'right', marginTop: 5, lineHeight: 20 },
-  meta: { color: '#D0C5D4', textAlign: 'right', fontSize: 11, marginTop: 5 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 12, marginTop: 7 },
+  metaDate: { color: '#D0C5D4', textAlign: 'left', fontSize: 11, writingDirection: 'ltr', includeFontPadding: false },
+  metaHandle: { color: '#F5C451', textAlign: 'left', fontSize: 11, writingDirection: 'ltr', includeFontPadding: false, fontWeight: 'bold' },
   actionButton: { borderWidth: 1, borderColor: '#6C4260', backgroundColor: '#241629', borderRadius: 18, paddingHorizontal: 13, paddingVertical: 7 },
   actionActive: { borderColor: PINK, backgroundColor: '#4A1835' },
   actionFollowing: { borderColor: GOLD, backgroundColor: '#302719' },
