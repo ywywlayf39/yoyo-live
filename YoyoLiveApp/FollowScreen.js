@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Image, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { supabase } from './supabase';
+import ProfileFrame from './ProfileFrame';
 
 const C = { bg: '#0B0912', card: '#191424', card2: '#241B35', pink: '#F34E9B', white: '#FFFFFF', muted: '#AAA1B8', border: '#30263F' };
 
@@ -19,7 +20,7 @@ export default function FollowScreen({ userId, initialTab = 'followers', onBack,
     if (rowsError) { setError('تعذر تحميل قائمة المتابعة.'); setItems([]); setLoading(false); return; }
     const ids = (rows || []).map((row) => row[profileColumn]).filter(Boolean);
     if (!ids.length) { setItems([]); setLoading(false); return; }
-    const { data: profiles, error: profileError } = await supabase.from('member_public_profiles').select('id,display_name,avatar_url,country').in('id', ids);
+    const { data: profiles, error: profileError } = await supabase.from('member_public_profiles').select('id,display_name,avatar_url,country,selected_frame_code').in('id', ids);
     if (profileError) { setError('تعذر تحميل بيانات الأعضاء.'); setItems([]); }
     else {
       const map = new Map((profiles || []).map((p) => [p.id, p]));
@@ -51,7 +52,9 @@ export default function FollowScreen({ userId, initialTab = 'followers', onBack,
        <FlatList data={items} keyExtractor={(item) => item.id} contentContainerStyle={items.length ? styles.list : styles.empty}
          ListEmptyComponent={<View style={styles.center}><Text style={styles.emptyTitle}>القائمة لسه فاضية</Text><Text style={styles.muted}>ابدأ متابعة الأعضاء وسيظهروا هنا.</Text></View>}
          renderItem={({item}) => <TouchableOpacity style={styles.row} onPress={() => onOpenMember?.(item)}>
-           {item.avatar_url ? <Image source={{uri:item.avatar_url}} style={styles.avatar}/> : <View style={styles.avatarFallback}><Text>👤</Text></View>}
+           <ProfileFrame frameCode={item.selected_frame_code} size={52}>
+             {item.avatar_url ? <Image source={{uri:item.avatar_url}} style={{width:'100%',height:'100%'}}/> : <View style={[styles.avatarFallback,{flex:1}]}><Text>👤</Text></View>}
+           </ProfileFrame>
            <View style={{flex:1,alignItems:'flex-end'}}><Text style={styles.name}>{item.display_name || 'عضو YOYO LIVE'}</Text><Text style={styles.muted}>{item.country || ''}</Text></View>
            <Text style={styles.chevron}>‹</Text>
          </TouchableOpacity>}
