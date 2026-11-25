@@ -23,6 +23,9 @@ export default function AccountScreen({ userId, email, onBack, onAvatarChanged, 
   const [frames, setFrames] = useState([]);
   const [selectedFrameCode, setSelectedFrameCode] = useState('classic');
   const [vipActive, setVipActive] = useState(false);
+  const [ownedFrameCodes, setOwnedFrameCodes] = useState([]);
+  const [coinBalance, setCoinBalance] = useState(0);
+  const [frameBusy, setFrameBusy] = useState('');
 
   const loadProfile = async () => {
     setLoading(true);
@@ -32,11 +35,15 @@ export default function AccountScreen({ userId, email, onBack, onAvatarChanged, 
     if (loadError) setError('تعذر تحميل بيانات الحساب: ' + loadError.message);
     else {
       setProfile(data);
-      const [{ data: frameRows }, { data: vipRow }] = await Promise.all([
+      const [{ data: frameRows }, { data: vipRow }, { data: ownedRows }, { data: walletRow }] = await Promise.all([
         supabase.from('yoyo_profile_frames').select('code,name,tier,coin_cost,vip_only').eq('active', true).order('sort_order'),
         supabase.from('user_vip_subscriptions').select('status,expires_at').eq('user_id', userId).maybeSingle(),
+        supabase.from('yoyo_user_profile_frames').select('frame_code').eq('user_id', userId),
+        supabase.from('wallets').select('purchased_coins').eq('user_id', userId).maybeSingle(),
       ]);
       setFrames(frameRows || []);
+      setOwnedFrameCodes((ownedRows || []).map((row) => row.frame_code));
+      setCoinBalance(Number(walletRow?.purchased_coins || 0));
       const hasActiveVip = vipRow?.status === 'active' && !!vipRow.expires_at && new Date(vipRow.expires_at).getTime() > Date.now();
       setVipActive(hasActiveVip);
       const savedFrameCode = data?.selected_frame_code || 'classic';
@@ -70,7 +77,7 @@ export default function AccountScreen({ userId, email, onBack, onAvatarChanged, 
     const formattedBirthDate = year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
     setSaving(true); setError(''); setSuccess('');
     const { data: savedProfile, error: saveError } = await supabase.from('profiles')
-      .update({ display_name: name.trim(), country, gender, birth_date: formattedBirthDate, selected_frame_code: selectedFrameCode === 'classic' ? null : selectedFrameCode, updated_at: new Date().toISOString() })
+      .update({ display_name: name.trim(), country, gender, birth_date: formattedBirthDate, updated_at: new Date().toISOString() })
       .eq('id', userId)
       .select('display_name,country,gender,birth_date,selected_frame_code')
       .maybeSingle();
@@ -78,10 +85,56 @@ export default function AccountScreen({ userId, email, onBack, onAvatarChanged, 
     else if (!savedProfile) setError('لم يتم حفظ التعديلات. تأكد من تسجيل الدخول ثم حاول مرة أخرى.');
     else {
       setProfile(current => ({ ...current, ...savedProfile }));
-      onFrameChanged?.(savedProfile.selected_frame_code || 'classic');
-      setSuccess('تم الحفظ بنجاح ✓');
+      setSuccess('تم حفظ بيانات الحساب بنجاح ✓');
     }
     setSaving(false);
+  };
+
+  const chooseFrame = async (frame) => {
+    const alreadyOwned = ownedFrameCodes.includes(frame.code);
+    const hasVip = frame.vip_only && vipActive;
+    if (frame.coin_cost > 0 && !alreadyOwned && !hasVip) {
+      if (coinBalance < Number(frame.coin_cost)) {
+        setError('رصيد العملات غير كافٍ لفتح هذا الإطار. اشحن محفظتك أولاً.');
+        return;
+      }
+      Alert.alert('فتح إطار ' + frame.name, 'سيتم خصم ' + Number(frame.coin_cost).toLocaleString('ar-EG') + ' عملة من محفظتك. هل تريد المتابعة؟', [
+        { text: 'إلغاء', style: 'cancel' },
+        { text: 'فتح الإطار', onPress: () => unlockFrame(frame.code) },
+      ]);
+      return;
+    }
+    if (frame.vip_only && !vipActive && !alreadyOwned) {
+      setError('هذا الإطار متاح لأعضاء VIP فقط.');
+      return;
+    }
+    await selectFrame(frame.code);
+  };
+
+  const unlockFrame = async (code) => {
+    setFrameBusy(code); setError(''); setSuccess('');
+    const { data, error: unlockError } = await supabase.rpc('yoyo_unlock_profile_frame', { p_frame_code: code });
+    if (unlockError) setError('تعذر فتح الإطار: ' + unlockError.message);
+    else {
+      setOwnedFrameCodes(current => current.includes(code) ? current : [...current, code]);
+      if (data?.balance !== undefined) setCoinBalance(Number(data.balance));
+      setSelectedFrameCode(code);
+      onFrameChanged?.(code);
+      setSuccess('تم فتح الإطار وتفعيله بنجاح ✓');
+    }
+    setFrameBusy('');
+  };
+
+  const selectFrame = async (code) => {
+    setFrameBusy(code); setError(''); setSuccess('');
+    const { error: selectError } = await supabase.rpc('yoyo_select_profile_frame', { p_frame_code: code });
+    if (selectError) setError('تعذر تفعيل الإطار: ' + selectError.message);
+    else {
+      setSelectedFrameCode(code);
+      onFrameChanged?.(code);
+      setSuccess('تم تفعيل الإطار بنجاح ✓');
+    }
+    setFrameBusy('');
   };
 
   const changeAvatar = async () => {
@@ -187,12 +240,21 @@ export default function AccountScreen({ userId, email, onBack, onAvatarChanged, 
                   {profile?.avatar_url ? <Image source={{ uri: profile.avatar_url }} style={{ width: '100%', height: '100%' }} /> : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 42 }}>👤</Text></View>}
                 </ProfileFrame>
               </View>
+              <Text style={styles.frameBalance}>رصيدك: {coinBalance.toLocaleString('ar-EG')} عملة</Text>
               <View style={styles.frameChoices}>
-                {frames.map((frame) => {
-                  const locked = (frame.vip_only && !vipActive) || Number(frame.coin_cost || 0) > 0;
-                  return <TouchableOpacity key={frame.code} disabled={locked} onPress={() => setSelectedFrameCode(frame.code)} style={[styles.frameOption, selectedFrameCode === frame.code && styles.frameOptionActive, locked && styles.frameOptionLocked]}>
+                <TouchableOpacity onPress={() => selectFrame('classic')} style={[styles.frameOption, selectedFrameCode === 'classic' && styles.frameOptionActive]}>
+                  <Text style={styles.frameOptionName}>الإطار الكلاسيكي</Text>
+                  <Text style={styles.frameOptionMeta}>مجاني</Text>
+                </TouchableOpacity>
+                {frames.filter(frame => frame.code !== 'classic').map((frame) => {
+                  const owned = ownedFrameCodes.includes(frame.code);
+                  const vipUnlocked = frame.vip_only && vipActive;
+                  const locked = !owned && !vipUnlocked && (Number(frame.coin_cost || 0) > 0 || frame.vip_only);
+                  const label = owned ? 'تم فتحه' : vipUnlocked ? 'متاح مع VIP' : frame.coin_cost > 0 ? Number(frame.coin_cost).toLocaleString('ar-EG') + ' عملة' : frame.vip_only ? 'يتطلب VIP' : 'مجاني';
+                  return <TouchableOpacity key={frame.code} disabled={frameBusy === frame.code} onPress={() => chooseFrame(frame)} style={[styles.frameOption, selectedFrameCode === frame.code && styles.frameOptionActive, locked && styles.frameOptionLocked]}>
                     <Text style={styles.frameOptionName}>{frame.name}</Text>
-                    <Text style={styles.frameOptionMeta}>{locked ? (frame.vip_only && !vipActive ? 'يتطلب VIP' : Number(frame.coin_cost).toLocaleString('ar-EG') + ' نقطة قريبًا') : 'متاح'}</Text>
+                    <Text style={styles.frameOptionMeta}>{frameBusy === frame.code ? 'جارٍ التنفيذ…' : label}</Text>
+                    {selectedFrameCode === frame.code ? <Text style={styles.frameOptionMeta}>مفعّل الآن ✓</Text> : null}
                   </TouchableOpacity>;
                 })}
               </View>
@@ -255,6 +317,7 @@ const styles = StyleSheet.create({
   frameHint: { color: '#AAA1B8', fontSize: 12, textAlign: 'right', marginTop: 5 },
   framePreview: { alignItems: 'center', marginVertical: 18 },
   frameChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end' },
+  frameBalance: { color: '#F5C451', fontSize: 12, textAlign: 'right', marginBottom: 10, fontWeight: '800' },
   frameOption: { minWidth: '46%', padding: 10, borderRadius: 11, borderWidth: 1, borderColor: '#59476b', backgroundColor: '#30243e' },
   frameOptionActive: { borderColor: '#F5C451', backgroundColor: '#49371D' },
   frameOptionLocked: { opacity: 0.48 },
