@@ -7,6 +7,7 @@ import { VideoView, useVideoPlayer } from 'expo-video';
 import { Directory, File, Paths } from 'expo-file-system';
 import VideoTrim, { showEditor, mixAudio, deleteFile } from 'react-native-video-trim';
 import { supabase } from './supabase';
+import ProfileFrame from './ProfileFrame';
 
 const BG = '#0B0912', CARD = '#1A1423', PINK = '#F34E9B', GOLD = '#C5A15C';
 const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
@@ -121,8 +122,8 @@ export default function ReelsScreen({ userId, onBack }) {
       const ids = [...new Set((data || []).map((item) => item.user_id))];
       let profiles = [];
       if (ids.length) {
-        const { data: rows, error: profileError } = await supabase.from('profiles')
-          .select('id,display_name,avatar_url').in('id', ids);
+        const { data: rows, error: profileError } = await supabase.from('member_public_profiles')
+          .select('id,display_name,avatar_url,selected_frame_code').in('id', ids);
         if (profileError) throw profileError;
         profiles = rows || [];
       }
@@ -151,6 +152,7 @@ export default function ReelsScreen({ userId, onBack }) {
         ...item,
         author: profileMap.get(item.user_id)?.display_name || 'عضو YOYO LIVE',
         authorAvatar: profileMap.get(item.user_id)?.avatar_url || null,
+        authorFrame: profileMap.get(item.user_id)?.selected_frame_code || null,
         likesCount: likeCounts.get(item.id) || 0,
         likedByMe: likedByMe.has(item.id),
         commentsCount: counts[item.id] || 0,
@@ -200,14 +202,18 @@ export default function ReelsScreen({ userId, onBack }) {
       return;
     }
     const ids = [...new Set((data || []).map((row) => row.user_id))];
-    // Profiles are private under RLS. Use the narrow RPC that returns only
-    // display names for people who commented on published reels.
+    // Use the restricted public-member projection, never the private profiles table.
     const { data: profiles, error: namesError } = ids.length
-      ? await supabase.rpc('yoyo_reel_commenter_names', { p_user_ids: ids })
+      ? await supabase.from('member_public_profiles').select('id,display_name,avatar_url,selected_frame_code').in('id', ids)
       : { data: [], error: null };
-    if (namesError) console.warn('YOYO reel commenter names:', namesError.message);
-    const names = new Map((profiles || []).map((row) => [row.user_id, row.display_name]));
-    setComments((data || []).map((row) => ({ ...row, author: names.get(row.user_id) || 'عضو' })));
+    if (namesError) console.warn('YOYO reel commenter profiles:', namesError.message);
+    const profileMap = new Map((profiles || []).map((row) => [row.id, row]));
+    setComments((data || []).map((row) => ({
+      ...row,
+      author: profileMap.get(row.user_id)?.display_name || 'عضو',
+      avatarUrl: profileMap.get(row.user_id)?.avatar_url || null,
+      selected_frame_code: profileMap.get(row.user_id)?.selected_frame_code || null,
+    })));
     setCommentsLoading(false);
   }, []);
 
@@ -215,12 +221,14 @@ export default function ReelsScreen({ userId, onBack }) {
     if (!commentsReel?.id) return undefined;
     const channel = supabase.channel('reel-comments-' + commentsReel.id)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reel_comments', filter: 'reel_id=eq.' + commentsReel.id }, async (payload) => {
-        const { data: profiles, error: namesError } = await supabase.rpc('yoyo_reel_commenter_names', {
-          p_user_ids: [payload.new.user_id],
-        });
-        if (namesError) console.warn('YOYO live reel commenter name:', namesError.message);
-        const author = profiles?.[0]?.display_name || 'عضو';
-        setComments((current) => current.some((row) => row.id === payload.new.id) ? current : [...current, { ...payload.new, author }].slice(-100));
+        const { data: profile, error: profileError } = await supabase.from('member_public_profiles')
+          .select('display_name,avatar_url,selected_frame_code').eq('id', payload.new.user_id).maybeSingle();
+        if (profileError) console.warn('YOYO live reel commenter profile:', profileError.message);
+        const author = profile?.display_name || 'عضو';
+        setComments((current) => current.some((row) => row.id === payload.new.id) ? current : [...current, {
+          ...payload.new, author, avatarUrl: profile?.avatar_url || null,
+          selected_frame_code: profile?.selected_frame_code || null,
+        }].slice(-100));
         setCommentCounts((current) => ({ ...current, [commentsReel.id]: (current[commentsReel.id] || 0) + 1 }));
         setReels((current) => current.map((item) => item.id === commentsReel.id
           ? { ...item, commentsCount: (item.commentsCount || 0) + 1 }
@@ -562,7 +570,9 @@ export default function ReelsScreen({ userId, onBack }) {
       <View style={styles.reelOverlay}>
         <View style={{ flex: 1 }}>
           <View style={styles.authorRow}>
-            {item.authorAvatar ? <Image source={{ uri: item.authorAvatar }} style={styles.authorAvatar} /> : <View style={styles.authorAvatarFallback}><Text style={{ color: '#fff', fontWeight: 'bold' }}>☺</Text></View>}
+            <ProfileFrame frameCode={item.authorFrame} size={38}>
+              {item.authorAvatar ? <Image source={{ uri: item.authorAvatar }} style={{ width: '100%', height: '100%' }} /> : <View style={[styles.authorAvatarFallback, { flex: 1 }]}><Text style={{ color: '#fff', fontWeight: 'bold' }}>☺</Text></View>}
+            </ProfileFrame>
             <Text numberOfLines={1} style={styles.author}>{item.author}</Text>
             {item.user_id !== userId && <TouchableOpacity onPress={() => toggleFollow(item)} style={[styles.inlineFollowButton, item.isFollowing && styles.actionFollowing]}>
               <Text style={styles.inlineFollowText}>{item.isFollowing ? 'متابَع ✓' : '+ متابعة'}</Text>
@@ -736,16 +746,23 @@ export default function ReelsScreen({ userId, onBack }) {
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <TouchableOpacity onPress={() => setCommentsReel(null)}><Text style={{ color: PINK, fontWeight: 'bold' }}>إغلاق</Text></TouchableOpacity>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                {commentsReel?.authorAvatar ? <Image source={{ uri: commentsReel.authorAvatar }} style={{ width: 32, height: 32, borderRadius: 16 }} /> : <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#49334F', alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#fff' }}>☺</Text></View>}
+                <ProfileFrame frameCode={commentsReel?.authorFrame} size={38}>
+                  {commentsReel?.authorAvatar ? <Image source={{ uri: commentsReel.authorAvatar }} style={{ width: '100%', height: '100%' }} /> : <View style={{ flex: 1, backgroundColor: '#49334F', alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#fff' }}>☺</Text></View>}
+                </ProfileFrame>
                 <View><Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'right' }}>تعليقات الريل 💬</Text><Text style={{ color: GOLD, fontSize: 12, textAlign: 'right' }}>@{commentsReel?.author || 'عضو YOYO LIVE'}</Text></View>
               </View>
             </View>
             {commentsLoading ? <ActivityIndicator color={PINK} /> : (
               <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
                 {comments.length ? comments.map((row) => (
-                  <View key={row.id} style={{ padding: 10, marginBottom: 7, borderRadius: 12, backgroundColor: '#2A2035' }}>
-                    <Text style={{ color: GOLD, fontWeight: 'bold', textAlign: 'right' }}>{row.author}</Text>
-                    <Text style={{ color: '#fff', textAlign: 'right', marginTop: 4 }}>{row.body}</Text>
+                  <View key={row.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 9, padding: 10, marginBottom: 7, borderRadius: 12, backgroundColor: '#2A2035' }}>
+                    <ProfileFrame frameCode={row.selected_frame_code} size={36}>
+                      {row.avatarUrl ? <Image source={{ uri: row.avatarUrl }} style={{ width: '100%', height: '100%' }} /> : <View style={{ flex: 1, backgroundColor: '#49334F', alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#fff' }}>☺</Text></View>}
+                    </ProfileFrame>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: GOLD, fontWeight: 'bold', textAlign: 'right' }}>{row.author}{row.selected_frame_code ? '  VIP' : ''}</Text>
+                      <Text style={{ color: '#fff', textAlign: 'right', marginTop: 4 }}>{row.body}</Text>
+                    </View>
                   </View>
                 )) : <Text style={{ color: '#BDB3C7', textAlign: 'center', marginTop: 30 }}>لسه مفيش تعليقات. اكتب أول تعليق 👋</Text>}
               </ScrollView>
