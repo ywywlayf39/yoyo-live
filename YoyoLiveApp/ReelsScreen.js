@@ -200,11 +200,14 @@ export default function ReelsScreen({ userId, onBack }) {
       return;
     }
     const ids = [...new Set((data || []).map((row) => row.user_id))];
-    const { data: profiles } = ids.length
-      ? await supabase.from('profiles').select('id,display_name').in('id', ids)
-      : { data: [] };
-    const names = new Map((profiles || []).map((row) => [row.id, row.display_name]));
-    setComments((data || []).map((row) => ({ ...row, author: names.get(row.user_id) || 'عضو YOYO LIVE' })));
+    // Profiles are private under RLS. Use the narrow RPC that returns only
+    // display names for people who commented on published reels.
+    const { data: profiles, error: namesError } = ids.length
+      ? await supabase.rpc('yoyo_reel_commenter_names', { p_user_ids: ids })
+      : { data: [], error: null };
+    if (namesError) console.warn('YOYO reel commenter names:', namesError.message);
+    const names = new Map((profiles || []).map((row) => [row.user_id, row.display_name]));
+    setComments((data || []).map((row) => ({ ...row, author: names.get(row.user_id) || 'عضو' })));
     setCommentsLoading(false);
   }, []);
 
@@ -212,8 +215,12 @@ export default function ReelsScreen({ userId, onBack }) {
     if (!commentsReel?.id) return undefined;
     const channel = supabase.channel('reel-comments-' + commentsReel.id)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reel_comments', filter: 'reel_id=eq.' + commentsReel.id }, async (payload) => {
-        const { data: profile } = await supabase.from('profiles').select('display_name').eq('id', payload.new.user_id).maybeSingle();
-        setComments((current) => current.some((row) => row.id === payload.new.id) ? current : [...current, { ...payload.new, author: profile?.display_name || 'عضو YOYO LIVE' }].slice(-100));
+        const { data: profiles, error: namesError } = await supabase.rpc('yoyo_reel_commenter_names', {
+          p_user_ids: [payload.new.user_id],
+        });
+        if (namesError) console.warn('YOYO live reel commenter name:', namesError.message);
+        const author = profiles?.[0]?.display_name || 'عضو';
+        setComments((current) => current.some((row) => row.id === payload.new.id) ? current : [...current, { ...payload.new, author }].slice(-100));
         setCommentCounts((current) => ({ ...current, [commentsReel.id]: (current[commentsReel.id] || 0) + 1 }));
         setReels((current) => current.map((item) => item.id === commentsReel.id
           ? { ...item, commentsCount: (item.commentsCount || 0) + 1 }
