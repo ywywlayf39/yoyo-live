@@ -4,7 +4,7 @@ import { supabase } from './supabase';
 
 const COLORS = { panel: '#191424', panel2: '#241B35', pink: '#F34E9B', gold: '#F5C451', white: '#FFFFFF', muted: '#AAA1B8' };
 
-export default function LiveRoomChat({ roomName, userId, isHost }) {
+export default function LiveRoomChat({ roomName, userId }) {
   const [messages, setMessages] = useState([]);
   const [body, setBody] = useState('');
   const [enabled, setEnabled] = useState(true);
