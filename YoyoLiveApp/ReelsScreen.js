@@ -36,6 +36,8 @@ export default function ReelsScreen({ userId, onBack }) {
   const [progress, setProgress] = useState(0);
   const [activeId, setActiveId] = useState(null);
   const [sideActionsOpen, setSideActionsOpen] = useState(true);
+  const [createPanelOpen, setCreatePanelOpen] = useState(false);
+  const [myReelsOpen, setMyReelsOpen] = useState(false);
   const [commentsReel, setCommentsReel] = useState(null);
   const [comments, setComments] = useState([]);
   const [commentBody, setCommentBody] = useState('');
@@ -305,8 +307,11 @@ export default function ReelsScreen({ userId, onBack }) {
         try {
           const { error } = await supabase.from('reels').delete().eq('id', item.id).eq('user_id', userId);
           if (error) throw error;
-          await supabase.storage.from('reels').remove([item.video_path]);
+          const { error: storageError } = await supabase.storage.from('reels').remove([item.video_path]);
+          if (storageError) console.warn('YOYO reel storage cleanup:', storageError.message);
           setReels((current) => current.filter((row) => row.id !== item.id));
+          setMyReelsOpen(false);
+          Alert.alert('تم الحذف', 'اتحذف الريل من حسابك.');
         } catch (error) { Alert.alert('تعذر الحذف', error?.message || 'حاول مرة أخرى.'); }
       }},
     ]);
@@ -354,22 +359,16 @@ export default function ReelsScreen({ userId, onBack }) {
         <TouchableOpacity onPress={onBack} style={styles.backButton}><Text style={styles.backText}>رجوع ←</Text></TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'flex-end' }}>
           <Text style={styles.title}>YOYO REELS ✨</Text>
-          <Text style={styles.subtitle}>فيديوهات قصيرة من أعضاء يويو لايف</Text>
+          <Text style={styles.subtitle}>فيديوهات قصيرة</Text>
         </View>
+        <TouchableOpacity onPress={() => setMyReelsOpen(true)} style={styles.headerAction}>
+          <Text style={styles.headerActionText}>ريلزك</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setCreatePanelOpen(true)} style={styles.createArrow}>
+          <Text style={styles.createArrowText}>＋</Text>
+          <Text style={styles.createArrowLabel}>ريل</Text>
+        </TouchableOpacity>
       </View>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.publishBox}>
-          <TextInput value={caption} onChangeText={setCaption} placeholder="اكتب وصف الريل (اختياري)" placeholderTextColor="#9B91A5" maxLength={300} textAlign="right" style={styles.captionInput} />
-          <TouchableOpacity onPress={openReelCamera} disabled={uploading} style={[styles.publishButton, uploading && { opacity: 0.65 }]}>
-            <Text style={styles.publishText}>● صوّر ريل بالكاميرا · حتى 3 دقائق</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={publishReel} disabled={uploading} style={[styles.galleryButton, uploading && { opacity: 0.65 }]}>
-            {uploading ? <ActivityIndicator color="#fff" /> : <Text style={styles.publishText}>اختار فيديو من المعرض</Text>}
-          </TouchableOpacity>
-          {uploading && <Text style={styles.progressText}>جارٍ ضغط الفيديو وتجهيزه للرفع… {progress}%</Text>}
-          <Text style={styles.limits}>تصوير مباشر أو من المعرض · حتى 3 دقائق · ضغط 720p · أقصى حجم بعد الضغط 50MB</Text>
-        </View>
-      </KeyboardAvoidingView>
       {loading ? (
         <View style={styles.center}><ActivityIndicator size="large" color={PINK} /><Text style={styles.emptyText}>بنحمّل الريلز…</Text></View>
       ) : reels.length === 0 ? (
@@ -381,6 +380,56 @@ export default function ReelsScreen({ userId, onBack }) {
           maxToRenderPerBatch={2} windowSize={3}
           getItemLayout={(_, index) => ({ length: reelHeight, offset: reelHeight * index, index })} />
       )}
+
+      <Modal visible={createPanelOpen} transparent animationType="fade" onRequestClose={() => setCreatePanelOpen(false)}>
+        <View style={styles.panelBackdrop}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.panelWrap}>
+            <View style={styles.createPanel}>
+              <View style={styles.panelHeading}>
+                <TouchableOpacity onPress={() => setCreatePanelOpen(false)}><Text style={styles.panelClose}>إغلاق ✕</Text></TouchableOpacity>
+                <Text style={styles.panelTitle}>إنشاء ريل جديد</Text>
+              </View>
+              <TextInput value={caption} onChangeText={setCaption} placeholder="اكتب وصف الريل (اختياري)" placeholderTextColor="#9B91A5" maxLength={300} textAlign="right" style={styles.captionInput} />
+              <TouchableOpacity onPress={() => { setCreatePanelOpen(false); openReelCamera(); }} disabled={uploading} style={[styles.publishButton, uploading && { opacity: 0.65 }]}>
+                <Text style={styles.publishText}>● صوّر ريل بالكاميرا · حتى 3 دقائق</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => { setCreatePanelOpen(false); publishReel(); }} disabled={uploading} style={[styles.galleryButton, uploading && { opacity: 0.65 }]}>
+                {uploading ? <ActivityIndicator color="#fff" /> : <Text style={styles.publishText}>اختار فيديو من المعرض</Text>}
+              </TouchableOpacity>
+              {uploading && <Text style={styles.progressText}>جارٍ ضغط الفيديو وتجهيزه للرفع… {progress}%</Text>}
+              <Text style={styles.limits}>تصوير مباشر أو من المعرض · حتى 3 دقائق · ضغط 720p · أقصى حجم 50MB</Text>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
+      <Modal visible={myReelsOpen} transparent animationType="slide" onRequestClose={() => setMyReelsOpen(false)}>
+        <View style={styles.panelBackdrop}>
+          <View style={styles.myReelsPanel}>
+            <View style={styles.panelHeading}>
+              <TouchableOpacity onPress={() => setMyReelsOpen(false)}><Text style={styles.panelClose}>إغلاق ✕</Text></TouchableOpacity>
+              <Text style={styles.panelTitle}>إدارة ريلزك</Text>
+            </View>
+            <Text style={styles.myReelsHint}>هنا هتلاقي كل الريلز المنشورة من حسابك، وتقدر تحذف أي ريل.</Text>
+            <FlatList
+              data={reels.filter((item) => item.user_id === userId)}
+              keyExtractor={(item) => item.id}
+              ListEmptyComponent={<Text style={styles.emptyText}>لسه منزلتش أي ريلز.</Text>}
+              renderItem={({ item }) => (
+                <View style={styles.myReelRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text numberOfLines={1} style={styles.myReelCaption}>{item.caption?.trim() || 'ريل بدون وصف'}</Text>
+                    <Text style={styles.myReelDate}>{new Date(item.created_at).toLocaleDateString('ar-EG')}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => deleteReel(item)} style={styles.myReelDelete}>
+                    <Text style={styles.myReelDeleteText}>حذف</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={cameraOpen} animationType="slide" onRequestClose={() => { if (!recording) setCameraOpen(false); }}>
         <View style={{ flex: 1, backgroundColor: '#000' }}>
@@ -460,10 +509,27 @@ export default function ReelsScreen({ userId, onBack }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: BG },
-  header: { minHeight: 62, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#302537' },
+  header: { minHeight: 52, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#302537', gap: 5 },
+  headerAction: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 12, backgroundColor: '#2B2033', borderWidth: 1, borderColor: '#68445F' },
+  headerActionText: { color: '#F4D9EA', fontSize: 12, fontWeight: 'bold' },
+  createArrow: { minWidth: 48, minHeight: 42, paddingHorizontal: 8, borderRadius: 13, backgroundColor: PINK, alignItems: 'center', justifyContent: 'center' },
+  createArrowText: { color: '#fff', fontSize: 19, fontWeight: '900', lineHeight: 21 },
+  createArrowLabel: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
   backButton: { padding: 10 }, backText: { color: PINK, fontWeight: 'bold', fontSize: 15 },
   title: { color: '#fff', fontSize: 21, fontWeight: '900' }, subtitle: { color: '#A99EAE', fontSize: 11, marginTop: 3 },
-  publishBox: { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#302537' },
+  panelBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
+  panelWrap: { width: '100%' },
+  createPanel: { backgroundColor: CARD, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 16, paddingBottom: 28, borderWidth: 1, borderColor: '#59364F' },
+  myReelsPanel: { height: '72%', backgroundColor: CARD, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 16, borderWidth: 1, borderColor: '#59364F' },
+  panelHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  panelTitle: { color: '#fff', fontSize: 18, fontWeight: '900' },
+  panelClose: { color: PINK, fontWeight: 'bold', padding: 5 },
+  myReelsHint: { color: '#BDB3C7', textAlign: 'right', fontSize: 12, marginBottom: 12 },
+  myReelRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#392B43' },
+  myReelCaption: { color: '#fff', textAlign: 'right', fontWeight: 'bold' },
+  myReelDate: { color: '#A99EAE', textAlign: 'right', fontSize: 11, marginTop: 4 },
+  myReelDelete: { backgroundColor: '#592538', borderColor: '#C94B69', borderWidth: 1, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 9 },
+  myReelDeleteText: { color: '#FF9EAD', fontWeight: 'bold' },
   captionInput: { minHeight: 42, backgroundColor: CARD, borderRadius: 11, paddingHorizontal: 12, color: '#fff', marginBottom: 8 },
   publishButton: { backgroundColor: PINK, minHeight: 46, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   galleryButton: { backgroundColor: '#38283F', minHeight: 43, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginTop: 8, borderWidth: 1, borderColor: '#65465F' },
