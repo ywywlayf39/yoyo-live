@@ -125,6 +125,9 @@ export default function ReelsScreen({ userId, onBack }) {
         const { data: profile } = await supabase.from('profiles').select('display_name').eq('id', payload.new.user_id).maybeSingle();
         setComments((current) => current.some((row) => row.id === payload.new.id) ? current : [...current, { ...payload.new, author: profile?.display_name || 'عضو YOYO LIVE' }].slice(-100));
         setCommentCounts((current) => ({ ...current, [commentsReel.id]: (current[commentsReel.id] || 0) + 1 }));
+        setReels((current) => current.map((item) => item.id === commentsReel.id
+          ? { ...item, commentsCount: (item.commentsCount || 0) + 1 }
+          : item));
       }).subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [commentsReel?.id]);
