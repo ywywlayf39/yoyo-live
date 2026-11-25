@@ -4,12 +4,16 @@ import * as ImagePicker from 'expo-image-picker';
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
 import { Video } from 'react-native-compressor';
 import { VideoView, useVideoPlayer } from 'expo-video';
-import { File } from 'expo-file-system';
+import { Directory, File, Paths } from 'expo-file-system';
+import VideoTrim, { showEditor, mixAudio, deleteFile } from 'react-native-video-trim';
 import { supabase } from './supabase';
 
 const BG = '#0B0912', CARD = '#1A1423', PINK = '#F34E9B', GOLD = '#C5A15C';
 const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
 const MAX_ORIGINAL_BYTES = 200 * 1024 * 1024;
+const REEL_MUSIC_FOLDER = new Directory(Paths.document, 'yoyo-reel-music');
+const localFilePath = (uri) => decodeURIComponent(String(uri || '').replace(/^file:\/\//, ''));
+const fileUri = (path) => String(path || '').startsWith('file://') ? path : `file://${path}`;
 
 function ReelPreviewPlayer({ uri }) {
   const player = useVideoPlayer(uri, (instance) => { instance.loop = true; });
@@ -54,6 +58,11 @@ export default function ReelsScreen({ userId, onBack }) {
   const [recording, setRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [capturedVideo, setCapturedVideo] = useState(null);
+  const [musicTrack, setMusicTrack] = useState(null);
+  const [musicImporting, setMusicImporting] = useState(false);
+  const [originalAudioVolume, setOriginalAudioVolume] = useState(0.75);
+  const [backgroundAudioVolume, setBackgroundAudioVolume] = useState(0.8);
+  const pendingMusicNameRef = useRef(null);
 
   const loadReels = useCallback(async () => {
     setLoading(true);
@@ -203,6 +212,105 @@ export default function ReelsScreen({ userId, onBack }) {
     if (recording) cameraRef.current?.stopRecording();
   };
 
+
+  useEffect(() => {
+    const finishSub = VideoTrim.onFinishTrimming(({ outputPath, duration }) => {
+      const name = pendingMusicNameRef.current || 'مقطع موسيقي';
+      pendingMusicNameRef.current = null;
+      setMusicTrack({ uri: fileUri(outputPath), name, durationMs: Number(duration || 0) });
+      setMusicImporting(false);
+      Alert.alert('تم اختيار المقطع 🎵', 'الموسيقى هتتركب داخل ملف الريل قبل النشر.');
+    });
+    const cancelSub = VideoTrim.onCancel(() => {
+      pendingMusicNameRef.current = null;
+      setMusicImporting(false);
+    });
+    const errorSub = VideoTrim.onError(({ message }) => {
+      pendingMusicNameRef.current = null;
+      setMusicImporting(false);
+      Alert.alert('تعذر تجهيز الأغنية', message || 'اختار ملف صوت آخر.');
+    });
+    return () => {
+      finishSub?.remove?.();
+      cancelSub?.remove?.();
+      errorSub?.remove?.();
+    };
+  }, []);
+
+  const chooseReelMusic = async () => {
+    if (musicImporting || uploading) return;
+    setMusicImporting(true);
+    try {
+      const picked = await File.pickFileAsync({ multipleFiles: false, mimeTypes: ['audio/*'] });
+      if (picked.canceled || !picked.result) {
+        setMusicImporting(false);
+        return;
+      }
+      const source = picked.result;
+      if (Number(source.size || 0) > 50 * 1024 * 1024) {
+        throw new Error('حجم ملف الموسيقى لازم يكون أقل من 50 ميجابايت.');
+      }
+      if (!REEL_MUSIC_FOLDER.exists) REEL_MUSIC_FOLDER.create({ idempotent: true, intermediates: true });
+      const safeName = String(source.name || 'music-audio').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-90);
+      const saved = new File(REEL_MUSIC_FOLDER, Date.now() + '-' + safeName);
+      await source.copy(saved);
+      pendingMusicNameRef.current = source.name || 'مقطع موسيقي';
+      showEditor(saved.uri, {
+        type: 'audio',
+        outputExt: 'm4a',
+        maxDuration: 180000,
+        headerText: 'اختار مقطع الأغنية',
+        saveButtonText: 'استخدام المقطع',
+        cancelButtonText: 'إلغاء',
+        theme: 'dark',
+      });
+    } catch (error) {
+      pendingMusicNameRef.current = null;
+      setMusicImporting(false);
+      Alert.alert('تعذر اختيار الموسيقى', error?.message || 'اختار ملف MP3 أو M4A أو WAV من هاتفك.');
+    }
+  };
+
+  const clearReelMusic = async () => {
+    const old = musicTrack;
+    setMusicTrack(null);
+    if (old?.uri) {
+      try { await deleteFile(localFilePath(old.uri)); } catch (_) {}
+    }
+  };
+
+  const renderMusicControls = () => (
+    <View style={styles.musicEditorBox}>
+      <TouchableOpacity onPress={chooseReelMusic} disabled={musicImporting || uploading} style={styles.musicChooseButton}>
+        <Text style={styles.musicChooseText}>{musicImporting ? 'جارٍ فتح محرر الأغنية…' : musicTrack ? '🎵 تغيير مقطع الأغنية' : '🎵 إضافة أغنية وتركيبها على الريل'}</Text>
+      </TouchableOpacity>
+      {musicTrack ? (
+        <>
+          <Text numberOfLines={1} style={styles.musicTrackName}>المقطع المختار: {musicTrack.name}</Text>
+          <View style={styles.volumeRow}>
+            <Text style={styles.volumeLabel}>صوت الفيديو</Text>
+            {[0, 0.5, 1].map((value) => (
+              <TouchableOpacity key={'original-' + value} onPress={() => setOriginalAudioVolume(value)} style={[styles.volumeChip, originalAudioVolume === value && styles.volumeChipActive]}>
+                <Text style={styles.volumeChipText}>{Math.round(value * 100)}٪</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <View style={styles.volumeRow}>
+            <Text style={styles.volumeLabel}>صوت الأغنية</Text>
+            {[0.35, 0.65, 1].map((value) => (
+              <TouchableOpacity key={'music-' + value} onPress={() => setBackgroundAudioVolume(value)} style={[styles.volumeChip, backgroundAudioVolume === value && styles.volumeChipActive]}>
+                <Text style={styles.volumeChipText}>{Math.round(value * 100)}٪</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <TouchableOpacity onPress={clearReelMusic} style={styles.musicRemoveButton}>
+            <Text style={styles.musicRemoveText}>إزالة الأغنية من الريل</Text>
+          </TouchableOpacity>
+        </>
+      ) : <Text style={styles.musicHint}>اختار أغنية من هاتفك، وحدد الجزء اللي يعجبك، وهنركّبها داخل الفيديو نفسه.</Text>}
+    </View>
+  );
+
   const uploadReelAsset = async (asset, knownDurationSeconds = null) => {
     if (uploading) return false;
     if (!userId) { Alert.alert('سجل الدخول أولًا', 'لازم تسجل الدخول قبل نشر فيديو.'); return false; }
@@ -216,10 +324,31 @@ export default function ReelsScreen({ userId, onBack }) {
         Alert.alert('حجم الفيديو كبير', 'اختار فيديو أصلي أقل من 200 ميجابايت عشان الموبايل يقدر يضغطه بأمان.'); return false;
       }
       setUploading(true); setProgress(0);
-      const compressedUri = await Video.compress(asset.uri, {
+      let sourceVideoUri = asset.uri;
+      if (musicTrack?.uri) {
+        setProgress(5);
+        const mixed = await mixAudio(
+          localFilePath(asset.uri),
+          localFilePath(musicTrack.uri),
+          {
+            originalAudioVolume,
+            backgroundAudioVolume,
+            loopAudio: true,
+            outputExt: 'mp4',
+          }
+        );
+        mixedOutputPath = mixed.outputPath;
+        sourceVideoUri = fileUri(mixed.outputPath);
+        setProgress(12);
+      }
+      const compressedUri = await Video.compress(sourceVideoUri, {
         compressionMethod: 'manual', maxSize: 720, bitrate: 900000,
         minimumFileSizeForCompress: 0, preserveMetadata: false,
       }, (value) => setProgress(Math.max(0, Math.min(100, Math.round(value * 100)))));
+      if (mixedOutputPath) {
+        try { await deleteFile(mixedOutputPath); } catch (cleanupError) { console.warn('YOYO reel music temp cleanup:', cleanupError?.message || cleanupError); }
+        mixedOutputPath = null;
+      }
       if (mixedOutputPath) {
         try { await deleteFile(mixedOutputPath); } catch (cleanupError) { console.warn('YOYO reel music temp cleanup:', cleanupError?.message || cleanupError); }
         mixedOutputPath = null;
@@ -262,7 +391,18 @@ export default function ReelsScreen({ userId, onBack }) {
         mediaTypes: ['videos'], allowsEditing: false, videoMaxDuration: 180, quality: 1,
       });
       if (picked.canceled || !picked.assets?.[0]) return;
-      await uploadReelAsset(picked.assets[0]);
+      const asset = picked.assets[0];
+      const durationSeconds = Math.ceil((asset.duration || 0) / 1000);
+      if (!durationSeconds || durationSeconds > 180) {
+        Alert.alert('مدة الفيديو', 'اختار فيديو مدته من ثانية إلى 3 دقائق كحد أقصى.');
+        return;
+      }
+      setCapturedVideo({
+        uri: asset.uri,
+        durationSeconds,
+        fileSize: asset.fileSize || 0,
+        source: 'gallery',
+      });
     } catch (error) {
       Alert.alert('تعذر اختيار الفيديو', error?.message || 'حاول مرة أخرى.');
     }
@@ -270,7 +410,7 @@ export default function ReelsScreen({ userId, onBack }) {
 
   const publishCapturedReel = async () => {
     if (!capturedVideo || uploading) return;
-    const published = await uploadReelAsset({ uri: capturedVideo.uri }, capturedVideo.durationSeconds);
+    const published = await uploadReelAsset({ uri: capturedVideo.uri, fileSize: capturedVideo.fileSize || 0 }, capturedVideo.durationSeconds);
     if (published) setCapturedVideo(null);
   };
 
@@ -395,6 +535,7 @@ export default function ReelsScreen({ userId, onBack }) {
                 <TouchableOpacity onPress={() => setCreatePanelOpen(false)}><Text style={styles.panelClose}>إغلاق ✕</Text></TouchableOpacity>
                 <Text style={styles.panelTitle}>إنشاء ريل جديد</Text>
               </View>
+              {renderMusicControls()}
               <TextInput value={caption} onChangeText={setCaption} placeholder="اكتب وصف الريل (اختياري)" placeholderTextColor="#9B91A5" maxLength={300} textAlign="right" style={styles.captionInput} />
               <TouchableOpacity onPress={() => { setCreatePanelOpen(false); openReelCamera(); }} disabled={uploading} style={[styles.publishButton, uploading && { opacity: 0.65 }]}>
                 <Text style={styles.publishText}>● صوّر ريل بالكاميرا · حتى 3 دقائق</Text>
@@ -468,6 +609,7 @@ export default function ReelsScreen({ userId, onBack }) {
             {capturedVideo?.uri ? <ReelPreviewPlayer uri={capturedVideo.uri} /> : null}
           </View>
           <View style={{ padding: 16, gap: 10 }}>
+            {renderMusicControls()}
             <Text style={{ color: GOLD, textAlign: 'center' }}>مدة الفيديو: {Math.floor((capturedVideo?.durationSeconds || 0) / 60)}:{String((capturedVideo?.durationSeconds || 0) % 60).padStart(2, '0')}</Text>
             <TouchableOpacity onPress={publishCapturedReel} disabled={uploading} style={styles.publishButton}>
               {uploading ? <ActivityIndicator color="#fff" /> : <Text style={styles.publishText}>انشر الريل الآن</Text>}
@@ -542,6 +684,18 @@ const styles = StyleSheet.create({
   cameraControl: { backgroundColor: 'rgba(20,14,25,0.82)', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20, borderWidth: 1, borderColor: '#A46B91' },
   cameraControlText: { color: '#fff', fontWeight: 'bold' },
   publishText: { color: '#fff', fontWeight: 'bold', fontSize: 15 }, progressText: { color: GOLD, textAlign: 'center', marginTop: 7, fontSize: 12 },
+  musicEditorBox: { backgroundColor: '#120E19', borderRadius: 13, padding: 11, marginBottom: 10, borderWidth: 1, borderColor: '#49344F' },
+  musicChooseButton: { minHeight: 42, borderRadius: 10, backgroundColor: '#61305C', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  musicChooseText: { color: '#fff', fontWeight: 'bold', fontSize: 13 },
+  musicTrackName: { color: '#F5C451', textAlign: 'right', fontSize: 12, marginTop: 8 },
+  musicHint: { color: '#BDB3C7', textAlign: 'right', fontSize: 11, lineHeight: 18, marginTop: 7 },
+  volumeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 5, marginTop: 8 },
+  volumeLabel: { color: '#E9DCEB', fontSize: 11, flex: 1, textAlign: 'right' },
+  volumeChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: '#30243A', borderWidth: 1, borderColor: '#594565' },
+  volumeChipActive: { backgroundColor: '#8C285B', borderColor: PINK },
+  volumeChipText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
+  musicRemoveButton: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 6, marginTop: 7 },
+  musicRemoveText: { color: '#FF9EAD', fontSize: 11, fontWeight: 'bold' },
   limits: { color: '#9B91A5', textAlign: 'center', fontSize: 10, marginTop: 7 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
   emptyIcon: { fontSize: 52, marginBottom: 12 }, emptyTitle: { color: '#fff', fontWeight: 'bold', fontSize: 19 },
