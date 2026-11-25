@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { supabase } from './supabase';
+import ProfileFrame from './ProfileFrame';
 
 const C = {
   bg: '#0B0912',
@@ -87,7 +88,7 @@ export default function InboxScreen({ userId, onBack, onOpenChat }) {
 
     const { data: profiles, error: profilesError } = await supabase
       .from('member_public_profiles')
-      .select('id,display_name,avatar_url,country')
+      .select('id,display_name,avatar_url,country,selected_frame_code')
       .in('id', memberIds);
 
     if (profilesError) {
@@ -188,13 +189,15 @@ export default function InboxScreen({ userId, onBack, onOpenChat }) {
                 activeOpacity={0.8}
                 onPress={() => onOpenChat(item.member)}
               >
-                {item.member.avatar_url ? (
-                  <Image source={{ uri: item.member.avatar_url }} style={styles.avatar} />
-                ) : (
-                  <View style={styles.avatarFallback}>
-                    <Text style={styles.avatarEmoji}>👤</Text>
-                  </View>
-                )}
+                <ProfileFrame frameCode={item.member.selected_frame_code} size={54}>
+                  {item.member.avatar_url ? (
+                    <Image source={{ uri: item.member.avatar_url }} style={{ width: '100%', height: '100%' }} />
+                  ) : (
+                    <View style={[styles.avatarFallback, { flex: 1 }]}>
+                      <Text style={styles.avatarEmoji}>👤</Text>
+                    </View>
+                  )}
+                </ProfileFrame>
                 <View style={styles.conversationBody}>
                   <View style={styles.nameLine}>
                     <Text style={styles.name} numberOfLines={1}>
