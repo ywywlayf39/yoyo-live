@@ -94,7 +94,7 @@ export default function App() {
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [liveRooms, setLiveRooms] = useState([]);
   const [showDiscover, setShowDiscover] = useState(false);
-  const [showReels, setShowReels] = useState(false);
+  const [showReels, setShowReels] = useState(true);
   const [showReferrals, setShowReferrals] = useState(false);
   const [pendingReferralCode, setPendingReferralCode] = useState('');
   const [selectedCall, setSelectedCall] = useState(null);
