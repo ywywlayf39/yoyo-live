@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Modal, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Alert, Image, FlatList, KeyboardAvoidingView, Modal, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Video } from 'react-native-compressor';
 import { VideoView, useVideoPlayer } from 'expo-video';
@@ -48,11 +48,11 @@ export default function ReelsScreen({ userId, onBack }) {
       let profiles = [];
       if (ids.length) {
         const { data: rows, error: profileError } = await supabase.from('profiles')
-          .select('id,display_name').in('id', ids);
+          .select('id,display_name,avatar_url').in('id', ids);
         if (profileError) throw profileError;
         profiles = rows || [];
       }
-      const names = new Map(profiles.map((row) => [row.id, row.display_name]));
+      const profileMap = new Map(profiles.map((row) => [row.id, row]));
       const reelIds = (data || []).map((item) => item.id);
       const [likesResult, followsResult, commentsResult] = await Promise.all([
         reelIds.length ? supabase.from('reel_likes').select('reel_id,user_id').in('reel_id', reelIds) : Promise.resolve({ data: [], error: null }),
@@ -74,7 +74,8 @@ export default function ReelsScreen({ userId, onBack }) {
       setCommentCounts(counts);
       const mapped = (data || []).map((item) => ({
         ...item,
-        author: names.get(item.user_id) || 'عضو YOYO LIVE',
+        author: profileMap.get(item.user_id)?.display_name || 'عضو YOYO LIVE',
+        authorAvatar: profileMap.get(item.user_id)?.avatar_url || null,
         likesCount: likeCounts.get(item.id) || 0,
         likedByMe: likedByMe.has(item.id),
         commentsCount: counts[item.id] || 0,
@@ -266,7 +267,10 @@ export default function ReelsScreen({ userId, onBack }) {
       </View>
       <View style={styles.reelOverlay}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.author}>@{item.author}</Text>
+          <View style={styles.authorRow}>
+            {item.authorAvatar ? <Image source={{ uri: item.authorAvatar }} style={styles.authorAvatar} /> : <View style={styles.authorAvatarFallback}><Text style={{ color: '#fff', fontWeight: 'bold' }}>☺</Text></View>}
+            <Text style={styles.author}>@{item.author}</Text>
+          </View>
           {!!item.caption && <Text style={styles.caption}>{item.caption}</Text>}
           <Text style={styles.meta}>{(item.file_size_bytes / 1024 / 1024).toFixed(1)} MB · {Math.round(item.duration_seconds)} ثانية</Text>
 
@@ -310,10 +314,13 @@ export default function ReelsScreen({ userId, onBack }) {
 
       <Modal visible={!!commentsReel} transparent animationType="slide" onRequestClose={() => setCommentsReel(null)}>
         <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.62)' }}>
-          <View style={{ height: '68%', backgroundColor: CARD, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 16 }}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%' }}><View style={{ height: '72%', backgroundColor: CARD, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 16, paddingBottom: Platform.OS === 'android' ? 30 : 16 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <TouchableOpacity onPress={() => setCommentsReel(null)}><Text style={{ color: PINK, fontWeight: 'bold' }}>إغلاق</Text></TouchableOpacity>
-              <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>تعليقات الريل 💬</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                {commentsReel?.authorAvatar ? <Image source={{ uri: commentsReel.authorAvatar }} style={{ width: 32, height: 32, borderRadius: 16 }} /> : <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: '#49334F', alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#fff' }}>☺</Text></View>}
+                <View><Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'right' }}>تعليقات الريل 💬</Text><Text style={{ color: GOLD, fontSize: 12, textAlign: 'right' }}>@{commentsReel?.author || 'عضو YOYO LIVE'}</Text></View>
+              </View>
             </View>
             {commentsLoading ? <ActivityIndicator color={PINK} /> : (
               <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
@@ -331,7 +338,7 @@ export default function ReelsScreen({ userId, onBack }) {
               </TouchableOpacity>
               <TextInput value={commentBody} onChangeText={setCommentBody} placeholder="اكتب تعليقك على الريل..." placeholderTextColor="#9B91A5" maxLength={240} multiline style={{ flex: 1, minHeight: 44, maxHeight: 90, backgroundColor: '#120E19', borderRadius: 13, paddingHorizontal: 12, color: '#fff', textAlign: 'right' }} />
             </View>
-          </View>
+          </View></KeyboardAvoidingView>
         </View>
       </Modal>
     </SafeAreaView>
@@ -359,6 +366,9 @@ const styles = StyleSheet.create({
   sideActionIcon: { color: '#fff', fontSize: 25, fontWeight: '900' },
   sideActionCount: { color: '#fff', fontSize: 10, fontWeight: 'bold', marginTop: 1 },
   reelOverlay: { minHeight: 118, paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: BG },
+  authorRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8 },
+  authorAvatar: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: PINK },
+  authorAvatarFallback: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#49334F', alignItems: 'center', justifyContent: 'center' },
   author: { color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'right' },
   caption: { color: '#eee', textAlign: 'right', marginTop: 5, lineHeight: 20 },
   meta: { color: '#A99EAE', textAlign: 'right', fontSize: 11, marginTop: 5 },
