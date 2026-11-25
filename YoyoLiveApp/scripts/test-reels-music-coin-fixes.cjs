@@ -12,7 +12,7 @@ const checks = [
   ['like and comment actions stay above the Android navigation area', /sideActions:\s*\{[^}]*bottom:\s*38/s.test(reels)],
   ['progress bar is full width directly below the video', /progressTrack:\s*\{[^}]*width:\s*'100%'[^}]*height:\s*4/s.test(reels)],
   ['top header actions use fixed spacing', /header:\s*\{[^}]*justifyContent:\s*'space-between'[^}]*gap:\s*12/s.test(reels)],
-  ['delete remains available from the three-dot menu and My Reels', /setDeleteMenuId\(\(current\) => current === item\.id/.test(reels) && /onPress=\{\(\) => deleteReel\(item\)\}/.test(reels)),
+  ['delete remains available from the three-dot menu and My Reels', /setDeleteMenuId\(\(current\) => current === item\.id/.test(reels) && /onPress=\{\(\) => deleteReel\(item\)\}/.test(reels)],
   ['creator name is prominent', /author:\s*\{[^}]*fontSize:\s*20[^}]*fontWeight:\s*'900'/s.test(reels)],
   ['reel video fills the card without a separate identity footer', /<ReelPlayer[^>]*height=\{reelHeight\}\s*\/>/.test(reels)],
   ['audio import stores provider MIME type', /mimeType:\s*source\.mimeType\s*\|\|\s*source\.type/.test(music)],
