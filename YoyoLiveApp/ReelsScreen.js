@@ -76,7 +76,6 @@ export default function ReelsScreen({ userId, onBack }) {
   const [comments, setComments] = useState([]);
   const [commentBody, setCommentBody] = useState('');
   const [commentCounts, setCommentCounts] = useState({});
-  const [viewCounts, setViewCounts] = useState({});
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentSending, setCommentSending] = useState(false);
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 70 }).current;
@@ -100,7 +99,7 @@ export default function ReelsScreen({ userId, onBack }) {
     setLoading(true);
     try {
       const { data, error } = await supabase.from('reels')
-        .select('id,user_id,video_path,caption,duration_seconds,file_size_bytes,created_at')
+        .select('id,user_id,video_path,caption,duration_seconds,file_size_bytes,views_count,created_at')
         .eq('status', 'published').order('created_at', { ascending: false }).limit(60);
       if (error) throw error;
       const ids = [...new Set((data || []).map((item) => item.user_id))];
@@ -113,16 +112,14 @@ export default function ReelsScreen({ userId, onBack }) {
       }
       const profileMap = new Map(profiles.map((row) => [row.id, row]));
       const reelIds = (data || []).map((item) => item.id);
-      const [likesResult, followsResult, commentsResult, viewsResult] = await Promise.all([
+      const [likesResult, followsResult, commentsResult] = await Promise.all([
         reelIds.length ? supabase.from('reel_likes').select('reel_id,user_id').in('reel_id', reelIds) : Promise.resolve({ data: [], error: null }),
         (userId && ids.length) ? supabase.from('user_follows').select('following_id').eq('follower_id', userId).in('following_id', ids) : Promise.resolve({ data: [], error: null }),
         reelIds.length ? supabase.from('reel_comments').select('id,reel_id').in('reel_id', reelIds) : Promise.resolve({ data: [], error: null }),
-        (userId && reelIds.length) ? supabase.rpc('get_my_reel_view_counts', { p_reel_ids: reelIds }) : Promise.resolve({ data: [], error: null }),
       ]);
       if (likesResult.error) throw likesResult.error;
       if (followsResult.error) throw followsResult.error;
       if (commentsResult.error) throw commentsResult.error;
-      if (viewsResult.error) throw viewsResult.error;
       const likeCounts = new Map();
       const likedByMe = new Set();
       (likesResult.data || []).forEach((like) => {
@@ -133,11 +130,8 @@ export default function ReelsScreen({ userId, onBack }) {
       const counts = {};
       (commentsResult.data || []).forEach((row) => { counts[row.reel_id] = (counts[row.reel_id] || 0) + 1; });
       setCommentCounts(counts);
-      const ownerViewCounts = {};
-      (viewsResult.data || []).forEach((row) => { ownerViewCounts[row.reel_id] = Number(row.views_count || 0); });
-      setViewCounts(ownerViewCounts);
       const mapped = (data || []).map((item) => ({
-        viewsCount: ownerViewCounts[item.id] || 0,
+        viewsCount: Number(item.views_count || 0),
         ...item,
         author: profileMap.get(item.user_id)?.display_name || 'عضو YOYO LIVE',
         authorAvatar: profileMap.get(item.user_id)?.avatar_url || null,
@@ -167,7 +161,8 @@ export default function ReelsScreen({ userId, onBack }) {
     if (!activeReel || activeReel.user_id === userId) return undefined;
     const timer = setTimeout(async () => {
       try {
-        await supabase.rpc('record_reel_view', { p_reel_id: activeId });
+        const { error } = await supabase.from('reel_views').insert({ reel_id: activeId, viewer_id: userId });
+        if (error && error.code !== '23505') throw error;
       } catch (error) {
         console.warn('YOYO reel view registration failed:', error?.message || error);
       }
@@ -584,7 +579,7 @@ export default function ReelsScreen({ userId, onBack }) {
           <Text style={styles.title}>YOYO REELS</Text>
           <Text style={styles.subtitle}>فيديوهات قصيرة</Text>
         </View>
-        <TouchableOpacity onPress={() => setMyReelsOpen(true)} style={styles.headerAction}>
+        <TouchableOpacity onPress={() => { setMyReelsOpen(true); loadReels(); }} style={styles.headerAction}>
           <Text style={styles.headerActionText}>ريلزك</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => setCreatePanelOpen(true)} style={styles.createArrow}>
@@ -650,7 +645,7 @@ export default function ReelsScreen({ userId, onBack }) {
                   <View style={{ flex: 1 }}>
                     <Text numberOfLines={1} style={styles.myReelCaption}>{item.caption?.trim() || 'ريل بدون وصف'}</Text>
                     <Text style={styles.myReelDate}>{new Date(item.created_at).toLocaleDateString('ar-EG')}</Text>
-                    <Text style={styles.myReelViews}>👁 {Number(viewCounts[item.id] ?? item.viewsCount ?? 0).toLocaleString('ar-EG')} مشاهدة</Text>
+                    <Text style={styles.myReelViews}>👁 {Number(item.viewsCount || 0).toLocaleString('ar-EG')} مشاهدة</Text>
                   </View>
                   <TouchableOpacity onPress={() => deleteReel(item)} style={styles.myReelDelete}>
                     <Text style={styles.myReelDeleteText}>حذف</Text>
