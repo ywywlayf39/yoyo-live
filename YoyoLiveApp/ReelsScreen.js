@@ -46,7 +46,7 @@ function ReelPlayer({ uri, active, height }) {
   const progress = duration > 0 ? Math.min(1, playhead / duration) : 0;
   return (
     <View style={{ width: '100%', height, backgroundColor: '#000' }}>
-      <VideoView player={player} style={{ width: '100%', height: '100%' }} contentFit="cover" nativeControls={false} allowsFullscreen={false} allowsPictureInPicture={false} />
+      <VideoView player={player} style={{ width: '100%', height: Math.max(1, height - 4) }} contentFit="cover" nativeControls={false} allowsFullscreen={false} allowsPictureInPicture={false} />
       <View style={styles.playerControls}>
         <TouchableOpacity onPress={togglePlayback} style={styles.playerControl}><Text style={styles.playerControlText}>{playing ? 'Ⅱ' : '▶'}</Text></TouchableOpacity>
         <TouchableOpacity onPress={toggleMute} style={styles.playerControl}><Text style={styles.playerControlText}>{muted ? '🔇' : '🔊'}</Text></TouchableOpacity>
@@ -58,7 +58,8 @@ function ReelPlayer({ uri, active, height }) {
 
 export default function ReelsScreen({ userId, onBack }) {
   const { height: windowHeight } = useWindowDimensions();
-  const reelHeight = Math.max(420, windowHeight - 220);
+  const [feedHeight, setFeedHeight] = useState(0);
+  const reelHeight = feedHeight || Math.max(420, windowHeight - 100);
   const [reels, setReels] = useState([]);
   const [caption, setCaption] = useState('');
   const [loading, setLoading] = useState(true);
@@ -516,7 +517,7 @@ export default function ReelsScreen({ userId, onBack }) {
   };
 
   const renderReel = ({ item }) => (
-    <View style={[styles.reelCard, { height: reelHeight }]}>
+    <View style={[styles.reelCard, { height: reelHeight, width: '100%' }]}>
       <ReelPlayer uri={item.videoUrl} active={item.id === activeId} height={reelHeight} />
       <View style={styles.reelOverlay}>
         <View style={{ flex: 1 }}>
@@ -566,6 +567,10 @@ export default function ReelsScreen({ userId, onBack }) {
           <Text style={styles.createArrowLabel}>ريل</Text>
         </TouchableOpacity>
       </View>
+      <View style={{ flex: 1 }} onLayout={(event) => {
+        const measured = Math.round(event.nativeEvent.layout.height);
+        if (measured > 0 && Math.abs(measured - feedHeight) > 1) setFeedHeight(measured);
+      }}>
       {loading ? (
         <View style={styles.center}><ActivityIndicator size="large" color={PINK} /><Text style={styles.emptyText}>بنحمّل الريلز…</Text></View>
       ) : reels.length === 0 ? (
@@ -574,10 +579,10 @@ export default function ReelsScreen({ userId, onBack }) {
         <FlatList data={reels} keyExtractor={(item) => item.id} renderItem={renderReel}
           pagingEnabled showsVerticalScrollIndicator={false} viewabilityConfig={viewabilityConfig}
           onViewableItemsChanged={onViewableItemsChanged} initialNumToRender={1}
-          maxToRenderPerBatch={2} windowSize={3}
-          contentContainerStyle={{ paddingBottom: 18 }}
+          maxToRenderPerBatch={2} windowSize={3} contentContainerStyle={{ paddingBottom: 0 }}
           getItemLayout={(_, index) => ({ length: reelHeight, offset: reelHeight * index, index })} />
       )}
+      </View>
 
       <Modal visible={createPanelOpen} transparent animationType="fade" onRequestClose={() => setCreatePanelOpen(false)}>
         <View style={styles.panelBackdrop}>
@@ -713,10 +718,10 @@ export default function ReelsScreen({ userId, onBack }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: BG, paddingBottom: 8 },
-  header: { minHeight: 60, paddingTop: 8, paddingHorizontal: 12, flexDirection: 'row-reverse', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#302537', gap: 10 },
-  headerAction: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 12, backgroundColor: '#2B2033', borderWidth: 1, borderColor: '#68445F' },
+  header: { minHeight: 60, paddingTop: 8, paddingHorizontal: 12, flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#302537', gap: 12 },
+  headerAction: { width: 62, minHeight: 42, paddingHorizontal: 8, paddingVertical: 8, borderRadius: 12, backgroundColor: '#2B2033', borderWidth: 1, borderColor: '#68445F', alignItems: 'center', justifyContent: 'center' },
   headerActionText: { color: '#F4D9EA', fontSize: 12, fontWeight: 'bold' },
-  createArrow: { minWidth: 48, minHeight: 42, paddingHorizontal: 8, borderRadius: 13, backgroundColor: PINK, alignItems: 'center', justifyContent: 'center', marginLeft: 4 },
+  createArrow: { width: 52, minHeight: 42, paddingHorizontal: 6, borderRadius: 13, backgroundColor: PINK, alignItems: 'center', justifyContent: 'center' },
   createArrowText: { color: '#fff', fontSize: 19, fontWeight: '900', lineHeight: 21 },
   createArrowLabel: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
   backButton: { padding: 10 }, backText: { color: PINK, fontWeight: 'bold', fontSize: 15 },
@@ -759,20 +764,20 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
   emptyIcon: { fontSize: 52, marginBottom: 12 }, emptyTitle: { color: '#fff', fontWeight: 'bold', fontSize: 19 },
   emptyText: { color: '#A99EAE', textAlign: 'center', marginTop: 9, lineHeight: 22 },
-  reelCard: { backgroundColor: '#000', marginBottom: 0, position: 'relative', paddingBottom: 18, overflow: 'hidden' },
-  sideActions: { position: 'absolute', zIndex: 20, right: 12, top: '38%', alignItems: 'center', gap: 16 },
+  reelCard: { backgroundColor: '#000', marginBottom: 0, position: 'relative', paddingBottom: 0, overflow: 'hidden' },
+  sideActions: { position: 'absolute', zIndex: 20, right: 12, bottom: 38, alignItems: 'center', gap: 14 },
   playerControls: { position: 'absolute', left: 14, bottom: 22, flexDirection: 'row', gap: 10, zIndex: 25 },
   playerControl: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(10,8,14,0.72)', alignItems: 'center', justifyContent: 'center' },
   playerControlText: { color: '#fff', fontSize: 17, fontWeight: '900' },
-  progressTrack: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 4, backgroundColor: 'rgba(255,255,255,0.25)', zIndex: 30 },
+  progressTrack: { width: '100%', height: 4, backgroundColor: 'rgba(255,255,255,0.25)', zIndex: 30 },
   progressFill: { height: 4, backgroundColor: PINK },
   moreButton: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#30243A', alignItems: 'center', justifyContent: 'center', marginLeft: 6 },
   moreButtonText: { color: '#fff', fontSize: 23, fontWeight: '900', lineHeight: 25 },
-  deleteMenu: { alignSelf: 'flex-end', marginTop: 8, backgroundColor: '#592538', borderRadius: 9, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: '#C94B69' },
+  deleteMenu: { alignSelf: 'flex-end', marginTop: 8, backgroundColor: '#592538', borderRadius: 9, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: '#C94B69', zIndex: 40, elevation: 12 },
   sideActionButton: { minWidth: 48, minHeight: 52, paddingHorizontal: 7, paddingVertical: 7, borderRadius: 22, backgroundColor: 'rgba(20,14,25,0.88)', borderWidth: 1, borderColor: '#6C4260', alignItems: 'center', justifyContent: 'center' },
   sideActionIcon: { color: '#fff', fontSize: 25, fontWeight: '900' },
   sideActionCount: { color: '#fff', fontSize: 10, fontWeight: 'bold', marginTop: 1 },
-  reelOverlay: { position: 'absolute', top: 12, left: 12, right: 72, minHeight: 62, paddingHorizontal: 12, paddingVertical: 9, flexDirection: 'row', alignItems: 'flex-start', backgroundColor: 'rgba(11,9,18,0.82)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(243,78,155,0.55)', zIndex: 15 },
+  reelOverlay: { position: 'absolute', bottom: 18, left: 12, right: 76, minHeight: 62, paddingHorizontal: 12, paddingVertical: 9, flexDirection: 'row', alignItems: 'flex-start', backgroundColor: 'rgba(11,9,18,0.82)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(243,78,155,0.55)', zIndex: 15 },
   authorRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 10, minHeight: 42 },
   authorAvatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: PINK },
   authorAvatarFallback: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#49334F', alignItems: 'center', justifyContent: 'center' },
