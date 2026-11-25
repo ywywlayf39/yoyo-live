@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Directory, File, Paths } from 'expo-file-system';
 import { createAudioPlayer } from 'expo-audio';
+import { useRoomContext } from '@livekit/react-native';
 import { supabase } from './supabase';
 
 const STORAGE_KEY = '@yoyo_live_music_library_v1';
@@ -14,6 +15,7 @@ function safeFileName(name) {
 }
 
 export default function LiveMusicLibrary({ roomName, userId }) {
+  const room = useRoomContext();
   const [songs, setSongs] = useState([]);
   const [busy, setBusy] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -197,7 +199,29 @@ export default function LiveMusicLibrary({ roomName, userId }) {
       if (previousMusic?.storage_path && previousMusic.storage_path !== storagePath) {
         await supabase.storage.from('live-music').remove([previousMusic.storage_path]);
       }
-      Alert.alert('الموسيقى بدأت مع الجمهور 🎵', 'الأغنية هتشتغل عندك وعند المشاهدين المتصلين بالبث. شارك فقط ملفات تملك حق استخدامها.');
+
+      // Send the ready-to-play signed URL through LiveKit's reliable room data
+      // channel so viewers do not wait for a separate Supabase realtime fetch.
+      const { data: currentMusic, error: stateError } = await supabase.from('live_room_music')
+        .select('room_name,host_id,storage_path,track_name,status,started_at,position_seconds,updated_at')
+        .eq('room_name', roomName).maybeSingle();
+      if (!stateError && currentMusic && room?.localParticipant) {
+        const { data: signed } = await supabase.storage.from('live-music')
+          .createSignedUrl(storagePath, 7200);
+        try {
+          await room.localParticipant.publishData(
+            new TextEncoder().encode(JSON.stringify({
+              type: 'yoyo_music_state',
+              roomName,
+              music: { ...currentMusic, signed_url: signed?.signedUrl || null },
+            })),
+            { reliable: true, topic: 'yoyo-live-music' },
+          );
+        } catch (broadcastError) {
+          console.warn('YOYO music data channel publish:', broadcastError?.message || broadcastError);
+        }
+      }
+      Alert.alert('الموسيقى بدأت مع الجمهور 🎵', 'تم إرسال أمر التشغيل عبر اتصال البث المباشر لتقليل تأخير بدء الموسيقى. شارك فقط ملفات تملك حق استخدامها.');
     } catch (error) {
       console.warn('YOYO shared music upload:', error?.message || error);
       Alert.alert('تعذر مشاركة الأغنية', 'راجع اتصال الإنترنت وصيغة الملف ثم حاول مرة أخرى.');
