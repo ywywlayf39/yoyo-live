@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { supabase } from './supabase';
+import ProfileFrame from './ProfileFrame';
 
 const COLORS = { panel: '#191424', panel2: '#241B35', pink: '#F34E9B', gold: '#F5C451', white: '#FFFFFF', muted: '#AAA1B8' };
 
@@ -12,11 +13,20 @@ export default function LiveRoomChat({ roomName, userId }) {
   const [sending, setSending] = useState(false);
   const listRef = useRef(null);
 
+  const decorateMessages = useCallback(async (rows) => {
+    const ids = [...new Set((rows || []).map((row) => row.user_id).filter(Boolean))];
+    if (!ids.length) return rows || [];
+    const { data: profiles } = await supabase.from('member_public_profiles')
+      .select('id,avatar_url,selected_frame_code').in('id', ids);
+    const map = new Map((profiles || []).map((profile) => [profile.id, profile]));
+    return (rows || []).map((row) => ({ ...row, ...(map.get(row.user_id) || {}) }));
+  }, []);
+
   const load = useCallback(async () => {
     if (!roomName || !userId) return;
     const [roomResult, messageResult] = await Promise.all([
       supabase.from('live_rooms').select('comments_enabled,host_id').eq('room_name', roomName).eq('status', 'live').maybeSingle(),
-      supabase.from('live_room_comments').select('id,display_name,body,created_at').eq('room_name', roomName).order('created_at', { ascending: false }).limit(30),
+      supabase.from('live_room_comments').select('id,user_id,display_name,body,created_at').eq('room_name', roomName).order('created_at', { ascending: false }).limit(30),
     ]);
     if (!roomResult.error && roomResult.data) {
       setEnabled(roomResult.data.comments_enabled !== false);
@@ -25,14 +35,15 @@ export default function LiveRoomChat({ roomName, userId }) {
     } else {
       setCanManageComments(false);
     }
-    if (!messageResult.error) setMessages((messageResult.data || []).reverse());
-  }, [roomName, userId]);
+    if (!messageResult.error) setMessages(await decorateMessages((messageResult.data || []).reverse()));
+  }, [roomName, userId, decorateMessages]);
 
   useEffect(() => {
     load();
     const channel = supabase.channel('live-comments-' + roomName)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'live_room_comments', filter: 'room_name=eq.' + roomName }, (payload) => {
-        setMessages((current) => [...current.filter((item) => item.id !== payload.new.id), payload.new].slice(-30));
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'live_room_comments', filter: 'room_name=eq.' + roomName }, async (payload) => {
+        const [decorated] = await decorateMessages([payload.new]);
+        setMessages((current) => [...current.filter((item) => item.id !== decorated.id), decorated].slice(-30));
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'live_rooms', filter: 'room_name=eq.' + roomName }, (payload) => {
         setEnabled(payload.new?.comments_enabled !== false);
@@ -40,7 +51,7 @@ export default function LiveRoomChat({ roomName, userId }) {
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [roomName, load]);
+  }, [roomName, load, decorateMessages]);
 
   useEffect(() => {
     if (messages.length) listRef.current?.scrollToEnd({ animated: true });
@@ -84,8 +95,13 @@ export default function LiveRoomChat({ roomName, userId }) {
       <ScrollView ref={listRef} style={styles.list} nestedScrollEnabled showsVerticalScrollIndicator={false}>
         {messages.length ? messages.slice(-12).map((item) => (
           <View key={item.id} style={styles.message}>
-            <Text style={styles.name}>{item.display_name}</Text>
-            <Text style={styles.body}>{item.body}</Text>
+            <ProfileFrame frameCode={item.selected_frame_code} size={36}>
+              {item.avatar_url ? <Image source={{ uri: item.avatar_url }} style={{ width: '100%', height: '100%' }} /> : <View style={styles.miniAvatarFallback}><Text style={{ fontSize: 17 }}>👤</Text></View>}
+            </ProfileFrame>
+            <View style={styles.messageContent}>
+              <Text style={styles.name}>{item.display_name}{item.selected_frame_code ? '  VIP' : ''}</Text>
+              <Text style={styles.body}>{item.body}</Text>
+            </View>
           </View>
         )) : <Text style={styles.empty}>كن أول من يكتب تعليقًا 👋</Text>}
       </ScrollView>
@@ -109,7 +125,9 @@ const styles = StyleSheet.create({
   closed: { backgroundColor: '#287B5B' },
   toggleText: { color: COLORS.white, fontSize: 11, fontWeight: 'bold' },
   list: { maxHeight: 142, minHeight: 24 },
-  message: { alignSelf: 'flex-start', maxWidth: '100%', flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 8, paddingVertical: 5, marginBottom: 4, gap: 6, backgroundColor: 'rgba(12,9,20,0.48)', borderRadius: 12 },
+  message: { alignSelf: 'flex-start', maxWidth: '100%', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 5, marginBottom: 4, gap: 7, backgroundColor: 'rgba(12,9,20,0.48)', borderRadius: 12 },
+  messageContent: { flex: 1, minWidth: 0 },
+  miniAvatarFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#30243E' },
   name: { color: COLORS.gold, fontSize: 11, fontWeight: 'bold' },
   body: { color: COLORS.white, fontSize: 12, flex: 1, lineHeight: 17, textShadowColor: 'rgba(0,0,0,0.65)', textShadowRadius: 3 },
   empty: { color: COLORS.white, fontSize: 11, textAlign: 'left', paddingHorizontal: 9, paddingVertical: 7, backgroundColor: 'rgba(12,9,20,0.42)', borderRadius: 12, overflow: 'hidden' },
