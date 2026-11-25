@@ -7,7 +7,7 @@ const music = read('LiveMusicLibrary.js');
 const packages = read('PackagesScreen.js');
 
 const checks = [
-  ['creator identity card sits inside the reel at the bottom', /reelOverlay:\s*\{[^}]*position:\s*'absolute'[^}]*bottom:\s*18/s.test(reels)],
+  ['creator identity card sits inside the reel above the Android navigation area', /reelOverlay:\s*\{[^}]*position:\s*'absolute'[^}]*bottom:\s*24/s.test(reels)],
   ['each reel uses the measured full feed viewport height', /const \[feedHeight, setFeedHeight\] = useState\(0\)/.test(reels) && /onLayout=\{\(event\) =>/.test(reels)],
   ['like and comment actions are spaced well above the identity card and Android navigation', /sideActions:\s*\{[^}]*bottom:\s*142/s.test(reels) && /reelOverlay:\s*\{[^}]*bottom:\s*24[^}]*right:\s*104/s.test(reels)],
   ['Android safe-area inset is reserved below the reels viewport', /useSafeAreaInsets/.test(reels) && /paddingBottom:\s*Math\.max\(insets\.bottom,\s*26\)/.test(reels)],
