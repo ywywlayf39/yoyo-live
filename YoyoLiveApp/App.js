@@ -5,6 +5,7 @@ import ProfileScreen from './ProfileScreen';
 import WalletScreen from './WalletScreen';
 import PackagesScreen from './PackagesScreen';
 import VIPScreen from './VIPScreen';
+import ProfileFrame from './ProfileFrame';
 import AccountScreen from './AccountScreen';
 import AdminScreen from './AdminScreen';
 import ChatScreen from './ChatScreen';
@@ -355,7 +356,7 @@ export default function App() {
       setMembersError('');
       const [{ data, error }, { data: blockRows, error: blockError }] = await Promise.all([
         supabase.from('member_public_profiles')
-          .select('id, display_name, avatar_url, country')
+          .select('id, display_name, avatar_url, country, selected_frame_code')
           .neq('id', session.user.id)
           .order('display_name', { ascending: true })
           .limit(50),
@@ -894,16 +895,17 @@ export default function App() {
           >
             <Text style={{ color: C.pink, fontSize: 16, fontWeight: 'bold' }}>→ رجوع للأعضاء</Text>
           </TouchableOpacity>
-          {selectedMember.avatar_url ? (
-            <Image
-              source={{ uri: selectedMember.avatar_url }}
-              style={{ width: 124, height: 124, borderRadius: 62, marginTop: 28, backgroundColor: C.card2 }}
-            />
-          ) : (
-            <View style={{ width: 124, height: 124, borderRadius: 62, marginTop: 28, backgroundColor: C.card2, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 54 }}>👤</Text>
-            </View>
-          )}
+          <View style={{ marginTop: 28 }}>
+            <ProfileFrame frameCode={selectedMember.selected_frame_code} size={132}>
+              {selectedMember.avatar_url ? (
+                <Image source={{ uri: selectedMember.avatar_url }} style={{ width: '100%', height: '100%' }} />
+              ) : (
+                <View style={{ flex: 1, backgroundColor: C.card2, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 54 }}>👤</Text>
+                </View>
+              )}
+            </ProfileFrame>
+          </View>
           <Text style={{ color: C.white, fontSize: 24, fontWeight: 'bold', marginTop: 18 }}>
             {selectedMember.display_name || 'عضو YOYO LIVE'}
           </Text>
@@ -1065,13 +1067,15 @@ export default function App() {
                     activeOpacity={0.8}
                     onPress={() => setSelectedMember(member)}
                   >
-                    <View style={styles.memberCircle}>
+                    <ProfileFrame frameCode={member.selected_frame_code} size={72}>
                       {member.avatar_url ? (
-                        <Image source={{ uri: member.avatar_url }} style={styles.memberAvatar} />
+                        <Image source={{ uri: member.avatar_url }} style={{ width: '100%', height: '100%' }} />
                       ) : (
-                        <Text style={styles.storyEmoji}>👤</Text>
+                        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.card2 }}>
+                          <Text style={styles.storyEmoji}>👤</Text>
+                        </View>
                       )}
-                    </View>
+                    </ProfileFrame>
                     <Text style={styles.storyName} numberOfLines={1}>
                       {member.display_name}
                     </Text>
