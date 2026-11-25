@@ -22,17 +22,43 @@ function ReelPreviewPlayer({ uri }) {
 }
 
 function ReelPlayer({ uri, active, height }) {
-  const player = useVideoPlayer(uri, (instance) => { instance.loop = true; });
+  const player = useVideoPlayer(uri, (instance) => { instance.loop = true; instance.timeUpdateEventInterval = 0.25; });
+  const [playing, setPlaying] = useState(!!active);
+  const [muted, setMuted] = useState(false);
+  const [playhead, setPlayhead] = useState(0);
+  const [duration, setDuration] = useState(0);
   useEffect(() => {
-    if (active) player.play(); else player.pause();
+    if (active) { player.play(); setPlaying(true); } else { player.pause(); setPlaying(false); }
     return () => { try { player.pause(); } catch (_) {} };
   }, [active, player]);
-  return <VideoView player={player} style={{ width: '100%', height, backgroundColor: '#000' }} contentFit="contain" nativeControls={false} allowsFullscreen={false} allowsPictureInPicture={false} />;
+  useEffect(() => {
+    const sub = player.addListener('timeUpdate', (event) => {
+      setPlayhead(Number(event.currentTime || 0));
+      setDuration(Number(event.duration || player.duration || 0));
+    });
+    return () => sub?.remove?.();
+  }, [player]);
+  const togglePlayback = () => {
+    if (playing) player.pause(); else player.play();
+    setPlaying(!playing);
+  };
+  const toggleMute = () => { player.muted = !muted; setMuted(!muted); };
+  const progress = duration > 0 ? Math.min(1, playhead / duration) : 0;
+  return (
+    <View style={{ width: '100%', height, backgroundColor: '#000' }}>
+      <VideoView player={player} style={{ width: '100%', height: '100%' }} contentFit="cover" nativeControls={false} allowsFullscreen={false} allowsPictureInPicture={false} />
+      <View style={styles.playerControls}>
+        <TouchableOpacity onPress={togglePlayback} style={styles.playerControl}><Text style={styles.playerControlText}>{playing ? 'Ⅱ' : '▶'}</Text></TouchableOpacity>
+        <TouchableOpacity onPress={toggleMute} style={styles.playerControl}><Text style={styles.playerControlText}>{muted ? '🔇' : '🔊'}</Text></TouchableOpacity>
+      </View>
+      <View style={styles.progressTrack}><View style={[styles.progressFill, { width: (progress * 100) + '%' }]} /></View>
+    </View>
+  );
 }
 
 export default function ReelsScreen({ userId, onBack }) {
   const { height: windowHeight } = useWindowDimensions();
-  const reelHeight = Math.max(420, windowHeight - 190);
+  const reelHeight = Math.max(420, windowHeight - 220);
   const [reels, setReels] = useState([]);
   const [caption, setCaption] = useState('');
   const [loading, setLoading] = useState(true);
@@ -40,6 +66,7 @@ export default function ReelsScreen({ userId, onBack }) {
   const [progress, setProgress] = useState(0);
   const [activeId, setActiveId] = useState(null);
   const [sideActionsOpen, setSideActionsOpen] = useState(true);
+  const [deleteMenuId, setDeleteMenuId] = useState(null);
   const [createPanelOpen, setCreatePanelOpen] = useState(false);
   const [myReelsOpen, setMyReelsOpen] = useState(false);
   const [commentsReel, setCommentsReel] = useState(null);
@@ -495,16 +522,15 @@ export default function ReelsScreen({ userId, onBack }) {
         <View style={{ flex: 1 }}>
           <View style={styles.authorRow}>
             {item.authorAvatar ? <Image source={{ uri: item.authorAvatar }} style={styles.authorAvatar} /> : <View style={styles.authorAvatarFallback}><Text style={{ color: '#fff', fontWeight: 'bold' }}>☺</Text></View>}
-            <Text numberOfLines={1} style={styles.author}>@{item.author}</Text>
+            <Text numberOfLines={1} style={styles.author}>{item.author}</Text>
+            {item.user_id === userId && <TouchableOpacity onPress={() => setDeleteMenuId((current) => current === item.id ? null : item.id)} style={styles.moreButton}><Text style={styles.moreButtonText}>⋯</Text></TouchableOpacity>}
           </View>
-          {!!item.caption && <Text numberOfLines={2} style={styles.caption}>{item.caption}</Text>}
+          {!!item.caption && <Text numberOfLines={3} style={styles.caption}>{item.caption}</Text>}
+          <Text style={styles.meta}>{new Date(item.created_at).toLocaleDateString('ar-EG')} · @{String(item.user_id).slice(0, 6)}</Text>
+          {deleteMenuId === item.id && <TouchableOpacity onPress={() => { setDeleteMenuId(null); deleteReel(item); }} style={styles.deleteMenu}><Text style={styles.deleteText}>حذف الريل</Text></TouchableOpacity>}
         </View>
-        {item.user_id === userId && <TouchableOpacity onPress={() => deleteReel(item)} style={styles.deleteButton}><Text style={styles.deleteText}>حذف</Text></TouchableOpacity>}
       </View>
       <View style={styles.sideActions}>
-        <TouchableOpacity onPress={() => setSideActionsOpen((value) => !value)} style={styles.sideArrow}>
-          <Text style={styles.sideArrowText}>{sideActionsOpen ? '›' : '‹'}</Text>
-        </TouchableOpacity>
         {sideActionsOpen && <>
           <TouchableOpacity onPress={() => toggleLike(item)} style={[styles.sideActionButton, item.likedByMe && styles.actionActive]}>
             <Text style={[styles.sideActionIcon, item.likedByMe && styles.actionTextActive]}>{item.likedByMe ? '♥' : '♡'}</Text>
@@ -527,7 +553,7 @@ export default function ReelsScreen({ userId, onBack }) {
     <SafeAreaView style={styles.screen}>
       <StatusBar barStyle="light-content" backgroundColor={BG} />
       <View style={styles.header}>
-        <TouchableOpacity onPress={onBack} style={styles.backButton}><Text style={styles.backText}>رجوع ←</Text></TouchableOpacity>
+        <TouchableOpacity onPress={onBack} style={styles.backButton}><Text style={styles.backText}>رجوع ➜</Text></TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'flex-end' }}>
           <Text style={styles.title}>YOYO REELS ✨</Text>
           <Text style={styles.subtitle}>فيديوهات قصيرة</Text>
@@ -549,6 +575,7 @@ export default function ReelsScreen({ userId, onBack }) {
           pagingEnabled showsVerticalScrollIndicator={false} viewabilityConfig={viewabilityConfig}
           onViewableItemsChanged={onViewableItemsChanged} initialNumToRender={1}
           maxToRenderPerBatch={2} windowSize={3}
+          contentContainerStyle={{ paddingBottom: 18 }}
           getItemLayout={(_, index) => ({ length: reelHeight, offset: reelHeight * index, index })} />
       )}
 
@@ -562,14 +589,15 @@ export default function ReelsScreen({ userId, onBack }) {
               </View>
               {renderMusicControls()}
               <TextInput value={caption} onChangeText={setCaption} placeholder="اكتب وصف الريل (اختياري)" placeholderTextColor="#9B91A5" maxLength={300} textAlign="right" style={styles.captionInput} />
-              <TouchableOpacity onPress={() => { setCreatePanelOpen(false); openReelCamera(); }} disabled={uploading} style={[styles.publishButton, uploading && { opacity: 0.65 }]}>
-                <Text style={styles.publishText}>● صوّر ريل بالكاميرا · حتى 3 دقائق</Text>
+              <TouchableOpacity onPress={() => { setCreatePanelOpen(false); openReelCamera(); }} disabled={uploading} style={[styles.sourceButton, uploading && { opacity: 0.65 }]}>
+                <Text style={styles.publishText}>📷 تصوير ريل بالكاميرا</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => { setCreatePanelOpen(false); publishReel(); }} disabled={uploading} style={[styles.galleryButton, uploading && { opacity: 0.65 }]}>
-                {uploading ? <ActivityIndicator color="#fff" /> : <Text style={styles.publishText}>اختار فيديو من المعرض</Text>}
+              <TouchableOpacity onPress={() => { setCreatePanelOpen(false); publishReel(); }} disabled={uploading} style={[styles.sourceButton, uploading && { opacity: 0.65 }]}>
+                {uploading ? <ActivityIndicator color="#fff" /> : <Text style={styles.publishText}>🖼️ اختيار فيديو من المعرض</Text>}
               </TouchableOpacity>
               {uploading && <Text style={styles.progressText}>جارٍ ضغط الفيديو وتجهيزه للرفع… {progress}%</Text>}
-              <Text style={styles.limits}>تصوير مباشر أو من المعرض · حتى 3 دقائق · ضغط 720p · أقصى حجم 50MB</Text>
+              <Text style={styles.limits}>تصوير مباشر أو اختيار فيديو من المعرض، بحد أقصى 3 دقائق.
+بعد الضغط بجودة 720p، الحد الأقصى لحجم الريل 50 ميجابايت.</Text>
             </View>
           </KeyboardAvoidingView>
         </View>
@@ -684,11 +712,11 @@ export default function ReelsScreen({ userId, onBack }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: BG },
-  header: { minHeight: 52, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#302537', gap: 5 },
+  screen: { flex: 1, backgroundColor: BG, paddingBottom: 8 },
+  header: { minHeight: 60, paddingTop: 8, paddingHorizontal: 12, flexDirection: 'row-reverse', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#302537', gap: 10 },
   headerAction: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 12, backgroundColor: '#2B2033', borderWidth: 1, borderColor: '#68445F' },
   headerActionText: { color: '#F4D9EA', fontSize: 12, fontWeight: 'bold' },
-  createArrow: { minWidth: 48, minHeight: 42, paddingHorizontal: 8, borderRadius: 13, backgroundColor: PINK, alignItems: 'center', justifyContent: 'center' },
+  createArrow: { minWidth: 48, minHeight: 42, paddingHorizontal: 8, borderRadius: 13, backgroundColor: PINK, alignItems: 'center', justifyContent: 'center', marginLeft: 4 },
   createArrowText: { color: '#fff', fontSize: 19, fontWeight: '900', lineHeight: 21 },
   createArrowLabel: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
   backButton: { padding: 10 }, backText: { color: PINK, fontWeight: 'bold', fontSize: 15 },
@@ -708,7 +736,8 @@ const styles = StyleSheet.create({
   myReelDeleteText: { color: '#FF9EAD', fontWeight: 'bold' },
   captionInput: { minHeight: 42, backgroundColor: CARD, borderRadius: 11, paddingHorizontal: 12, color: '#fff', marginBottom: 8 },
   publishButton: { backgroundColor: PINK, minHeight: 46, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  galleryButton: { backgroundColor: '#38283F', minHeight: 43, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginTop: 8, borderWidth: 1, borderColor: '#65465F' },
+  galleryButton: { backgroundColor: PINK, minHeight: 43, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginTop: 8, borderWidth: 1, borderColor: '#D94B8D' },
+  sourceButton: { backgroundColor: '#8A3568', minHeight: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 8, borderWidth: 1, borderColor: '#C45B98' },
   cameraControl: { backgroundColor: 'rgba(20,14,25,0.82)', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20, borderWidth: 1, borderColor: '#A46B91' },
   cameraControlText: { color: '#fff', fontWeight: 'bold' },
   publishText: { color: '#fff', fontWeight: 'bold', fontSize: 15 }, progressText: { color: GOLD, textAlign: 'center', marginTop: 7, fontSize: 12 },
@@ -726,25 +755,30 @@ const styles = StyleSheet.create({
   volumeChipText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
   musicRemoveButton: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 6, marginTop: 7 },
   musicRemoveText: { color: '#FF9EAD', fontSize: 11, fontWeight: 'bold' },
-  limits: { color: '#9B91A5', textAlign: 'center', fontSize: 10, marginTop: 7 },
+  limits: { color: '#D0C5D4', textAlign: 'center', fontSize: 13, lineHeight: 21, marginTop: 12 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
   emptyIcon: { fontSize: 52, marginBottom: 12 }, emptyTitle: { color: '#fff', fontWeight: 'bold', fontSize: 19 },
   emptyText: { color: '#A99EAE', textAlign: 'center', marginTop: 9, lineHeight: 22 },
-  reelCard: { backgroundColor: '#000', marginBottom: 0, position: 'relative' },
-  sideActions: { position: 'absolute', zIndex: 20, right: 9, top: '34%', alignItems: 'center', gap: 12 },
-  sideArrow: { width: 30, height: 42, borderRadius: 16, backgroundColor: 'rgba(20,14,25,0.88)', borderWidth: 1, borderColor: '#76506A', alignItems: 'center', justifyContent: 'center' },
-  sideArrowText: { color: '#fff', fontSize: 25, fontWeight: 'bold', lineHeight: 28 },
+  reelCard: { backgroundColor: '#000', marginBottom: 0, position: 'relative', paddingBottom: 18, overflow: 'hidden' },
+  sideActions: { position: 'absolute', zIndex: 20, right: 12, top: '38%', alignItems: 'center', gap: 16 },
+  playerControls: { position: 'absolute', left: 14, bottom: 22, flexDirection: 'row', gap: 10, zIndex: 25 },
+  playerControl: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(10,8,14,0.72)', alignItems: 'center', justifyContent: 'center' },
+  playerControlText: { color: '#fff', fontSize: 17, fontWeight: '900' },
+  progressTrack: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 4, backgroundColor: 'rgba(255,255,255,0.25)', zIndex: 30 },
+  progressFill: { height: 4, backgroundColor: PINK },
+  moreButton: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#30243A', alignItems: 'center', justifyContent: 'center', marginLeft: 6 },
+  moreButtonText: { color: '#fff', fontSize: 23, fontWeight: '900', lineHeight: 25 },
+  deleteMenu: { alignSelf: 'flex-end', marginTop: 8, backgroundColor: '#592538', borderRadius: 9, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: '#C94B69' },
   sideActionButton: { minWidth: 48, minHeight: 52, paddingHorizontal: 7, paddingVertical: 7, borderRadius: 22, backgroundColor: 'rgba(20,14,25,0.88)', borderWidth: 1, borderColor: '#6C4260', alignItems: 'center', justifyContent: 'center' },
   sideActionIcon: { color: '#fff', fontSize: 25, fontWeight: '900' },
   sideActionCount: { color: '#fff', fontSize: 10, fontWeight: 'bold', marginTop: 1 },
-  reelOverlay: { position: 'absolute', top: 12, left: 12, right: 68, minHeight: 62, paddingHorizontal: 12, paddingVertical: 9, flexDirection: 'row', alignItems: 'flex-start', backgroundColor: 'rgba(11,9,18,0.78)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(243,78,155,0.55)', zIndex: 15 },
+  reelOverlay: { position: 'absolute', top: 14, left: 12, right: 72, minHeight: 62, paddingHorizontal: 12, paddingVertical: 9, flexDirection: 'row', alignItems: 'flex-start', backgroundColor: 'rgba(11,9,18,0.82)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(243,78,155,0.55)', zIndex: 15 },
   authorRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 10, minHeight: 42 },
   authorAvatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: PINK },
   authorAvatarFallback: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#49334F', alignItems: 'center', justifyContent: 'center' },
   author: { color: '#fff', fontSize: 20, fontWeight: '900', textAlign: 'right', flexShrink: 1 },
   caption: { color: '#eee', textAlign: 'right', marginTop: 5, lineHeight: 20 },
-  meta: { color: '#A99EAE', textAlign: 'right', fontSize: 11, marginTop: 5 },
-  deleteButton: { borderWidth: 1, borderColor: '#C94B69', borderRadius: 9, paddingHorizontal: 12, paddingVertical: 7, marginLeft: 12 },
+  meta: { color: '#D0C5D4', textAlign: 'right', fontSize: 11, marginTop: 5 },
   actionButton: { borderWidth: 1, borderColor: '#6C4260', backgroundColor: '#241629', borderRadius: 18, paddingHorizontal: 13, paddingVertical: 7 },
   actionActive: { borderColor: PINK, backgroundColor: '#4A1835' },
   actionFollowing: { borderColor: GOLD, backgroundColor: '#302719' },
