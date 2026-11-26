@@ -14,7 +14,7 @@ function safeFileName(name) {
   return String(name || 'music.mp3').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-100) || 'music.mp3';
 }
 
-export default function LiveMusicLibrary({ roomName, userId }) {
+export default function LiveMusicLibrary({ roomName, userId, shareLabel = 'مشاركة الأغنية مع جمهور البث' }) {
   const room = useRoomContext();
   const [songs, setSongs] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -305,7 +305,7 @@ export default function LiveMusicLibrary({ roomName, userId }) {
                   disabled={!!sharingSongId}
                   style={[styles.shareButton, !!sharingSongId && { opacity: 0.6 }]}
                 >
-                  <Text style={styles.shareText}>{sharingSongId ? 'جارٍ رفع الأغنية...' : '📡 مشاركة الأغنية مع جمهور البث'}</Text>
+                  <Text style={styles.shareText}>{sharingSongId ? 'جارٍ رفع الأغنية...' : '📡 {shareLabel}'}</Text>
                 </TouchableOpacity>
               ) : null}
             </>
@@ -317,7 +317,7 @@ export default function LiveMusicLibrary({ roomName, userId }) {
               <Text style={styles.stopText}>■ إيقاف الأغنية وإرجاعها للبداية</Text>
             </TouchableOpacity>
           ) : null}
-          <Text style={styles.notice}>الأغاني محفوظة محليًا على هاتفك. تشغيلها وإرسال صوتها للمشاهدين يحتاج استكمال مسار الصوت المباشر في LiveKit؛ هذه المكتبة وحدها لا تبث الموسيقى.</Text>
+          <Text style={styles.notice}>يتم تشغيل الأغنية بشكل متزامن عند أعضاء الغرفة بعد مشاركتها. استخدم فقط الملفات التي تملك حق استخدامها أو لديك إذن ببثها.</Text>
         </View>
       ) : null}
     </View>
