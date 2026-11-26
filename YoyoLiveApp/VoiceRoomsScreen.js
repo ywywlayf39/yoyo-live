@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, SafeAreaView, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import LiveGiftPanel from './LiveGiftPanel';
 import { AudioSession, LiveKitRoom, useLocalParticipant, useParticipants } from '@livekit/react-native';
 import { supabase } from './supabase';
 
@@ -10,6 +11,8 @@ function VoiceStage({ room, userId, isHost, onLeave, onRefreshConnection }) {
   const participants = useParticipants();
   const [busy, setBusy] = useState(false);
   const [seatRows, setSeatRows] = useState([]);
+  const [seatProfiles, setSeatProfiles] = useState({});
+  const [seatsOpen, setSeatsOpen] = useState(room.seats_open !== false);
   const [requests, setRequests] = useState([]);
   const [messages, setMessages] = useState([]);
   const [messageText, setMessageText] = useState('');
@@ -30,7 +33,15 @@ function VoiceStage({ room, userId, isHost, onLeave, onRefreshConnection }) {
       supabase.from('voice_room_seat_requests').select('id,user_id,status,created_at').eq('room_id', room.id).eq('status', 'pending').order('created_at'),
       supabase.from('voice_room_messages').select('id,user_id,body,created_at').eq('room_id', room.id).order('created_at', { ascending: false }).limit(40),
     ]);
-    if (!seatResult.error) setSeatRows(seatResult.data || []);
+    if (!seatResult.error) {
+      const rows = seatResult.data || [];
+      setSeatRows(rows);
+      const ids = rows.map((x) => x.user_id);
+      if (ids.length) {
+        const { data: profileRows } = await supabase.from('member_public_profiles').select('id,display_name,avatar_url').in('id', ids);
+        setSeatProfiles(Object.fromEntries((profileRows || []).map((p) => [p.id, p])));
+      } else setSeatProfiles({});
+    }
     if (!requestResult.error) {
       setRequests(requestResult.data || []);
       setRequestSent((requestResult.data || []).some((x) => x.user_id === userId));
@@ -56,7 +67,8 @@ function VoiceStage({ room, userId, isHost, onLeave, onRefreshConnection }) {
     if (!isHost) return;
     if (approve) {
       const occupied = new Set(seatRows.map((x) => x.seat_number));
-      const seatNumber = Array.from({ length: 8 }, (_, i) => i + 1).find((n) => !occupied.has(n));
+      const seatNumber = Array.from({ length: 20 }, (_, i) => i + 1).find((n) => !occupied.has(n));
+      if (!seatsOpen) { Alert.alert('المقاعد مغلقة', 'مضيف الغرفة أغلق استقبال المتحدثين.'); return; }
       if (!seatNumber) { Alert.alert('المقاعد مكتملة', 'لا يوجد مقعد متاح حاليًا.'); return; }
       const { error: seatError } = await supabase.from('voice_room_seats')
         .insert({ room_id: room.id, user_id: request.user_id, seat_number: seatNumber });
@@ -105,20 +117,22 @@ function VoiceStage({ room, userId, isHost, onLeave, onRefreshConnection }) {
       </View>
       <View style={s.stageHeader}><Text style={s.section}>مقاعد المتحدثين</Text><Text style={s.sub}>الصوت مباشر بين أعضاء الغرفة</Text></View>
       <View style={s.seats}>
-        {Array.from({ length: 8 }).map((_, i) => {
+        {Array.from({ length: 20 }).map((_, i) => {
           const seat = seatRows.find((x) => x.seat_number === i + 1);
           const p = seat && participants.find((x) => x.identity === seat.user_id);
           return <View key={'seat-' + (i + 1)} style={[s.seat, seat ? s.seatActive : null]}>
-            <Text style={s.seatEmoji}>{seat ? (p?.isMicrophoneEnabled ? '🎙️' : '🔇') : '＋'}</Text>
-            <Text numberOfLines={1} style={s.seatName}>{seat ? (seat.user_id === userId ? 'أنت' : p?.name || 'متحدث') : 'مقعد فارغ'}</Text>
+            {seat && seatProfiles[seat.user_id]?.avatar_url ? <Image source={{ uri: seatProfiles[seat.user_id].avatar_url }} style={s.seatAvatar} /> : <Text style={s.seatEmoji}>{seat ? (p?.isMicrophoneEnabled ? '🎙️' : '🔇') : '＋'}</Text>}
+            <Text numberOfLines={1} style={s.seatName}>{seat ? (seat.user_id === userId ? 'أنت' : seatProfiles[seat.user_id]?.display_name || p?.name || 'متحدث') : 'مقعد فارغ'}</Text>
             {seat ? <Text style={s.seatState}>مقعد {i + 1}</Text> : null}
             {seat && isHost && seat.user_id !== userId ? <TouchableOpacity onPress={() => removeSpeaker(seat)}><Text style={{ color: '#FF8A9C', fontSize: 10 }}>إنزال</Text></TouchableOpacity> : null}
           </View>;
         })}
       </View>
-      {!isHost && !mySeat ? <TouchableOpacity onPress={requestSeat} disabled={requestSent} style={s.primary}>
+      {isHost ? <TouchableOpacity onPress={async () => { const next = !seatsOpen; const { error } = await supabase.from('voice_rooms').update({ seats_open: next }).eq('id', room.id).eq('host_id', userId); if (error) Alert.alert('تعذر تغيير المقاعد', error.message); else setSeatsOpen(next); }} style={s.seatToggle}><Text style={s.controlText}>{seatsOpen ? '🔒 غلق المقاعد' : '🔓 فتح المقاعد'}</Text></TouchableOpacity> : null}
+      {!isHost && !mySeat && seatsOpen ? <TouchableOpacity onPress={requestSeat} disabled={requestSent} style={s.primary}>
         <Text style={s.primaryText}>{requestSent ? 'تم إرسال طلب المايك' : '🎤 طلب الصعود للمايك'}</Text>
       </TouchableOpacity> : null}
+      {!isHost && !seatsOpen && !mySeat ? <Text style={s.seatsClosed}>المقاعد مغلقة حاليًا بواسطة المضيف</Text> : null}
       {mySeat && !isHost ? <TouchableOpacity onPress={leaveSeat} style={s.reject}><Text style={s.controlText}>مغادرة مقعد المتحدث</Text></TouchableOpacity> : null}
       {isHost && requests.length > 0 ? <View style={s.requestBox}>
         <Text style={s.section}>طلبات الصعود للمايك</Text>
@@ -147,6 +161,7 @@ function VoiceStage({ room, userId, isHost, onLeave, onRefreshConnection }) {
         </TouchableOpacity>
       </View>
       {isHost ? <Text style={s.hostTag}>أنت مضيف الغرفة</Text> : null}
+      <LiveGiftPanel userId={userId} receiverId={room.host_id} isHost={isHost} voiceRoomId={room.id} onOpenPackages={() => Alert.alert('باقات العملات', 'افتح صفحة المحفظة لشراء العملات.')} />
     </SafeAreaView>
   );
 }
@@ -162,7 +177,7 @@ export default function VoiceRoomsScreen({ userId, onBack }) {
 
   const loadRooms = useCallback(async () => {
     const { data, error: loadError } = await supabase.from('voice_rooms')
-      .select('id,room_name,title,host_id,created_at').eq('status', 'live')
+      .select('id,room_name,title,host_id,created_at,seats_open').eq('status', 'live')
       .order('created_at', { ascending: false });
     if (loadError) setError(loadError.message);
     else setRooms(data || []);
@@ -179,6 +194,8 @@ export default function VoiceRoomsScreen({ userId, onBack }) {
   const connect = async (room) => {
     setBusy(true); setError('');
     try {
+      const { error: memberError } = await supabase.from('voice_room_members').upsert({ room_id: room.id, user_id: userId }, { onConflict: 'room_id,user_id' });
+      if (memberError) throw memberError;
       await AudioSession.startAudioSession();
       const { data, error: tokenError } = await supabase.functions.invoke('livekit-token', { body: { roomName: room.room_name } });
       if (tokenError) throw tokenError;
@@ -186,6 +203,7 @@ export default function VoiceRoomsScreen({ userId, onBack }) {
       setActive(room);
       setConnection({ token: data.token, serverUrl: data.serverUrl });
     } catch (e) {
+      await supabase.from('voice_room_members').delete().eq('room_id', room.id).eq('user_id', userId);
       setError(e?.message || 'تعذر الاتصال بالغرفة الصوتية');
       Alert.alert('تعذر دخول الغرفة', e?.message || 'حاول مرة أخرى');
       AudioSession.stopAudioSession().catch(() => {});
@@ -199,7 +217,7 @@ export default function VoiceRoomsScreen({ userId, onBack }) {
     try {
       const roomName = 'voice_' + userId.replace(/-/g, '').slice(0, 10) + '_' + Date.now().toString(36);
       const { data, error: createError } = await supabase.from('voice_rooms')
-        .insert({ room_name: roomName, title: cleanTitle, host_id: userId }).select('id,room_name,title,host_id,created_at').single();
+        .insert({ room_name: roomName, title: cleanTitle, host_id: userId }).select('id,room_name,title,host_id,created_at,seats_open').single();
       if (createError) throw createError;
       setTitle('');
       await loadRooms();
@@ -218,6 +236,7 @@ export default function VoiceRoomsScreen({ userId, onBack }) {
   const leave = async () => {
     const room = active;
     setConnection(null); setActive(null);
+    if (room?.id) await supabase.from('voice_room_members').delete().eq('room_id', room.id).eq('user_id', userId);
     AudioSession.stopAudioSession().catch(() => {});
     if (room?.host_id === userId) {
       const { data, error: endError } = await supabase.functions.invoke('livekit-token', {
@@ -273,8 +292,8 @@ const s = StyleSheet.create({
   liveDot:{width:10,height:10,borderRadius:5,backgroundColor:'#F34E9B'},roomTitle:{color:C.white,fontWeight:'bold',fontSize:16},join:{color:C.pink,fontWeight:'bold'},
   empty:{color:C.muted,textAlign:'center',lineHeight:24,backgroundColor:C.card,padding:20,borderRadius:14},error:{color:'#FF8A9C',marginTop:12},
   stageHeader:{alignItems:'center',marginTop:30,gap:6},seats:{flexDirection:'row',flexWrap:'wrap',justifyContent:'center',padding:16,gap:12},
-  seat:{width:'21%',minWidth:70,aspectRatio:0.9,backgroundColor:C.card,borderRadius:16,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:'#382A4B',padding:6},
-  seatActive:{borderColor:C.purple,backgroundColor:C.card2},seatEmoji:{fontSize:27},seatName:{color:C.white,fontSize:11,marginTop:5},seatState:{color:'#62D6A4',fontSize:10,marginTop:3},
+  seat:{width:'21%',minWidth:58,aspectRatio:0.92,backgroundColor:C.card,borderRadius:16,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:'#382A4B',padding:6},
+  seatActive:{borderColor:C.purple,backgroundColor:C.card2},seatEmoji:{fontSize:27},seatAvatar:{width:38,height:38,borderRadius:19,backgroundColor:C.card2},seatsClosed:{color:C.gold,textAlign:'center',margin:10},seatToggle:{alignSelf:'center',backgroundColor:C.card2,paddingVertical:10,paddingHorizontal:18,borderRadius:12,marginTop:8},seatName:{color:C.white,fontSize:11,marginTop:5},seatState:{color:'#62D6A4',fontSize:10,marginTop:3},
   audioInfo:{marginHorizontal:20,backgroundColor:C.card,borderRadius:12,padding:13,alignItems:'center'},infoText:{color:C.muted,fontSize:12},
   controls:{flexDirection:'row',justifyContent:'center',gap:14,marginTop:'auto',padding:20},control:{alignItems:'center',padding:16,borderRadius:16,minWidth:125},
   controlOn:{backgroundColor:'#382A4B'},controlOff:{backgroundColor:'#5A2D43'},leave:{backgroundColor:'#A52D4C'},controlEmoji:{fontSize:24},controlText:{color:C.white,fontWeight:'bold',marginTop:6},
