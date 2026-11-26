@@ -33,5 +33,9 @@ assert.ok(giftsMigration.includes('voice_room_gift_events_sender_request_uidx') 
 assert.ok(gifts.includes('p_request_id: voiceGiftRequestId.current'), 'Voice gift UI must reuse the same idempotency key after an uncertain response');
 assert.ok(screen.includes('manageAllSeats') && screen.includes('فتح كل المقاعد') && screen.includes('قفل المقاعد الفارغة'), 'Hosts must have bulk seat open and close controls');
 assert.ok(membershipMigration.includes('revoke insert, update, delete on public.voice_room_members') && membershipMigration.includes('public.join_voice_room'), 'Members must not forge room membership through direct table writes');
+const singleRoomMigration = fs.readFileSync(path.join(root, '..', 'supabase', 'migrations', '20261126193000_one_live_voice_room_per_host.sql'), 'utf8');
+assert.ok(singleRoomMigration.includes('create unique index if not exists voice_rooms_one_live_room_per_host_uidx') && singleRoomMigration.includes("where status = 'live'"), 'A member must be limited to one active hosted voice room at database level');
+assert.ok(screen.includes(".eq('host_id', userId).eq('status', 'live')") && screen.includes('لديك غرفة صوتية مفتوحة بالفعل'), 'The app must detect an existing live room and offer to re-enter it instead of creating another');
+
 assert.ok(migrations.includes('20261126190000_secure_voice_room_seats.sql') && migrations.includes('20261126191000_voice_room_gifts_to_seat_holders.sql') && migrations.includes('20261126192000_secure_voice_room_membership.sql'), 'Voice room migrations must be present');
 console.log('YOYO LIVE voice room seats and gifts regression checks passed.');
