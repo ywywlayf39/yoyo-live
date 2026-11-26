@@ -414,7 +414,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
                   ))}
                 </View>
                 <TouchableOpacity style={[styles.sendButton, (sending || !receiverId || (!profileMode && !giftConnectionReady)) && { opacity: 0.6 }]}
-                  onPress={sendGift} disabled={sending || !receiverId || (!profileMode && !giftConnectionReady)}>
+                  onPress={sendGift} disabled={sending || (!profileMode && !giftConnectionReady)}>
                   {sending ? <ActivityIndicator color="#fff" /> : !receiverId ? <Text style={styles.sendText}>اختر مستلمًا أولًا</Text> : (!profileMode && !giftConnectionReady) ?
                     <Text style={styles.sendText}>جاري الاتصال بغرفة الهدايا...</Text> :
                     <Text style={styles.sendText}>إرسال {selectedGift.emoji} — {(Number(selectedGift.coin_cost) * quantity).toLocaleString('ar-EG')} عملة</Text>}
