@@ -305,7 +305,7 @@ export default function LiveMusicLibrary({ roomName, userId, shareLabel = 'مش�
                   disabled={!!sharingSongId}
                   style={[styles.shareButton, !!sharingSongId && { opacity: 0.6 }]}
                 >
-                  <Text style={styles.shareText}>{sharingSongId ? 'جارٍ رفع الأغنية...' : '📡 {shareLabel}'}</Text>
+                  <Text style={styles.shareText}>{sharingSongId ? 'جارٍ رفع الأغنية...' : `📡 ${shareLabel}`}</Text>
                 </TouchableOpacity>
               ) : null}
             </>
