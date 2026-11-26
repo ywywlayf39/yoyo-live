@@ -7,7 +7,7 @@ import { supabase } from './supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAudioPlayer } from 'expo-audio';
 import { GIFT_SOUND_ASSETS } from './giftSoundPlayers';
-import Gift3DModel from './Gift3DModel';
+
 
 const giftSoundPlayers = {};
 
@@ -340,7 +340,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
         </View>
         <Text style={styles.megaLabel}>{incoming.coinCost >= 100000 ? 'هدية أسطورية وصلت!' : 'هدية وصلت!'}</Text>
         <Animated.View style={{ transform: [{ perspective: 700 }, { rotateY }, { rotateX }, { scale: entrance.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1.08] }) }] }}>
-          <Gift3DModel animationKey={incoming.animationKey} emoji={incoming.emoji} size={incoming.coinCost >= 100000 ? 190 : 160} style={{ marginVertical: 2 }} />
+          <View style={{ width: incoming.coinCost >= 100000 ? 190 : 160, height: incoming.coinCost >= 100000 ? 190 : 160, alignItems: "center", justifyContent: "center", marginVertical: 2 }}><Text style={{ fontSize: incoming.coinCost >= 100000 ? 112 : 92 }}>{incoming.emoji || "🎁"}</Text></View>
         </Animated.View>
         <Text style={[styles.effectTitle, { color: tint }]}>{incoming.name}</Text>
         <Text style={styles.effectSubtitle}>
@@ -401,7 +401,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
               <View style={styles.footer}>
                 <View style={styles.selectedGiftPreview}>
                   <View style={styles.previewStage}>
-                    <Gift3DModel animationKey={selectedGift.animation_key} emoji={selectedGift.emoji} size={112} />
+                    <View style={{ width: 112, height: 112, alignItems: "center", justifyContent: "center" }}><Text style={{ fontSize: 68 }}>{selectedGift.emoji || "🎁"}</Text></View>
                     <Text style={styles.previewCaption}>معاينة ثلاثية الأبعاد</Text>
                   </View>
                 </View>
