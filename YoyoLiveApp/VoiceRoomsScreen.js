@@ -112,6 +112,7 @@ function VoiceStage({ room, userId, isHost, onLeave, onRefreshConnection }) {
   return (
     <SafeAreaView style={s.root}>
       <StatusBar barStyle="light-content" backgroundColor={C.bg} />
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }}>
       <View style={s.top}>
         <TouchableOpacity onPress={onLeave}><Text style={s.back}>رجوع ←</Text></TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'flex-end' }}>
@@ -165,6 +166,7 @@ function VoiceStage({ room, userId, isHost, onLeave, onRefreshConnection }) {
         </TouchableOpacity>
       </View>
       {isHost ? <Text style={s.hostTag}>أنت مضيف الغرفة</Text> : null}
+      </ScrollView>
       <LiveGiftPanel userId={userId} receiverId={room.host_id} isHost={isHost} voiceRoomId={room.id} onOpenPackages={() => Alert.alert('باقات العملات', 'افتح صفحة المحفظة لشراء العملات.')} />
     </SafeAreaView>
   );
@@ -198,7 +200,7 @@ export default function VoiceRoomsScreen({ userId, onBack }) {
   const connect = async (room) => {
     setBusy(true); setError('');
     try {
-      const { error: memberError } = await supabase.from('voice_room_members').upsert({ room_id: room.id, user_id: userId }, { onConflict: 'room_id,user_id' });
+      const { error: memberError } = await supabase.from('voice_room_members').upsert({ room_id: room.id, user_id: userId, joined_at: new Date().toISOString() }, { onConflict: 'room_id,user_id' });
       if (memberError) throw memberError;
       await AudioSession.startAudioSession();
       const { data, error: tokenError } = await supabase.functions.invoke('livekit-token', { body: { roomName: room.room_name } });
