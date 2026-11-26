@@ -286,7 +286,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
     }
     setSending(true);
     const { error } = voiceRoomId
-      ? await supabase.rpc('send_voice_room_gift', { p_room_id: voiceRoomId, p_gift_id: selectedGift.id, p_quantity: quantity })
+      ? await supabase.rpc('send_voice_room_gift', { p_room_id: voiceRoomId, p_gift_id: selectedGift.id, p_quantity: quantity, p_receiver_id: receiverId })
       : profileMode
       ? await supabase.rpc('send_profile_gift', {
           p_receiver_id: receiverId,
@@ -353,7 +353,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
     </View>
   ) : null;
 
-  if (isHost) return <>{liveSoundToggle}{incomingEffect}</>;
+  if (isHost && !voiceRoomId) return <>{liveSoundToggle}{incomingEffect}</>;
 
   return (
     <>
