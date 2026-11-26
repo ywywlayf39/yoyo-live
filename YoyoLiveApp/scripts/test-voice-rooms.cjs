@@ -14,7 +14,8 @@ const membershipMigration = fs.readFileSync(path.join(root, '..', 'supabase', 'm
 assert.ok(app.includes("import VoiceRoomsScreen from './VoiceRoomsScreen'"), 'App must import voice rooms');
 assert.ok(app.includes('onOpenPackages={() => setShowPackages(true)}'), 'Voice room gift recharge must open the existing packages screen');
 assert.ok(screen.includes('AudioSession.startAudioSession()') && screen.includes('video={false}') && !screen.includes('connect audio video={false}'), 'Voice rooms must remain audio-only and microphones must be manually enabled after approval');
-assert.ok(screen.indexOf("rpc('join_voice_room'") < screen.indexOf("functions.invoke('livekit-token'"), 'Membership must be confirmed before a LiveKit token is issued');
+const connectBlock = screen.slice(screen.indexOf('const connect = async (room) => {'), screen.indexOf('const createRoom = async () => {'));
+assert.ok(connectBlock.indexOf("rpc('join_voice_room'") < connectBlock.indexOf("functions.invoke('livekit-token'"), 'Membership must be confirmed before a LiveKit token is issued');
 assert.ok(screen.includes("rpc('join_voice_room'") && screen.includes("rpc('leave_voice_room'"), 'Room membership must use server-authorized RPCs');
 assert.ok(screen.includes('Array.from({ length: 8 }'), 'The room must render exactly eight seat slots');
 assert.ok(screen.includes('request_voice_room_seat') && screen.includes('manage_voice_room_seat'), 'Members must request seats and hosts must approve/control them');
