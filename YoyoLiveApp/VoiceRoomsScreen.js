@@ -280,11 +280,13 @@ export default function VoiceRoomsScreen({ userId, onBack, onOpenPackages }) {
     setBusy(true); setError('');
     try {
       await AudioSession.startAudioSession();
-      const { data, error: tokenError } = await supabase.functions.invoke('livekit-token', { body: { roomName: room.room_name } });
-      if (tokenError) throw tokenError;
-      if (!data?.token || !data?.serverUrl) throw new Error(data?.error || 'تعذر الحصول على تصريح دخول الغرفة');
       const { error: memberError } = await supabase.rpc('join_voice_room', { p_room_id: room.id });
       if (memberError) throw memberError;
+      const { data, error: tokenError } = await supabase.functions.invoke('livekit-token', { body: { roomName: room.room_name } });
+      if (tokenError || !data?.token || !data?.serverUrl) {
+        await supabase.rpc('leave_voice_room', { p_room_id: room.id });
+        throw tokenError || new Error(data?.error || 'تعذر الحصول على تصريح دخول الغرفة');
+      }
       setActive(room);
       setConnection({ token: data.token, serverUrl: data.serverUrl });
     } catch (error) {
