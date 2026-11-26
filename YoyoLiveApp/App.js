@@ -1030,7 +1030,6 @@ export default function App() {
       host_name: hostName,
       title: 'بث مباشر',
       status: 'live',
-      last_heartbeat_at: new Date().toISOString(),
     });
 
     if (error) {
