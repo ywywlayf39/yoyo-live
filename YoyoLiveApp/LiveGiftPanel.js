@@ -332,7 +332,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
   const rotateY = depthSpin.interpolate({ inputRange: [0, 1], outputRange: ['-16deg', '16deg'] });
   const rotateX = depthSpin.interpolate({ inputRange: [0, 0.5, 1], outputRange: ['7deg', '-7deg', '7deg'] });
   const liveSoundToggle = (
-    <TouchableOpacity style={styles.liveSoundToggle} onPress={toggleGiftSounds}>
+    <TouchableOpacity style={[styles.liveSoundToggle, voiceRoomId && styles.voiceLiveSoundToggle]} onPress={toggleGiftSounds}>
       <Text style={styles.soundToggleText}>{soundEnabled ? '🔊 صوت الهدايا' : '🔇 صامت'}</Text>
     </TouchableOpacity>
   );
@@ -374,7 +374,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
     <>
       {liveSoundToggle}
       {incomingEffect}
-      <TouchableOpacity disabled={!receiverId} style={[styles.openButton, !receiverId && { opacity: 0.45 }]} onPress={() => setVisible(true)}>
+      <TouchableOpacity disabled={!receiverId} style={[styles.openButton, voiceRoomId && styles.voiceOpenButton, !receiverId && { opacity: 0.45 }]} onPress={() => setVisible(true)}>
         <Text style={styles.openButtonText}>{profileMode ? '🎁 إرسال هدية' : '🎁 الهدايا'}</Text>
       </TouchableOpacity>
       {visible ? <View style={styles.modalOverlay}>
@@ -445,10 +445,12 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
 
 const styles = StyleSheet.create({
   hostSoundToggle: { position: 'absolute', top: 12, right: 12, zIndex: 100, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 16, backgroundColor: 'rgba(20,14,30,0.92)', borderWidth: 1, borderColor: '#6C557D' },
-  liveSoundToggle: { position: 'absolute', left: 16, top: 112, zIndex: 25, elevation: 8, paddingVertical: 8, paddingHorizontal: 11, borderRadius: 18, backgroundColor: 'rgba(36,27,53,0.92)', borderWidth: 1, borderColor: '#6C557D' },
+  liveSoundToggle: { position: 'absolute', left: 16, top: 66, zIndex: 25, elevation: 8, paddingVertical: 8, paddingHorizontal: 11, borderRadius: 18, backgroundColor: 'rgba(36,27,53,0.92)', borderWidth: 1, borderColor: '#6C557D' },
+  voiceLiveSoundToggle: { top: 112 },
+  voiceOpenButton: { bottom: 184 },
   soundSetting: { alignSelf: 'flex-end', paddingVertical: 7, paddingHorizontal: 12, borderRadius: 12, backgroundColor: COLORS.card2, marginBottom: 8 },
   soundToggleText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
-  openButton: { position: 'absolute', right: 16, bottom: 184, backgroundColor: COLORS.pink, borderRadius: 24, paddingVertical: 12, paddingHorizontal: 18, zIndex: 20, elevation: 8 },
+  openButton: { position: 'absolute', right: 16, bottom: 116, backgroundColor: COLORS.pink, borderRadius: 24, paddingVertical: 12, paddingHorizontal: 18, zIndex: 20, elevation: 8 },
   openButtonText: { color: '#fff', fontWeight: '900', fontSize: 15 },
   modalOverlay: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 1000, elevation: 30 },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
