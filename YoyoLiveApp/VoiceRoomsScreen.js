@@ -283,8 +283,7 @@ export default function VoiceRoomsScreen({ userId, onBack, onOpenPackages }) {
       const { data, error: tokenError } = await supabase.functions.invoke('livekit-token', { body: { roomName: room.room_name } });
       if (tokenError) throw tokenError;
       if (!data?.token || !data?.serverUrl) throw new Error(data?.error || 'تعذر الحصول على تصريح دخول الغرفة');
-      const { error: memberError } = await supabase.from('voice_room_members')
-        .upsert({ room_id: room.id, user_id: userId, joined_at: new Date().toISOString() }, { onConflict: 'room_id,user_id' });
+      const { error: memberError } = await supabase.rpc('join_voice_room', { p_room_id: room.id });
       if (memberError) throw memberError;
       setActive(room);
       setConnection({ token: data.token, serverUrl: data.serverUrl });
@@ -314,16 +313,15 @@ export default function VoiceRoomsScreen({ userId, onBack, onOpenPackages }) {
   const leave = async () => {
     const room = active;
     setConnection(null); setActive(null);
+    await supabase.rpc('leave_voice_room', { p_room_id: room.id });
     if (room?.host_id === userId) {
       const { error } = await supabase.functions.invoke('livekit-token', { body: { action: 'end', roomName: room.room_name } });
       if (error) Alert.alert('تنبيه', 'غادرت الشاشة لكن تعذر إنهاء الغرفة على الخادم.');
     } else {
-      await supabase.rpc('leave_voice_room_seat', { p_room_id: room.id });
       const { error: permissionError } = await supabase.functions.invoke('livekit-token', {
         body: { action: 'seat_permissions', roomName: room.room_name, targetUserId: userId },
       });
       if (permissionError) console.warn('Voice seat permission reset:', permissionError.message);
-      await supabase.from('voice_room_members').delete().eq('room_id', room.id).eq('user_id', userId);
     }
     AudioSession.stopAudioSession().catch(() => {});
     loadRooms();
