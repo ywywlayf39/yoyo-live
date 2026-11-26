@@ -27,6 +27,9 @@ assert.ok(gifts.includes('voice_room_gift_events'), 'Voice room gift animations 
 assert.ok(seatsMigration.includes('generate_series(1, 8)') && seatsMigration.includes('revoke insert, update, delete on public.voice_room_seats'), 'Eight seats must be initialized and direct client seat writes must be blocked');
 assert.ok(giftsMigration.includes('v_receiver_id <> v_room.host_id') && giftsMigration.includes('voice_room_seats s'), 'Gift recipients must be limited to the host or an approved speaker');
 assert.ok(giftsMigration.includes('round(v_gross_points * 0.70)'), 'Voice room gifts must preserve the 70/30 revenue split');
+assert.ok(giftsMigration.includes('voice_room_gift_events_sender_request_uidx') && giftsMigration.includes('e.request_id = v_request_id'), 'Voice room gift retries must not charge the sender twice');
+assert.ok(gifts.includes('p_request_id: voiceGiftRequestId.current'), 'Voice gift UI must reuse the same idempotency key after an uncertain response');
+assert.ok(screen.includes('manageAllSeats') && screen.includes('فتح كل المقاعد') && screen.includes('قفل المقاعد الفارغة'), 'Hosts must have bulk seat open and close controls');
 assert.ok(membershipMigration.includes('revoke insert, update, delete on public.voice_room_members') && membershipMigration.includes('public.join_voice_room'), 'Members must not forge room membership through direct table writes');
 assert.ok(migrations.includes('20261126190000_secure_voice_room_seats.sql') && migrations.includes('20261126191000_voice_room_gifts_to_seat_holders.sql') && migrations.includes('20261126192000_secure_voice_room_membership.sql'), 'Voice room migrations must be present');
 console.log('YOYO LIVE voice room seats and gifts regression checks passed.');
