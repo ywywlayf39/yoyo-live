@@ -22,7 +22,10 @@ function VoiceStage({ room, userId, isHost, onLeave }) {
       supabase.from('voice_room_messages').select('id,user_id,body,created_at').eq('room_id', room.id).order('created_at', { ascending: false }).limit(40),
     ]);
     if (!seatResult.error) setSeatRows(seatResult.data || []);
-    if (!requestResult.error) setRequests(requestResult.data || []);
+    if (!requestResult.error) {
+      setRequests(requestResult.data || []);
+      setRequestSent((requestResult.data || []).some((x) => x.user_id === userId));
+    }
     if (!messageResult.error) setMessages((messageResult.data || []).reverse());
   }, [room.id]);
   useEffect(() => {
@@ -54,6 +57,17 @@ function VoiceStage({ room, userId, isHost, onLeave }) {
       .update({ status: approve ? 'approved' : 'rejected' }).eq('id', request.id);
     if (error) Alert.alert('تعذر تحديث الطلب', error.message);
     refreshRoomData();
+  };
+  const leaveSeat = async () => {
+    const { error } = await supabase.from('voice_room_seats').delete().eq('room_id', room.id).eq('user_id', userId);
+    if (error) Alert.alert('تعذر مغادرة المقعد', error.message);
+    else { setRequestSent(false); refreshRoomData(); }
+  };
+  const removeSpeaker = async (seat) => {
+    if (!isHost) return;
+    const { error } = await supabase.from('voice_room_seats').delete().eq('id', seat.id);
+    if (error) Alert.alert('تعذر إنزال المتحدث', error.message);
+    else refreshRoomData();
   };
   const sendMessage = async () => {
     const body = messageText.trim();
@@ -89,12 +103,14 @@ function VoiceStage({ room, userId, isHost, onLeave }) {
             <Text style={s.seatEmoji}>{seat ? (p?.isMicrophoneEnabled ? '🎙️' : '🔇') : '＋'}</Text>
             <Text numberOfLines={1} style={s.seatName}>{seat ? (seat.user_id === userId ? 'أنت' : p?.name || 'متحدث') : 'مقعد فارغ'}</Text>
             {seat ? <Text style={s.seatState}>مقعد {i + 1}</Text> : null}
+            {seat && isHost && seat.user_id !== userId ? <TouchableOpacity onPress={() => removeSpeaker(seat)}><Text style={{ color: '#FF8A9C', fontSize: 10 }}>إنزال</Text></TouchableOpacity> : null}
           </View>;
         })}
       </View>
       {!isHost && !mySeat ? <TouchableOpacity onPress={requestSeat} disabled={requestSent} style={s.primary}>
         <Text style={s.primaryText}>{requestSent ? 'تم إرسال طلب المايك' : '🎤 طلب الصعود للمايك'}</Text>
       </TouchableOpacity> : null}
+      {mySeat && !isHost ? <TouchableOpacity onPress={leaveSeat} style={s.reject}><Text style={s.controlText}>مغادرة مقعد المتحدث</Text></TouchableOpacity> : null}
       {isHost && requests.length > 0 ? <View style={s.requestBox}>
         <Text style={s.section}>طلبات الصعود للمايك</Text>
         {requests.map((request) => <View key={request.id} style={s.requestRow}>
