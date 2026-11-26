@@ -331,10 +331,48 @@ export default function VoiceRoomsScreen({ userId, onBack, onOpenPackages }) {
     if (cleanTitle.length < 2) { Alert.alert('اسم الغرفة', 'اكتب اسمًا من حرفين على الأقل.'); return; }
     setBusy(true);
     try {
+      // A member can host only one live room. The unique database index
+      // remains the final protection against simultaneous create requests.
+      const { data: existingRoom, error: lookupError } = await supabase.from('voice_rooms')
+        .select('id,room_name,title,host_id,created_at')
+        .eq('host_id', userId).eq('status', 'live')
+        .order('created_at', { ascending: false }).limit(1).maybeSingle();
+      if (lookupError) throw lookupError;
+      if (existingRoom) {
+        Alert.alert(
+          'لديك غرفة صوتية مفتوحة بالفعل',
+          'مسموح لكل عضو بإنشاء وإدارة غرفة صوتية واحدة فقط في نفس الوقت.',
+          [
+            { text: 'إلغاء', style: 'cancel' },
+            { text: 'دخول غرفتي', onPress: () => connect(existingRoom) },
+          ]
+        );
+        return;
+      }
+
       const roomName = 'voice_' + userId.replace(/-/g, '').slice(0, 10) + '_' + Date.now().toString(36);
       const { data, error: createError } = await supabase.from('voice_rooms')
         .insert({ room_name: roomName, title: cleanTitle, host_id: userId }).select('id,room_name,title,host_id,created_at').single();
-      if (createError) throw createError;
+      if (createError) {
+        if (createError.code === '23505') {
+          const { data: activeRoom } = await supabase.from('voice_rooms')
+            .select('id,room_name,title,host_id,created_at')
+            .eq('host_id', userId).eq('status', 'live')
+            .order('created_at', { ascending: false }).limit(1).maybeSingle();
+          if (activeRoom) {
+            Alert.alert(
+              'لديك غرفة صوتية مفتوحة بالفعل',
+              'مسموح لكل عضو بإنشاء غرفة واحدة فقط في نفس الوقت.',
+              [
+                { text: 'إلغاء', style: 'cancel' },
+                { text: 'دخول غرفتي', onPress: () => connect(activeRoom) },
+              ]
+            );
+            return;
+          }
+        }
+        throw createError;
+      }
       setTitle('');
       await loadRooms();
       await connect(data);
