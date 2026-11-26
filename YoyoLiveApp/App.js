@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, lazy, useState, useEffect } from 'react';
 import AuthScreen from './AuthScreen';
 import ProfileScreen from './ProfileScreen';
 import WalletScreen from './WalletScreen';
@@ -12,10 +12,10 @@ import ChatScreen from './ChatScreen';
 import InboxScreen from './InboxScreen';
 import FollowScreen from './FollowScreen';
 import LiveGiftPanel from './LiveGiftPanel';
-import ReelsScreen from './ReelsScreen';
+const ReelsScreen = lazy(() => import('./ReelsScreen'));
 import ReferralScreen from './ReferralScreen';
-import LiveRoomScreen from './LiveRoomScreen';
-import VoiceRoomsScreen from './VoiceRoomsScreen';
+const LiveRoomScreen = lazy(() => import('./LiveRoomScreen'));
+const VoiceRoomsScreen = lazy(() => import('./VoiceRoomsScreen'));
 import { supabase } from './supabase';
 import {
   Alert,
@@ -98,7 +98,7 @@ export default function App() {
   const [liveRooms, setLiveRooms] = useState([]);
   const [showDiscover, setShowDiscover] = useState(false);
   const [showVoiceRooms, setShowVoiceRooms] = useState(false);
-  const [showReels, setShowReels] = useState(true);
+  const [showReels, setShowReels] = useState(false);
   const [showReferrals, setShowReferrals] = useState(false);
   const [pendingReferralCode, setPendingReferralCode] = useState('');
   const [selectedCall, setSelectedCall] = useState(null);
@@ -765,15 +765,17 @@ export default function App() {
   if (selectedLive) {
     return (
       <View style={{ flex: 1, backgroundColor: C.bg }}>
-        <LiveRoomScreen
-          roomName={selectedLive.roomName}
-          isHost={selectedLive.isHost}
-          hostName={selectedLive.name}
-          userId={session.user.id}
-          receiverId={selectedLive.hostId}
-          onOpenPackages={() => setShowPackages(true)}
-          onClose={returnHomeAfterLive}
-        />
+        <Suspense fallback={<View style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: C.white }}>جاري فتح البث...</Text></View>}>
+          <LiveRoomScreen
+            roomName={selectedLive.roomName}
+            isHost={selectedLive.isHost}
+            hostName={selectedLive.name}
+            userId={session.user.id}
+            receiverId={selectedLive.hostId}
+            onOpenPackages={() => setShowPackages(true)}
+            onClose={returnHomeAfterLive}
+          />
+        </Suspense>
         <Modal
           visible={showPackages}
           animationType="slide"
@@ -831,11 +833,11 @@ export default function App() {
   }
 
   if (showReels) {
-    return <ReelsScreen userId={session.user.id} onBack={() => setShowReels(false)} />;
+    return <Suspense fallback={<View style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: C.white }}>جاري فتح الفيديوهات...</Text></View>}><ReelsScreen userId={session.user.id} onBack={() => setShowReels(false)} /></Suspense>;
   }
 
   if (showVoiceRooms) {
-    return <VoiceRoomsScreen userId={session.user.id} onBack={() => setShowVoiceRooms(false)} />;
+    return <Suspense fallback={<View style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: C.white }}>جاري فتح الغرف الصوتية...</Text></View>}><VoiceRoomsScreen userId={session.user.id} onBack={() => setShowVoiceRooms(false)} /></Suspense>;
   }
 
   if (showDiscover) {
@@ -888,14 +890,16 @@ export default function App() {
 
   if (selectedCall) {
     return (
-      <LiveRoomScreen
-        roomName={selectedCall.roomName}
-        isHost={false}
-        isCall={true}
-        callType={selectedCall.callType}
-        hostName={selectedCall.name}
-        onClose={() => setSelectedCall(null)}
-      />
+      <Suspense fallback={<View style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: C.white }}>جاري الاتصال...</Text></View>}>
+        <LiveRoomScreen
+          roomName={selectedCall.roomName}
+          isHost={false}
+          isCall={true}
+          callType={selectedCall.callType}
+          hostName={selectedCall.name}
+          onClose={() => setSelectedCall(null)}
+        />
+      </Suspense>
     );
   }
 
