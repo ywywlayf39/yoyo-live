@@ -21,6 +21,10 @@ assert.ok(app.includes("AppState.addEventListener('change'"),
   'Live room discovery must refresh when the app returns to the foreground');
 assert.ok(app.includes("last_heartbeat_at: new Date().toISOString()"),
   'A newly created live room must be immediately eligible for the active live feed');
+assert.ok(app.includes(`finally {
+        refreshing = false;
+      }`),
+  'A failed live room refresh must release the polling lock for the next attempt');
 
 assert.ok(!sync.includes('if (!visible) return null'),
   'Music playback must not stop merely because the tools panel is closed');
