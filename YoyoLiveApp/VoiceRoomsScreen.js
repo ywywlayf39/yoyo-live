@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { AudioSession, LiveKitRoom, useLocalParticipant, useParticipants } from '@livekit/react-native';
 import { supabase } from './supabase';
 import LiveGiftPanel from './LiveGiftPanel';
@@ -12,6 +12,8 @@ function VoiceStage({ room, userId, isHost, onLeave, onOpenPackages }) {
   const [seats, setSeats] = useState([]);
   const [requests, setRequests] = useState([]);
   const [names, setNames] = useState({});
+  const [avatars, setAvatars] = useState({});
+  const [hostProfile, setHostProfile] = useState(null);
   const [busy, setBusy] = useState(false);
   const [requestBusy, setRequestBusy] = useState(false);
   const [giftTarget, setGiftTarget] = useState(isHost ? null : room.host_id);
@@ -33,12 +35,23 @@ function VoiceStage({ room, userId, isHost, onLeave, onOpenPackages }) {
     setRequests(nextRequests);
     const ids = [...new Set([room.host_id, ...nextSeats.map((seat) => seat.user_id), ...nextRequests.map((request) => request.user_id)].filter(Boolean))];
     if (ids.length) {
-      const { data: profiles } = await supabase.from('member_public_profiles').select('id,display_name').in('id', ids);
-      const map = {};
-      (profiles || []).forEach((profile) => { map[profile.id] = profile.display_name || 'عضو'; });
-      setNames(map);
+      const { data: profiles } = await supabase.from('member_public_profiles').select('id,display_name,avatar_url').in('id', ids);
+      const nameMap = {};
+      const avatarMap = {};
+      (profiles || []).forEach((profile) => {
+        nameMap[profile.id] = profile.display_name || 'عضو';
+        if (profile.avatar_url) avatarMap[profile.id] = profile.avatar_url;
+      });
+      setNames(nameMap);
+      setAvatars(avatarMap);
     }
-  }, [room.id, room.host_id]);
+    const { data: ownProfile } = await supabase.from('profiles').select('id,display_name,avatar_url').eq('id', userId).maybeSingle();
+    if (ownProfile) {
+      setHostProfile(ownProfile);
+      setNames((current) => ({ ...current, [userId]: ownProfile.display_name || current[userId] || 'أنت' }));
+      if (ownProfile.avatar_url) setAvatars((current) => ({ ...current, [userId]: ownProfile.avatar_url }));
+    }
+  }, [room.id, room.host_id, userId]);
 
   useEffect(() => {
     loadRoomState();
@@ -172,11 +185,12 @@ function VoiceStage({ room, userId, isHost, onLeave, onOpenPackages }) {
   return (
     <SafeAreaView style={s.root}>
       <StatusBar barStyle="light-content" backgroundColor={C.bg} />
-      <View style={s.top}>
+      <View style={[s.top, s.roomTop]}>
         <TouchableOpacity onPress={onLeave}><Text style={s.back}>رجوع ←</Text></TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'flex-end' }}>
           <Text style={s.title}>🎙️ {room.title}</Text>
           <Text style={s.sub}>غرفة صوتية • {participants.length} متصل</Text>
+          {isHost ? <Text style={s.hostIdentity}>{hostProfile?.display_name || names[userId] || 'صاحب الغرفة'}</Text> : null}
         </View>
       </View>
       <ScrollView contentContainerStyle={s.stageScroll}>
@@ -242,17 +256,25 @@ function VoiceStage({ room, userId, isHost, onLeave, onOpenPackages }) {
         ) : null}
         {currentSeat ? <TouchableOpacity onPress={leaveSeat} style={s.leaveSeat}><Text style={s.leaveSeatText}>مغادرة مقعد التحدث</Text></TouchableOpacity> : null}
 
-        <View style={s.participantHeader}><Text style={s.section}>المتصلون الآن</Text><Text style={s.sub}>{participants.length} عضو</Text></View>
+        <View style={s.participantHeader}><Text style={s.section}>المتصلون الآن</Text><Text style={s.sub}>{participants.length} متصل</Text></View>
         <View style={s.participants}>
-          {participants.map((participant) => (
-            <View key={participant.identity} style={s.participant}>
-              <Text style={s.participantEmoji}>{participant.identity === userId ? '🎧' : '👤'}</Text>
-              <Text numberOfLines={1} style={s.seatName}>{participant.identity === userId ? 'أنت' : names[participant.identity] || 'عضو'}</Text>
-            </View>
-          ))}
+          {participants.map((participant) => {
+            const participantId = participant.identity;
+            const avatar = avatars[participantId] || (participantId === userId ? hostProfile?.avatar_url : null);
+            const displayName = names[participantId] || (participantId === userId ? hostProfile?.display_name : null) || 'عضو';
+            return (
+              <View key={participantId} style={s.participant}>
+                {avatar ? <Image source={{ uri: avatar }} style={s.participantAvatar} /> : <View style={s.participantAvatarFallback}><Text style={s.participantEmoji}>👤</Text></View>}
+                <Text numberOfLines={1} style={s.seatName}>{displayName}</Text>
+              </View>
+            );
+          })}
         </View>
 
-        <View style={s.audioInfo}><Text style={s.infoText}>🔊 يمكنك الاستماع للجميع، والمايك متاح للمضيف والمتحدثين المقبولين فقط.</Text></View>
+        <View style={s.audioInfo}>
+          <Text style={s.infoIcon}>🔊</Text>
+          <Text style={s.infoText}>يمكنك الاستماع للجميع، والمايك متاح للمضيف والمتحدثين المقبولين فقط.</Text>
+        </View>
 
         <View style={s.giftTargetCard}>
           <Text style={s.giftTargetTitle}>إرسال هدية إلى</Text>
@@ -436,7 +458,7 @@ export default function VoiceRoomsScreen({ userId, onBack, onOpenPackages }) {
 }
 
 const s = StyleSheet.create({
-  root:{flex:1,backgroundColor:C.bg},top:{padding:18,flexDirection:'row',alignItems:'center',borderBottomWidth:1,borderBottomColor:'#2C233A'},
+  root:{flex:1,backgroundColor:C.bg},top:{paddingHorizontal:18,paddingTop:40,paddingBottom:18,flexDirection:'row',alignItems:'center',borderBottomWidth:1,borderBottomColor:'#2C233A'},roomTop:{paddingTop:40},hostIdentity:{color:C.gold,fontSize:12,fontWeight:'900',marginTop:4},
   back:{color:C.pink,fontWeight:'bold',fontSize:15},title:{color:C.white,fontWeight:'bold',fontSize:20},sub:{color:C.muted,fontSize:12,marginTop:5},
   createCard:{backgroundColor:C.card,borderRadius:18,padding:16,borderWidth:1,borderColor:'#4A326A'},section:{color:C.white,fontWeight:'bold',fontSize:17},
   input:{backgroundColor:C.card2,color:C.white,borderRadius:12,padding:13,marginTop:14,textAlign:'right'},
@@ -444,12 +466,12 @@ const s = StyleSheet.create({
   roomCard:{backgroundColor:C.card,borderRadius:15,padding:15,marginBottom:10,flexDirection:'row',alignItems:'center',gap:10,borderWidth:1,borderColor:'#302640'},
   liveDot:{width:10,height:10,borderRadius:5,backgroundColor:C.pink},roomTitle:{color:C.white,fontWeight:'bold',fontSize:16},join:{color:C.pink,fontWeight:'bold'},
   empty:{color:C.muted,textAlign:'center',lineHeight:24,backgroundColor:C.card,padding:20,borderRadius:14},error:{color:'#FF8A9C',marginTop:12},
-  stageScroll:{padding:14,paddingBottom:150},stageHeader:{alignItems:'center',marginTop:12,marginBottom:14,gap:6},
-  bulkSeatActions:{flexDirection:'row',gap:8,marginBottom:12},bulkOpen:{flex:1,backgroundColor:'#245A48',padding:11,borderRadius:10,alignItems:'center'},bulkClose:{flex:1,backgroundColor:'#55283D',padding:11,borderRadius:10,alignItems:'center'},bulkText:{color:C.white,fontWeight:'900',fontSize:11},
+  stageScroll:{padding:14,paddingBottom:220},stageHeader:{alignItems:'center',marginTop:18,marginBottom:20,gap:8},
+  bulkSeatActions:{flexDirection:'row',gap:16,marginBottom:16},bulkOpen:{flex:1,backgroundColor:'#245A48',paddingVertical:13,paddingHorizontal:10,borderRadius:12,alignItems:'center',minHeight:48},bulkClose:{flex:1,backgroundColor:'#55283D',paddingVertical:13,paddingHorizontal:10,borderRadius:12,alignItems:'center',minHeight:48},bulkText:{color:C.white,fontWeight:'900',fontSize:11},
   seatGrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',gap:8},
   seatCard:{width:'22%',minHeight:128,backgroundColor:C.card,borderRadius:15,alignItems:'center',justifyContent:'center',padding:8,borderWidth:1,borderColor:'#382A4B'},
   seatOccupied:{borderColor:C.green,backgroundColor:'#172A29'},seatLocked:{borderColor:'#594B69',backgroundColor:'#17131F'},
-  seatNumber:{color:C.muted,fontSize:10,fontWeight:'800'},seatEmoji:{fontSize:26,marginTop:6},seatName:{color:C.white,fontSize:11,fontWeight:'700',marginTop:5,maxWidth:'100%'},
+  seatNumber:{color:C.muted,fontSize:10,fontWeight:'800'},seatEmoji:{fontSize:32,color:C.pink,marginTop:6,fontWeight:'900'},seatName:{color:C.white,fontSize:11,fontWeight:'700',marginTop:5,maxWidth:'100%'},
   seatActions:{marginTop:7},smallAction:{paddingHorizontal:10,paddingVertical:5,backgroundColor:C.card2,borderRadius:9},smallActionText:{color:C.pink,fontSize:10,fontWeight:'900'},
   requestCard:{marginTop:16,padding:13,backgroundColor:C.card,borderRadius:14,borderWidth:1,borderColor:'#4A326A'},
   requestRow:{flexDirection:'row',alignItems:'center',gap:8,marginTop:10},requestName:{flex:1,color:C.white,fontWeight:'700'},
@@ -458,10 +480,10 @@ const s = StyleSheet.create({
   pendingButton:{backgroundColor:'#66522D'},leaveSeat:{alignSelf:'center',marginTop:10,padding:10},leaveSeatText:{color:C.gold,fontWeight:'800'},
   participantHeader:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',marginTop:22,marginBottom:8},
   participants:{flexDirection:'row',flexWrap:'wrap',gap:8},participant:{minWidth:76,backgroundColor:C.card,borderRadius:12,alignItems:'center',padding:10,borderWidth:1,borderColor:'#382A4B'},
-  participantEmoji:{fontSize:20},audioInfo:{marginTop:14,backgroundColor:C.card,borderRadius:12,padding:12,alignItems:'center'},infoText:{color:C.muted,fontSize:12,textAlign:'center',lineHeight:19},
+  participantEmoji:{fontSize:20},participantAvatar:{width:42,height:42,borderRadius:21,backgroundColor:C.card2},participantAvatarFallback:{width:42,height:42,borderRadius:21,backgroundColor:C.card2,alignItems:'center',justifyContent:'center'},audioInfo:{marginTop:14,backgroundColor:C.card,borderRadius:12,padding:12,flexDirection:'row-reverse',alignItems:'center',justifyContent:'center',gap:9},infoIcon:{fontSize:17,marginLeft:3},infoText:{color:C.muted,fontSize:12,textAlign:'right',lineHeight:19,flexShrink:1},
   giftTargetCard:{marginTop:14,backgroundColor:C.card,borderRadius:12,padding:12},giftTargetTitle:{color:C.white,fontWeight:'900',marginBottom:8,textAlign:'right'},
   giftTargetRow:{gap:8},targetChip:{paddingVertical:8,paddingHorizontal:12,backgroundColor:C.card2,borderRadius:18},targetChipActive:{backgroundColor:C.pink},targetChipText:{color:C.white,fontSize:12,fontWeight:'800'},
-  bottomControls:{position:'absolute',left:0,right:0,bottom:0,padding:14,paddingBottom:22,backgroundColor:'rgba(11,9,18,0.96)',borderTopWidth:1,borderTopColor:'#302640',flexDirection:'row',justifyContent:'center',gap:14},
+  bottomControls:{position:'absolute',left:0,right:0,bottom:0,padding:14,paddingBottom:48,backgroundColor:'rgba(11,9,18,0.98)',borderTopWidth:1,borderTopColor:'#302640',flexDirection:'row',justifyContent:'center',gap:14},
   control:{alignItems:'center',padding:12,borderRadius:15,minWidth:132},controlOn:{backgroundColor:'#382A4B'},controlOff:{backgroundColor:'#5A2D43'},leave:{backgroundColor:'#A52D4C'},disabledControl:{opacity:0.45},
   controlEmoji:{fontSize:22},controlText:{color:C.white,fontWeight:'bold',marginTop:5,fontSize:12},
 });
