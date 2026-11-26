@@ -28,7 +28,7 @@ function VoiceStage({ room, userId, isHost, onLeave, onRefreshConnection }) {
     if (!mySeat) refreshedForSeat.current = false;
   }, [mySeat, isHost, onRefreshConnection, room]);
   const refreshRoomData = useCallback(async () => {
-    const [seatResult, requestResult, messageResult] = await Promise.all([
+    const [seatResult, requestResult, messageResult, roomResult] = await Promise.all([
       supabase.from('voice_room_seats').select('id,user_id,seat_number').eq('room_id', room.id).order('seat_number'),
       supabase.from('voice_room_seat_requests').select('id,user_id,status,created_at').eq('room_id', room.id).eq('status', 'pending').order('created_at'),
       supabase.from('voice_room_messages').select('id,user_id,body,created_at').eq('room_id', room.id).order('created_at', { ascending: false }).limit(40),
@@ -48,8 +48,7 @@ function VoiceStage({ room, userId, isHost, onLeave, onRefreshConnection }) {
       setRequestSent((requestResult.data || []).some((x) => x.user_id === userId));
     }
     if (!messageResult.error) setMessages((messageResult.data || []).reverse());
-    const { data: roomState } = await supabase.from('voice_rooms').select('seats_open').eq('id', room.id).maybeSingle();
-    if (roomState) setSeatsOpen(roomState.seats_open !== false);
+    if (!roomResult.error && roomResult.data) setSeatsOpen(roomResult.data.seats_open !== false);
   }, [room.id]);
   useEffect(() => {
     refreshRoomData();
