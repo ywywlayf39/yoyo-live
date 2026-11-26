@@ -360,7 +360,7 @@ export default function VoiceRoomsScreen({ userId, onBack, onOpenPackages }) {
   };
 
   if (active && connection) return (
-    <LiveKitRoom serverUrl={connection.serverUrl} token={connection.token} connect audio video={false}
+    <LiveKitRoom serverUrl={connection.serverUrl} token={connection.token} connect video={false}
       options={{ adaptiveStream: true }} onDisconnected={() => {}}>
       <VoiceStage room={active} userId={userId} isHost={active.host_id === userId} onLeave={leave} onOpenPackages={onOpenPackages} />
     </LiveKitRoom>
