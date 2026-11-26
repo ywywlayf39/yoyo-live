@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Animated, Modal, ScrollView, StyleSheet, Text,
+  ActivityIndicator, Alert, Animated, ScrollView, StyleSheet, Text,
   TouchableOpacity, Vibration, View,
 } from 'react-native';
 import { supabase } from './supabase';
@@ -337,7 +337,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
       <TouchableOpacity style={styles.openButton} onPress={() => setVisible(true)}>
         <Text style={styles.openButtonText}>{profileMode ? '🎁 إرسال هدية' : '🎁 الهدايا'}</Text>
       </TouchableOpacity>
-      <Modal visible={visible} transparent animationType="slide" onRequestClose={() => setVisible(false)}>
+      {visible ? <View style={styles.modalOverlay}>
         <View style={styles.backdrop}>
           <View style={styles.sheet}>
             <View style={styles.sheetHeader}>
@@ -376,8 +376,9 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
               <View style={styles.footer}>
                 <View style={styles.selectedGiftPreview}>
                   <View style={styles.previewStage}>
+                    <Gift3DModel animationKey={selectedGift.animation_key} size={104} />
                     <Text style={styles.previewEmoji}>{selectedGift.emoji || '🎁'}</Text>
-                    <Text style={styles.previewCaption}>معاينة الهدية</Text>
+                    <Text style={styles.previewCaption}>معاينة ثلاثية الأبعاد</Text>
                   </View>
                 </View>
                 <View style={styles.quantityRow}>
@@ -398,7 +399,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
             )}
           </View>
         </View>
-      </Modal>
+      </View> : null}
     </>
   );
 }
@@ -410,6 +411,7 @@ const styles = StyleSheet.create({
   soundToggleText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   openButton: { position: 'absolute', right: 16, bottom: 116, backgroundColor: COLORS.pink, borderRadius: 24, paddingVertical: 12, paddingHorizontal: 18, zIndex: 20, elevation: 8 },
   openButtonText: { color: '#fff', fontWeight: '900', fontSize: 15 },
+  modalOverlay: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 1000, elevation: 30 },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
   sheet: { backgroundColor: COLORS.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 34, maxHeight: '88%', borderWidth: 1, borderColor: '#45375B' },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
