@@ -248,8 +248,8 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
   );
 
   const sendGift = async () => {
-    if (!selectedGift || !receiverId || !roomName || sending) return;
-    if (!giftFeedReady) {
+    if (!selectedGift || !receiverId || (!profileMode && !roomName) || sending) return;
+    if (!profileMode && !giftFeedReady) {
       Alert.alert('جارٍ الاتصال', 'انتظر لحظة حتى يكتمل الاتصال بغرفة الهدايا.');
       return;
     }
@@ -262,12 +262,18 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
       return;
     }
     setSending(true);
-    const { error } = await supabase.rpc('send_live_gift', {
-      p_receiver_id: receiverId,
-      p_gift_id: selectedGift.id,
-      p_quantity: quantity,
-      p_room_name: roomName,
-    });
+    const { error } = profileMode
+      ? await supabase.rpc('send_profile_gift', {
+          p_receiver_id: receiverId,
+          p_gift_id: selectedGift.id,
+          p_quantity: quantity,
+        })
+      : await supabase.rpc('send_live_gift', {
+          p_receiver_id: receiverId,
+          p_gift_id: selectedGift.id,
+          p_quantity: quantity,
+          p_room_name: roomName,
+        });
     setSending(false);
     if (error) {
       Alert.alert('تعذر إرسال الهدية', error.message || 'حاول مرة أخرى.');
@@ -329,7 +335,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
       {liveSoundToggle}
       {incomingEffect}
       <TouchableOpacity style={styles.openButton} onPress={() => setVisible(true)}>
-        <Text style={styles.openButtonText}>🎁 الهدايا</Text>
+        <Text style={styles.openButtonText}>{profileMode ? '🎁 إرسال هدية' : '🎁 الهدايا'}</Text>
       </TouchableOpacity>
       <Modal visible={visible} transparent animationType="slide" onRequestClose={() => setVisible(false)}>
         <View style={styles.backdrop}>
