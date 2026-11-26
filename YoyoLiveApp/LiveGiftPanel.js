@@ -97,7 +97,7 @@ function effectFor(gift) {
   return GIFT_ANIMATION_EFFECTS[gift.animation_key] || null;
 }
 
-export default function LiveGiftPanel({ userId, receiverId, isHost = false, roomName, onOpenPackages, profileMode = false }) {
+export default function LiveGiftPanel({ userId, receiverId, isHost = false, roomName, voiceRoomId, onOpenPackages, profileMode = false }) {
   const [visible, setVisible] = useState(false);
   const [gifts, setGifts] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('starter');
@@ -107,6 +107,8 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [giftFeedReady, setGiftFeedReady] = useState(false);
+  const [voiceGiftFeedReady, setVoiceGiftFeedReady] = useState(false);
+  const giftConnectionReady = voiceRoomId ? voiceGiftFeedReady : giftFeedReady;
   const [incoming, setIncoming] = useState(null);
   const [giftQueue, setGiftQueue] = useState([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -160,7 +162,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
   }, [userId]);
 
   useEffect(() => {
-    if (!userId || !roomName || profileMode) return undefined;
+    if (!userId || !roomName || profileMode || voiceRoomId) return undefined;
     let active = true;
     const channel = supabase.channel('yoyo-room-gifts-' + roomName)
       .on('postgres_changes', {
@@ -195,7 +197,28 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
       setGiftFeedReady(false);
       supabase.removeChannel(channel);
     };
-  }, [userId, roomName, profileMode]);
+  }, [userId, roomName, profileMode, voiceRoomId]);
+
+  useEffect(() => {
+    if (!userId || !voiceRoomId || profileMode) return undefined;
+    let active = true;
+    const channel = supabase.channel('yoyo-voice-gifts-' + voiceRoomId)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'voice_room_gift_events', filter: 'room_id=eq.' + voiceRoomId }, async ({ new: row }) => {
+        const [{ data: gift }, { data: sender }] = await Promise.all([
+          supabase.from('gift_catalog').select('name,emoji,coin_cost,animation_key,sound_key').eq('id', row.gift_id).maybeSingle(),
+          supabase.from('member_public_profiles').select('display_name').eq('id', row.sender_id).maybeSingle(),
+        ]);
+        if (!active) return;
+        setGiftQueue((current) => [...current, {
+          id: row.id, emoji: gift?.emoji || '🎁', name: gift?.name || 'هدية جديدة',
+          sender: sender?.display_name || 'أحد أعضاء الغرفة', quantity: row.quantity || 1,
+          coinCost: Number(gift?.coin_cost || 0), animationKey: gift?.animation_key || '',
+          soundKey: gift?.sound_key || 'soft-chime',
+        }].slice(-12));
+      })
+      .subscribe((status) => { if (active) setVoiceGiftFeedReady(status === 'SUBSCRIBED'); });
+    return () => { active = false; setVoiceGiftFeedReady(false); supabase.removeChannel(channel); };
+  }, [userId, voiceRoomId, profileMode]);
 
   useEffect(() => {
     if (!incoming && giftQueue.length) {
@@ -248,8 +271,8 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
   );
 
   const sendGift = async () => {
-    if (!selectedGift || !receiverId || (!profileMode && !roomName) || sending) return;
-    if (!profileMode && !giftFeedReady) {
+    if (!selectedGift || !receiverId || (!profileMode && !roomName && !voiceRoomId) || sending) return;
+    if (!profileMode && !giftConnectionReady) {
       Alert.alert('جارٍ الاتصال', 'انتظر لحظة حتى يكتمل الاتصال بغرفة الهدايا.');
       return;
     }
@@ -262,7 +285,9 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
       return;
     }
     setSending(true);
-    const { error } = profileMode
+    const { error } = voiceRoomId
+      ? await supabase.rpc('send_voice_room_gift', { p_room_id: voiceRoomId, p_gift_id: selectedGift.id, p_quantity: quantity })
+      : profileMode
       ? await supabase.rpc('send_profile_gift', {
           p_receiver_id: receiverId,
           p_gift_id: selectedGift.id,
@@ -388,7 +413,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
                     </TouchableOpacity>
                   ))}
                 </View>
-                <TouchableOpacity style={[styles.sendButton, (sending || (!profileMode && !giftFeedReady)) && { opacity: 0.6 }]}
+                <TouchableOpacity style={[styles.sendButton, (sending || (!profileMode && !giftConnectionReady)) && { opacity: 0.6 }]}
                   onPress={sendGift} disabled={sending || (!profileMode && !giftFeedReady)}>
                   {sending ? <ActivityIndicator color="#fff" /> : (!profileMode && !giftFeedReady) ?
                     <Text style={styles.sendText}>جاري الاتصال بغرفة الهدايا...</Text> :
