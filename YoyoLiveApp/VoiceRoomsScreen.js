@@ -318,7 +318,11 @@ export default function VoiceRoomsScreen({ userId, onBack, onOpenPackages }) {
       const { error } = await supabase.functions.invoke('livekit-token', { body: { action: 'end', roomName: room.room_name } });
       if (error) Alert.alert('تنبيه', 'غادرت الشاشة لكن تعذر إنهاء الغرفة على الخادم.');
     } else {
-      await supabase.rpc('leave_voice_room_seat', { p_room_id: room.id }).catch(() => {});
+      await supabase.rpc('leave_voice_room_seat', { p_room_id: room.id });
+      const { error: permissionError } = await supabase.functions.invoke('livekit-token', {
+        body: { action: 'seat_permissions', roomName: room.room_name, targetUserId: userId },
+      });
+      if (permissionError) console.warn('Voice seat permission reset:', permissionError.message);
       await supabase.from('voice_room_members').delete().eq('room_id', room.id).eq('user_id', userId);
     }
     AudioSession.stopAudioSession().catch(() => {});
