@@ -14,8 +14,8 @@ check(app.includes('receiverId={selectedMember.id}'), 'Profile must target the s
 check(app.includes('profileMode'), 'Profile gift panel must use profile mode');
 check(app.includes("notification?.notification_type === 'gift_received'"), 'Recipient must see realtime gift notifications');
 check(panel.includes("supabase.rpc('send_profile_gift'"), 'Profile mode must call the secure profile gift RPC');
-check(panel.includes("!profileMode && !giftFeedReady"), 'Profile gifts must not require a live-room feed');
-check(panel.includes("disabled={sending || (!profileMode && !giftFeedReady)}"), 'Profile gift send button must not wait for a live-room feed');
+check(panel.includes("!profileMode && !giftConnectionReady"), 'Profile gifts must not require a live-room feed');
+check(panel.includes("disabled={sending || (!profileMode && !giftConnectionReady)}"), 'Profile gift send button must not wait for a live-room feed');
 check(panel.includes('styles.previewStage') && !panel.includes('size={116}'), 'Gift picker must not mount a WebGL preview inside the modal');
 check(migration.includes('public.send_profile_gift'), 'Migration must define the secure profile gift RPC');
 check(migration.includes('public.user_notifications'), 'Gift transfer must create a recipient notification');
