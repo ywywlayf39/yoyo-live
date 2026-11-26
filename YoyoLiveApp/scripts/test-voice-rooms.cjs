@@ -47,4 +47,10 @@ assert.ok(singleRoomMigration.includes('create unique index if not exists voice_
 assert.ok(screen.includes(".eq('host_id', userId).eq('status', 'live')") && screen.includes('لديك غرفة صوتية مفتوحة بالفعل'), 'The app must detect an existing live room and offer to re-enter it instead of creating another');
 
 assert.ok(migrations.includes('20261126190000_secure_voice_room_seats.sql') && migrations.includes('20261126191000_voice_room_gifts_to_seat_holders.sql') && migrations.includes('20261126192000_secure_voice_room_membership.sql'), 'Voice room migrations must be present');
-console.log('YOYO LIVE voice room seats and gifts regression checks passed.');
+
+const musicMigration = fs.readFileSync(path.join(root, '..', 'supabase', 'migrations', '20261126223000_enable_shared_music_in_voice_rooms.sql'), 'utf8');
+assert.ok(screen.includes("import LiveMusicLibrary from './LiveMusicLibrary'") && screen.includes("import LiveMusicSync from './LiveMusicSync'"), 'Voice rooms must load the shared music library and synchronized player');
+assert.ok(screen.includes('shareLabel="مشاركة الأغنية مع أعضاء الغرفة الصوتية"') && screen.includes('<LiveMusicSync roomName={room.room_name} userId={userId} isHost={isHost} />'), 'Voice room hosts must share music and all members must hear synchronized playback');
+assert.ok(musicMigration.includes('public.voice_rooms') && musicMigration.includes('public.voice_room_members') && musicMigration.includes('private.yoyo_live_music_control_impl'), 'Shared music permissions must support active voice-room hosts and members');
+
+console.log('YOYO LIVE voice room seats, gifts, and shared music regression checks passed.');
