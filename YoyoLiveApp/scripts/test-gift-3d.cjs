@@ -1,29 +1,13 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-
 const root = path.join(__dirname, '..');
-const native = fs.readFileSync(path.join(root, 'Gift3DModel.native.js'), 'utf8');
-const fallback = fs.readFileSync(path.join(root, 'Gift3DModel.js'), 'utf8');
 const panel = fs.readFileSync(path.join(root, 'LiveGiftPanel.js'), 'utf8');
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const lock = JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
-
-assert.ok(native.includes("from 'expo-gl'"), 'Native gift renderer must use Expo GL');
-assert.ok(native.includes("from 'three'"), 'Native gift renderer must use Three.js');
-assert.ok(native.includes('new THREE.WebGLRenderer'), 'Gift rendering must use a real WebGL renderer');
-assert.ok(native.includes('new THREE.MeshStandardMaterial'), 'Gift models must use actual 3D mesh materials');
-assert.ok(native.includes('buildGiftModel(model, animationKey)'), 'The selected catalog gift must build a 3D model');
-assert.ok(native.includes("k.includes('tiger')") && native.includes("k.includes('lion')"), 'Tiger and lion gifts need dedicated 3D models');
-assert.ok(native.includes("k.includes('dragon')") && native.includes("k.includes('crown')"), 'Dragon and royal gifts need dedicated 3D models');
-assert.ok(!panel.includes("import Gift3DModel from './Gift3DModel'"), 'Gift panel must not load the native 3D renderer during app startup');
-assert.ok(panel.includes('incoming.emoji || "🎁"'), 'Incoming gifts must use the lightweight emoji renderer during startup diagnostics');
-assert.ok(!panel.includes('<Gift3DModel'), 'Gift panel must avoid mounting WebGL models while isolating the startup crash');
-assert.ok(panel.includes('selectedGift.emoji || "🎁"'), 'Selected gifts must use a lightweight emoji preview during startup diagnostics');
-assert.ok(!panel.includes('Gift3DModel'), 'Gift panel must not import or render the native 3D component');
-assert.ok(panel.includes('styles.modalOverlay') && !panel.includes('<Modal'), '3D picker must use an in-tree overlay rather than a native Modal GL surface');
-assert.ok(pkg.dependencies['expo-gl'] && pkg.dependencies.three, '3D renderer dependencies must be declared');
-assert.ok(lock.packages['node_modules/expo-gl'] && lock.packages['node_modules/three'], '3D renderer dependencies must be locked');
-assert.ok(fallback.includes('معاينة 3D متاحة على التطبيق'), 'Web fallback must not pretend to be native 3D');
-
-console.log('YOYO LIVE gift startup-isolation checks passed (native 3D renderer retained but not loaded by the gift panel).');
+assert.ok(!pkg.dependencies['expo-gl'] && !pkg.dependencies.three, '3D gift rendering dependencies must be removed');
+assert.ok(!lock.packages[''].dependencies['expo-gl'] && !lock.packages[''].dependencies.three, '3D gift rendering lock dependencies must be removed');
+assert.ok(!fs.existsSync(path.join(root, 'Gift3DModel.native.js')) && !fs.existsSync(path.join(root, 'Gift3DModel.js')), '3D gift renderer files must be removed');
+assert.ok(!panel.includes('Gift3DModel') && !panel.includes('ثلاثية الأبعاد'), 'Gift panel must use lightweight non-3D previews');
+assert.ok(panel.includes('incoming.emoji || "🎁"') && panel.includes('selectedGift.emoji || "🎁"'), 'Gifts should continue to display with lightweight emoji previews');
+console.log('YOYO LIVE 3D gift removal checks passed (emoji gifts retained).');
