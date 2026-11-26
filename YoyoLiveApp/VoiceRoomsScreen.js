@@ -276,7 +276,7 @@ function VoiceStage({ room, userId, isHost, onLeave, onOpenPackages }) {
           <Text style={s.controlEmoji}>📞</Text><Text style={s.controlText}>مغادرة الغرفة</Text>
         </TouchableOpacity>
       </View>
-      <LiveGiftPanel userId={userId} receiverId={giftTarget} isHost={false} voiceRoomId={room.id} onOpenPackages={onOpenPackages} />
+      <LiveGiftPanel userId={userId} receiverId={giftTarget} isHost={isHost} voiceRoomId={room.id} onOpenPackages={onOpenPackages} />
     </SafeAreaView>
   );
 }
