@@ -115,36 +115,41 @@ export default function App() {
     const refreshLiveRooms = async () => {
       if (!active || refreshing) return;
       refreshing = true;
-      // Expire abandoned rooms periodically, while refreshing the feed more often
-      // so a missed Realtime event never hides an active broadcaster from viewers.
-      if (Date.now() - lastCleanupAt >= 30000) {
-        lastCleanupAt = Date.now();
-        const { error: cleanupError } = await supabase.rpc('yoyo_expire_stale_live_rooms');
-        if (cleanupError) console.warn('YOYO LIVE stale room cleanup:', cleanupError.message);
-      }
-      const { data, error } = await supabase
-        .from('live_rooms')
-        .select('id, room_name, host_id, host_name, title, created_at')
-        .eq('status', 'live')
-        .gt('last_heartbeat_at', new Date(Date.now() - 45000).toISOString())
-        .order('created_at', { ascending: false });
-      if (!error && active) {
-        const { data: blockRows, error: blockError } = await supabase
-          .from('user_blocks')
-          .select('blocker_id, blocked_id')
-          .or(`blocker_id.eq.${session.user.id},blocked_id.eq.${session.user.id}`);
-        if (blockError) {
-          console.error('YOYO LIVE block list failed:', blockError);
-          setLiveRooms(data || []);
-        } else {
-          const hiddenIds = new Set((blockRows || []).map((row) =>
-            row.blocker_id === session.user.id ? row.blocked_id : row.blocker_id
-          ));
-          setLiveRooms((data || []).filter((room) => !hiddenIds.has(room.host_id)));
+      try {
+        // Expire abandoned rooms periodically, while refreshing the feed more often
+        // so a missed Realtime event never hides an active broadcaster from viewers.
+        if (Date.now() - lastCleanupAt >= 30000) {
+          lastCleanupAt = Date.now();
+          const { error: cleanupError } = await supabase.rpc('yoyo_expire_stale_live_rooms');
+          if (cleanupError) console.warn('YOYO LIVE stale room cleanup:', cleanupError.message);
         }
+        const { data, error } = await supabase
+          .from('live_rooms')
+          .select('id, room_name, host_id, host_name, title, created_at')
+          .eq('status', 'live')
+          .gt('last_heartbeat_at', new Date(Date.now() - 45000).toISOString())
+          .order('created_at', { ascending: false });
+        if (!error && active) {
+          const { data: blockRows, error: blockError } = await supabase
+            .from('user_blocks')
+            .select('blocker_id, blocked_id')
+            .or(`blocker_id.eq.${session.user.id},blocked_id.eq.${session.user.id}`);
+          if (blockError) {
+            console.error('YOYO LIVE block list failed:', blockError);
+            setLiveRooms(data || []);
+          } else {
+            const hiddenIds = new Set((blockRows || []).map((row) =>
+              row.blocker_id === session.user.id ? row.blocked_id : row.blocker_id
+            ));
+            setLiveRooms((data || []).filter((room) => !hiddenIds.has(room.host_id)));
+          }
+        }
+        if (error) console.error('YOYO LIVE live rooms failed:', error);
+      } catch (refreshError) {
+        console.error('YOYO LIVE live rooms refresh crashed:', refreshError);
+      } finally {
+        refreshing = false;
       }
-      if (error) console.error('YOYO LIVE live rooms failed:', error);
-      refreshing = false;
     };
 
     refreshLiveRooms();
