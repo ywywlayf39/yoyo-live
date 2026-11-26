@@ -20,12 +20,7 @@ begin
   insert into public.voice_room_seats(room_id, seat_number, user_id, is_open)
   select new.id, slots.seat_number, null, true
   from generate_series(1, 8) as slots(seat_number)
-  on conflict (room_id, seat_number) do update
-    set is_open = case
-      when public.voice_room_seats.user_id is null then true
-      else public.voice_room_seats.is_open
-    end,
-    updated_at = now();
+  on conflict (room_id, seat_number) do nothing;
   return new;
 end;
 $$;
