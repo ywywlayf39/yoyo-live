@@ -98,7 +98,7 @@ function effectFor(gift) {
 }
 
 export default function LiveGiftPanel({ userId, receiverId, isHost = false, roomName, onOpenPackages, profileMode = false }) {
-  const [visible, setVisible] = useState(!!profileMode);
+  const [visible, setVisible] = useState(false);
   const [gifts, setGifts] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('starter');
   const [selectedGift, setSelectedGift] = useState(null);
