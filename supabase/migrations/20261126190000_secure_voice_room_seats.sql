@@ -159,9 +159,9 @@ begin
     update public.voice_room_seat_requests
       set status='rejected'
       where room_id=p_room_id and user_id=v_seat.user_id and status='approved';
-    delete from public.voice_room_seats where id=v_seat.id;
-    insert into public.voice_room_seats(room_id, seat_number, user_id, is_open)
-    values (p_room_id, p_seat_number, null, v_seat.is_open);
+    update public.voice_room_seats
+      set user_id=null, updated_at=now()
+      where id=v_seat.id;
   elsif p_action = 'approve' then
     if p_user_id is null then raise exception 'اختر العضو المطلوب قبوله'; end if;
     if not v_seat.is_open then raise exception 'هذا المقعد مقفول'; end if;
