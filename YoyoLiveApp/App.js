@@ -16,6 +16,7 @@ import ReelsScreen from './ReelsScreen';
 import ReferralScreen from './ReferralScreen';
 import './registerLiveKit';
 import LiveRoomScreen from './LiveRoomScreen';
+import VoiceRoomsScreen from './VoiceRoomsScreen';
 import { supabase } from './supabase';
 import {
   Alert,
@@ -97,6 +98,7 @@ export default function App() {
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [liveRooms, setLiveRooms] = useState([]);
   const [showDiscover, setShowDiscover] = useState(false);
+  const [showVoiceRooms, setShowVoiceRooms] = useState(false);
   const [showReels, setShowReels] = useState(true);
   const [showReferrals, setShowReferrals] = useState(false);
   const [pendingReferralCode, setPendingReferralCode] = useState('');
@@ -656,6 +658,7 @@ export default function App() {
     setSelectedLive(null);
     setSelectedCall(null);
     setShowDiscover(false);
+    setShowVoiceRooms(false);
     setShowPackages(false);
     setShowVIP(false);
     setShowWallet(false);
@@ -683,6 +686,7 @@ export default function App() {
     setShowInbox(false);
     setShowFollowScreen(false);
     setShowDiscover(false);
+    setShowVoiceRooms(false);
     setShowReels(false);
     setShowReferrals(false);
 
@@ -831,6 +835,10 @@ export default function App() {
     return <ReelsScreen userId={session.user.id} onBack={() => setShowReels(false)} />;
   }
 
+  if (showVoiceRooms) {
+    return <VoiceRoomsScreen userId={session.user.id} onBack={() => setShowVoiceRooms(false)} />;
+  }
+
   if (showDiscover) {
     return (
       <SafeAreaView style={styles.container}>
@@ -845,6 +853,11 @@ export default function App() {
           </View>
         </View>
         <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 28 }}>
+          <TouchableOpacity onPress={() => setShowVoiceRooms(true)} style={{ backgroundColor: '#241B35', borderWidth: 1, borderColor: '#8655F5', borderRadius: 16, padding: 17, marginTop: 14, marginBottom: 8 }}>
+            <Text style={{ color: C.white, fontWeight: 'bold', fontSize: 17, textAlign: 'right' }}>🎙️ غرف YOYO الصوتية</Text>
+            <Text style={{ color: C.muted, textAlign: 'right', marginTop: 6 }}>افتح غرفة جماعية واتكلم مع أصحابك بالصوت المباشر</Text>
+            <Text style={{ color: C.pink, fontWeight: 'bold', textAlign: 'right', marginTop: 10 }}>استكشف الغرف الصوتية ←</Text>
+          </TouchableOpacity>
           {liveRooms.length === 0 ? (
             <View style={{ backgroundColor: C.card, borderRadius: 16, padding: 22, marginTop: 18 }}>
               <Text style={{ color: C.white, fontSize: 17, fontWeight: 'bold', textAlign: 'center' }}>مفيش بث مباشر حاليًا 🔴</Text>
