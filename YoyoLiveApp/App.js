@@ -10,7 +10,7 @@ import AccountScreen from './AccountScreen';
 import AdminScreen from './AdminScreen';
 import ChatScreen from './ChatScreen';
 import InboxScreen from './InboxScreen';
-import FollowScreen from './FollowScreen';
+import FollowScreen from './FollowScreen';\nimport LiveGiftPanel from './LiveGiftPanel';
 import ReelsScreen from './ReelsScreen';
 import ReferralScreen from './ReferralScreen';
 import './registerLiveKit';
@@ -529,6 +529,8 @@ export default function App() {
         const notification = payload.new;
         if (notification?.notification_type === 'new_follower') {
           Alert.alert(notification.title || 'متابع جديد 💗', notification.body || 'بدأ أحد الأعضاء متابعتك.');
+        } else if (notification?.notification_type === 'gift_received') {
+          Alert.alert(notification.title || '🎁 وصلك هدية جديدة', notification.body || 'أرسل لك أحد الأعضاء هدية.');
         }
       }).subscribe();
     return () => supabase.removeChannel(channel);
@@ -978,10 +980,13 @@ export default function App() {
               <Text style={{ color: C.white, fontWeight: 'bold' }}>🚫 حظر</Text>
             </TouchableOpacity>
           </View>
-          <Text style={{ color: C.muted, fontSize: 12, marginTop: 16, textAlign: 'center' }}>
-            🎁 لإرسال هدية، افتح البث المباشر للعضو واستخدم لوحة الهدايا.
-          </Text>
         </ScrollView>
+        <LiveGiftPanel
+          userId={session.user.id}
+          receiverId={selectedMember.id}
+          profileMode
+          onOpenPackages={() => setShowPackages(true)}
+        />
       </SafeAreaView>
     );
   }
