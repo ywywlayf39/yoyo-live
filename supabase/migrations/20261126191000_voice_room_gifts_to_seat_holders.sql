@@ -141,7 +141,7 @@ begin
     where room_id=p_room_id and user_id=v_user;
   update public.voice_room_seat_requests
     set status='rejected'
-    where room_id=p_room_id and user_id=v_user and status='approved';
+    where room_id=p_room_id and user_id=v_user and status in ('pending','approved');
   return jsonb_build_object('ok',true);
 end;
 $$;
