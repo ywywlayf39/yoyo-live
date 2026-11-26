@@ -279,7 +279,7 @@ function VoiceStage({ room, userId, isHost, onLeave, onOpenPackages }) {
         </View>
 
         {isHost ? <LiveMusicLibrary roomName={room.room_name} userId={userId} shareLabel="مشاركة الأغنية مع أعضاء الغرفة الصوتية" /> : null}
-        <LiveMusicSync roomName={room.room_name} userId={userId} isHost={isHost} />
+        <LiveMusicSync roomName={room.room_name} userId={userId} isHost={isHost} audienceLabel="أعضاء الغرفة الصوتية" />
 
         <View style={s.giftTargetCard}>
           <Text style={s.giftTargetTitle}>إرسال هدية إلى</Text>
