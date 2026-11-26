@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const root = path.join(__dirname, '..');
 const screen = fs.readFileSync(path.join(root, 'VoiceRoomsScreen.js'), 'utf8');
+const musicSync = fs.readFileSync(path.join(root, 'LiveMusicSync.js'), 'utf8');
 const gifts = fs.readFileSync(path.join(root, 'LiveGiftPanel.js'), 'utf8');
 const app = fs.readFileSync(path.join(root, 'App.js'), 'utf8');
 const token = fs.readFileSync(path.join(root, '..', 'supabase', 'functions', 'livekit-token', 'index.ts'), 'utf8');
@@ -51,7 +52,7 @@ assert.ok(migrations.includes('20261126190000_secure_voice_room_seats.sql') && m
 const musicMigration = fs.readFileSync(path.join(root, '..', 'supabase', 'migrations', '20261126223000_enable_shared_music_in_voice_rooms.sql'), 'utf8');
 assert.ok(screen.includes("import LiveMusicLibrary from './LiveMusicLibrary'") && screen.includes("import LiveMusicSync from './LiveMusicSync'"), 'Voice rooms must load the shared music library and synchronized player');
 assert.ok(screen.includes('shareLabel="مشاركة الأغنية مع أعضاء الغرفة الصوتية"') && screen.includes('audienceLabel="أعضاء الغرفة الصوتية"'), 'Voice room hosts must share music and all members must hear synchronized playback');
-assert.ok(sync.includes('audienceLabel = \'جمهور البث\'') && sync.includes('تعمل الآن عند {audienceLabel}'), 'Shared music status must use the correct audience label');
+assert.ok(musicSync.includes('audienceLabel = \'جمهور البث\'') && musicSync.includes('تعمل الآن عند {audienceLabel}'), 'Shared music status must use the correct audience label');
 assert.ok(musicMigration.includes('public.voice_rooms') && musicMigration.includes('public.voice_room_members') && musicMigration.includes('private.yoyo_live_music_control_impl'), 'Shared music permissions must support active voice-room hosts and members');
 
 console.log('YOYO LIVE voice room seats, gifts, and shared music regression checks passed.');
