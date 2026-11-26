@@ -15,6 +15,12 @@ assert.ok(liveRoute >= 0 && packagesRoute > liveRoute,
 const liveBlock = app.slice(liveRoute, app.indexOf('if (showReferrals)', liveRoute));
 assert.ok(liveBlock.includes('<Modal') && liveBlock.includes('<PackagesScreen'),
   'Coin packages must open as a modal above the mounted LiveKit room');
+assert.ok(app.includes("setInterval(refreshLiveRooms, 8000)"),
+  'Live room discovery must poll as a fallback when Realtime events are missed');
+assert.ok(app.includes("AppState.addEventListener('change'"),
+  'Live room discovery must refresh when the app returns to the foreground');
+assert.ok(app.includes("last_heartbeat_at: new Date().toISOString()"),
+  'A newly created live room must be immediately eligible for the active live feed');
 
 assert.ok(!sync.includes('if (!visible) return null'),
   'Music playback must not stop merely because the tools panel is closed');
