@@ -24,7 +24,7 @@
         "MODIFY_AUDIO_SETTINGS"
       ],
       "package": "com.yoyolive.app",
-      "versionCode": 3,
+      "versionCode": 4,
       "intentFilters": [
         {
           "action": "VIEW",
@@ -127,8 +127,8 @@
     },
     "updates": {
       "url": "https://u.expo.dev/14d34dd0-5abf-4d06-879e-b9fe0438f909",
-      "enabled": true,
-      "checkAutomatically": "ON_LOAD",
+      "enabled": false,
+      "checkAutomatically": "NEVER",
       "fallbackToCacheTimeout": 0,
       "requestHeaders": {
         "expo-channel-name": "production"
