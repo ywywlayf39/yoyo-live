@@ -97,8 +97,8 @@ function effectFor(gift) {
   return GIFT_ANIMATION_EFFECTS[gift.animation_key] || null;
 }
 
-export default function LiveGiftPanel({ userId, receiverId, isHost = false, roomName, onOpenPackages }) {
-  const [visible, setVisible] = useState(false);
+export default function LiveGiftPanel({ userId, receiverId, isHost = false, roomName, onOpenPackages, profileMode = false }) {
+  const [visible, setVisible] = useState(!!profileMode);
   const [gifts, setGifts] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('starter');
   const [selectedGift, setSelectedGift] = useState(null);
@@ -160,7 +160,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
   }, [userId]);
 
   useEffect(() => {
-    if (!userId || !roomName) return undefined;
+    if (!userId || !roomName || profileMode) return undefined;
     let active = true;
     const channel = supabase.channel('yoyo-room-gifts-' + roomName)
       .on('postgres_changes', {
@@ -195,7 +195,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
       setGiftFeedReady(false);
       supabase.removeChannel(channel);
     };
-  }, [userId, roomName]);
+  }, [userId, roomName, profileMode]);
 
   useEffect(() => {
     if (!incoming && giftQueue.length) {
@@ -275,7 +275,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
     }
     await refreshBalance();
     setVisible(false);
-    Alert.alert('وصلت هديتك 🎁', 'تم إرسال ' + selectedGift.name + ' بنجاح.');
+    Alert.alert('وصلت هديتك 🎁', 'تم إرسال ' + selectedGift.name + ' إلى العضو بنجاح.');
   };
 
   const effect = incoming ? effectFor({ animation_key: incoming.animationKey }) : null;
