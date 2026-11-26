@@ -14,7 +14,6 @@ import FollowScreen from './FollowScreen';
 import LiveGiftPanel from './LiveGiftPanel';
 import ReelsScreen from './ReelsScreen';
 import ReferralScreen from './ReferralScreen';
-import './registerLiveKit';
 import LiveRoomScreen from './LiveRoomScreen';
 import VoiceRoomsScreen from './VoiceRoomsScreen';
 import { supabase } from './supabase';
