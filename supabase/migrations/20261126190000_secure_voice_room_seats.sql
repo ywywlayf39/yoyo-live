@@ -16,7 +16,7 @@ set search_path = ''
 as $$
 begin
   insert into public.voice_room_seats(room_id, seat_number, user_id, is_open)
-  select new.id, n, null, true from generate_series(1, 8) as n
+  select new.id, slots.seat_number, null, true from generate_series(1, 8) as slots(seat_number)
   on conflict (room_id, seat_number) do nothing;
   return new;
 end;
@@ -29,13 +29,13 @@ after insert on public.voice_rooms
 for each row execute function public.yoyo_initialize_voice_room_seats();
 
 insert into public.voice_room_seats(room_id, seat_number, user_id, is_open)
-select r.id, n, null, true
+select r.id, slots.seat_number, null, true
 from public.voice_rooms r
-cross join generate_series(1, 8) as n
+cross join generate_series(1, 8) as slots(seat_number)
 where r.status = 'live'
   and not exists (
     select 1 from public.voice_room_seats s
-    where s.room_id = r.id and s.seat_number = n
+    where s.room_id = r.id and s.seat_number = slots.seat_number
   )
 on conflict (room_id, seat_number) do nothing;
 
@@ -133,7 +133,7 @@ begin
   if p_seat_number is null or p_seat_number < 1 or p_seat_number > 8 then
     raise exception 'رقم المقعد غير صحيح';
   end if;
-  if p_action not in ('open','close','approve','remove') then
+  if p_action is null or p_action not in ('open','close','approve','remove') then
     raise exception 'إجراء المقعد غير صالح';
   end if;
   select * into v_room from public.voice_rooms
@@ -169,7 +169,13 @@ begin
     if not exists (
       select 1 from public.voice_room_seat_requests q
       where q.room_id=p_room_id and q.user_id=p_user_id and q.status='pending'
-    ) then raise exception 'طلب العضو غير موجود أو لم يعد معلقًا'; end if;
+        and q.created_at > now() - interval '2 hours'
+    ) then raise exception 'طلب العضو غير موجود أو انتهت صلاحيته'; end if;
+    if not exists (
+      select 1 from public.voice_room_members m
+      where m.room_id=p_room_id and m.user_id=p_user_id
+        and m.joined_at > now() - interval '2 hours'
+    ) then raise exception 'يجب أن يكون العضو داخل الغرفة لقبول طلبه'; end if;
     if exists (
       select 1 from public.voice_room_seats s
       where s.room_id=p_room_id and s.user_id=p_user_id
