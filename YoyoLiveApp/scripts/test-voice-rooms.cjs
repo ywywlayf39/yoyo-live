@@ -9,10 +9,12 @@ const token = fs.readFileSync(path.join(root, '..', 'supabase', 'functions', 'li
 const migrations = fs.readdirSync(path.join(root, '..', 'supabase', 'migrations')).sort();
 const seatsMigration = fs.readFileSync(path.join(root, '..', 'supabase', 'migrations', '20261126190000_secure_voice_room_seats.sql'), 'utf8');
 const giftsMigration = fs.readFileSync(path.join(root, '..', 'supabase', 'migrations', '20261126191000_voice_room_gifts_to_seat_holders.sql'), 'utf8');
+const membershipMigration = fs.readFileSync(path.join(root, '..', 'supabase', 'migrations', '20261126192000_secure_voice_room_membership.sql'), 'utf8');
 
 assert.ok(app.includes("import VoiceRoomsScreen from './VoiceRoomsScreen'"), 'App must import voice rooms');
 assert.ok(app.includes('onOpenPackages={() => setShowPackages(true)}'), 'Voice room gift recharge must open the existing packages screen');
 assert.ok(screen.includes('AudioSession.startAudioSession()') && screen.includes('video={false}'), 'Voice rooms must remain audio-only');
+assert.ok(screen.includes("rpc('join_voice_room'") && screen.includes("rpc('leave_voice_room'"), 'Room membership must use server-authorized RPCs');
 assert.ok(screen.includes('Array.from({ length: 8 }'), 'The room must render exactly eight seat slots');
 assert.ok(screen.includes('request_voice_room_seat') && screen.includes('manage_voice_room_seat'), 'Members must request seats and hosts must approve/control them');
 assert.ok(screen.includes("seat?.is_open ? 'close' : 'open'"), 'Hosts must be able to open and close seats');
@@ -24,5 +26,6 @@ assert.ok(gifts.includes('voice_room_gift_events'), 'Voice room gift animations 
 assert.ok(seatsMigration.includes('generate_series(1, 8)') && seatsMigration.includes('revoke insert, update, delete on public.voice_room_seats'), 'Eight seats must be initialized and direct client seat writes must be blocked');
 assert.ok(giftsMigration.includes('v_receiver_id <> v_room.host_id') && giftsMigration.includes('voice_room_seats s'), 'Gift recipients must be limited to the host or an approved speaker');
 assert.ok(giftsMigration.includes('round(v_gross_points * 0.70)'), 'Voice room gifts must preserve the 70/30 revenue split');
-assert.ok(migrations.includes('20261126190000_secure_voice_room_seats.sql') && migrations.includes('20261126191000_voice_room_gifts_to_seat_holders.sql'), 'Voice room migrations must be present');
+assert.ok(membershipMigration.includes('revoke insert, update, delete on public.voice_room_members') && membershipMigration.includes('public.join_voice_room'), 'Members must not forge room membership through direct table writes');
+assert.ok(migrations.includes('20261126190000_secure_voice_room_seats.sql') && migrations.includes('20261126191000_voice_room_gifts_to_seat_holders.sql') && migrations.includes('20261126192000_secure_voice_room_membership.sql'), 'Voice room migrations must be present');
 console.log('YOYO LIVE voice room seats and gifts regression checks passed.');
