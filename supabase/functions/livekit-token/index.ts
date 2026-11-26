@@ -203,12 +203,12 @@ Deno.serve(async (req: Request) => {
     }
 
     if (action === "seat_permissions") {
-      if (!isVoiceRoom || !voiceRoomId || !isHost) {
-        return json({ error: "Only the voice-room host can change speaker permissions" }, 403);
-      }
       const targetUserId = typeof body?.targetUserId === "string" ? body.targetUserId : "";
-      if (!targetUserId || targetUserId.length > 128) {
-        return json({ error: "A valid targetUserId is required" }, 400);
+      if (!isVoiceRoom || !voiceRoomId || !targetUserId || targetUserId.length > 128) {
+        return json({ error: "A valid voice-room participant is required" }, 400);
+      }
+      if (!isHost && targetUserId !== user.id) {
+        return json({ error: "Only the host may change another participant's speaker permissions" }, 403);
       }
       const { data: assignedSeat, error: seatError } = await service
         .from("voice_room_seats")
