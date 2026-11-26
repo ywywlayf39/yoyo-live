@@ -110,6 +110,7 @@ Deno.serve(async (req: Request) => {
 
     let isHost = false;
     let isCall = false;
+    let isVoiceRoom = false;
     let callType: string | null = null;
     let callId: string | null = null;
     let callParticipantCallerId: string | null = null;
@@ -134,8 +135,17 @@ Deno.serve(async (req: Request) => {
         return json({ error: "Unable to verify call access" }, 500);
       }
 
-      if (!call) return json({ error: "Live room or call not found" }, 404);
-
+      if (!call) {
+        const { data: voiceRoom, error: voiceRoomError } = await service
+          .from("voice_rooms")
+          .select("host_id, status")
+          .eq("room_name", roomName)
+          .maybeSingle();
+        if (voiceRoomError) return json({ error: "Unable to verify voice room access" }, 500);
+        if (!voiceRoom || voiceRoom.status !== "live") return json({ error: "Live room, call, or voice room not found" }, 404);
+        isVoiceRoom = true;
+        isHost = voiceRoom.host_id === user.id;
+      } else {
       const isCaller = call.caller_id === user.id;
       const isReceiver = call.receiver_id === user.id;
       if (!isCaller && !isReceiver) return json({ error: "You are not a participant in this call" }, 403);
@@ -154,6 +164,7 @@ Deno.serve(async (req: Request) => {
       callId = call.id;
       callParticipantCallerId = call.caller_id;
       callParticipantReceiverId = call.receiver_id;
+      }
     }
 
     const otherParticipantId = isCall
@@ -263,7 +274,7 @@ Deno.serve(async (req: Request) => {
     accessToken.addGrant({
       roomJoin: true,
       room: roomName,
-      canPublish: isCall || isHost,
+      canPublish: isCall || isHost || isVoiceRoom,
       canSubscribe: true,
       canPublishData: true,
     });
@@ -276,6 +287,7 @@ Deno.serve(async (req: Request) => {
       roomName,
       isHost,
       isCall,
+      isVoiceRoom,
       callType,
       expiresIn: 3600,
     });
