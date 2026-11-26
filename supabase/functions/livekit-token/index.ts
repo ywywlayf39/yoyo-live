@@ -202,6 +202,17 @@ Deno.serve(async (req: Request) => {
       return json({ error: "LiveKit is not configured on the server" }, 500);
     }
 
+    if (action === "join" && isVoiceRoom && voiceRoomId) {
+      const { data: membership, error: membershipError } = await service
+        .from("voice_room_members")
+        .select("user_id")
+        .eq("room_id", voiceRoomId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (membershipError) return json({ error: "Unable to verify voice-room membership" }, 500);
+      if (!membership) return json({ error: "Join the voice room before requesting a speaker token" }, 403);
+    }
+
     if (action === "seat_permissions") {
       const targetUserId = typeof body?.targetUserId === "string" ? body.targetUserId : "";
       if (!isVoiceRoom || !voiceRoomId || !targetUserId || targetUserId.length > 128) {
