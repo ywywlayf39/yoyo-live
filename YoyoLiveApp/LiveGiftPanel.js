@@ -7,6 +7,7 @@ import { supabase } from './supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAudioPlayer } from 'expo-audio';
 import { GIFT_SOUND_ASSETS } from './giftSoundPlayers';
+import Gift3DModel from './Gift3DModel';
 
 const giftSoundPlayers = {};
 
@@ -308,7 +309,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
         </View>
         <Text style={styles.megaLabel}>{incoming.coinCost >= 100000 ? 'هدية أسطورية وصلت!' : 'هدية وصلت!'}</Text>
         <Animated.View style={{ transform: [{ perspective: 700 }, { rotateY }, { rotateX }, { scale: entrance.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1.08] }) }] }}>
-          <Text style={[styles.effectEmoji, incoming.coinCost >= 100000 && styles.megaEmoji]}>{incoming.emoji}</Text>
+          <Gift3DModel animationKey={incoming.animationKey} emoji={incoming.emoji} size={incoming.coinCost >= 100000 ? 190 : 160} style={{ marginVertical: 2 }} />
         </Animated.View>
         <Text style={[styles.effectTitle, { color: tint }]}>{incoming.name}</Text>
         <Text style={styles.effectSubtitle}>
@@ -367,6 +368,9 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
             )}
             {!!selectedGift && (
               <View style={styles.footer}>
+                <View style={styles.selectedGiftPreview}>
+                  <Gift3DModel animationKey={selectedGift.animation_key} emoji={selectedGift.emoji} size={116} />
+                </View>
                 <View style={styles.quantityRow}>
                   {[1, 5, 10].map((value) => (
                     <TouchableOpacity key={value} style={[styles.quantity, quantity === value && styles.quantityActive]}
@@ -418,6 +422,7 @@ const styles = StyleSheet.create({
   giftName: { color: COLORS.white, fontSize: 11, fontWeight: 'bold' },
   giftPrice: { color: COLORS.gold, fontSize: 11, marginTop: 4 },
   footer: { marginTop: 12, gap: 10 },
+  selectedGiftPreview: { alignItems: 'center', justifyContent: 'center', minHeight: 116, marginBottom: 2 },
   quantityRow: { flexDirection: 'row', justifyContent: 'center', gap: 8 },
   quantity: { paddingVertical: 7, paddingHorizontal: 16, borderRadius: 10, backgroundColor: COLORS.card2 },
   quantityActive: { backgroundColor: '#704078' },
