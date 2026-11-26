@@ -1,11 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { AudioSession, LiveKitRoom, useLocalParticipant, useParticipants } from '@livekit/react-native';
 import { supabase } from './supabase';
 
 const C = { bg: '#0B0912', card: '#191424', card2: '#241B35', pink: '#F34E9B', purple: '#8655F5', white: '#FFFFFF', muted: '#AAA1B8', gold: '#F5C451' };
 
-function VoiceStage({ room, userId, isHost, onLeave }) {
+function VoiceStage({ room, userId, isHost, onLeave, onRefreshConnection }) {
   const { localParticipant, isMicrophoneEnabled } = useLocalParticipant();
   const participants = useParticipants();
   const [busy, setBusy] = useState(false);
@@ -15,6 +15,15 @@ function VoiceStage({ room, userId, isHost, onLeave }) {
   const [messageText, setMessageText] = useState('');
   const [requestSent, setRequestSent] = useState(false);
   const mySeat = seatRows.find((x) => x.user_id === userId);
+  const refreshedForSeat = useRef(false);
+  useEffect(() => {
+    if (mySeat && !isHost && !refreshedForSeat.current) {
+      refreshedForSeat.current = true;
+      Alert.alert('تم قبول طلب المايك', 'هنعيد الاتصال لتفعيل صلاحية التحدث.');
+      onRefreshConnection(room);
+    }
+    if (!mySeat) refreshedForSeat.current = false;
+  }, [mySeat, isHost, onRefreshConnection, room]);
   const refreshRoomData = useCallback(async () => {
     const [seatResult, requestResult, messageResult] = await Promise.all([
       supabase.from('voice_room_seats').select('id,user_id,seat_number').eq('room_id', room.id).order('seat_number'),
@@ -199,6 +208,13 @@ export default function VoiceRoomsScreen({ userId, onBack }) {
     finally { setBusy(false); }
   };
 
+  const refreshConnection = async (room) => {
+    setConnection(null);
+    setActive(null);
+    await AudioSession.stopAudioSession().catch(() => {});
+    await connect(room);
+  };
+
   const leave = async () => {
     const room = active;
     setConnection(null); setActive(null);
@@ -216,7 +232,7 @@ export default function VoiceRoomsScreen({ userId, onBack }) {
 
   if (active && connection) return <LiveKitRoom serverUrl={connection.serverUrl} token={connection.token} connect audio video={false}
     options={{ adaptiveStream: true }} onDisconnected={() => {}}>
-    <VoiceStage room={active} userId={userId} isHost={active.host_id === userId} onLeave={leave} />
+    <VoiceStage room={active} userId={userId} isHost={active.host_id === userId} onLeave={leave} onRefreshConnection={refreshConnection} />
   </LiveKitRoom>;
 
   return <SafeAreaView style={s.root}>
