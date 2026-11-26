@@ -9,6 +9,60 @@ function VoiceStage({ room, userId, isHost, onLeave }) {
   const { localParticipant, isMicrophoneEnabled } = useLocalParticipant();
   const participants = useParticipants();
   const [busy, setBusy] = useState(false);
+  const [seatRows, setSeatRows] = useState([]);
+  const [requests, setRequests] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [messageText, setMessageText] = useState('');
+  const [requestSent, setRequestSent] = useState(false);
+  const mySeat = seatRows.find((x) => x.user_id === userId);
+  const refreshRoomData = useCallback(async () => {
+    const [seatResult, requestResult, messageResult] = await Promise.all([
+      supabase.from('voice_room_seats').select('id,user_id,seat_number').eq('room_id', room.id).order('seat_number'),
+      supabase.from('voice_room_seat_requests').select('id,user_id,status,created_at').eq('room_id', room.id).eq('status', 'pending').order('created_at'),
+      supabase.from('voice_room_messages').select('id,user_id,body,created_at').eq('room_id', room.id).order('created_at', { ascending: false }).limit(40),
+    ]);
+    if (!seatResult.error) setSeatRows(seatResult.data || []);
+    if (!requestResult.error) setRequests(requestResult.data || []);
+    if (!messageResult.error) setMessages((messageResult.data || []).reverse());
+  }, [room.id]);
+  useEffect(() => {
+    refreshRoomData();
+    const channel = supabase.channel('voice-room-' + room.id)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'voice_room_seats', filter: 'room_id=eq.' + room.id }, refreshRoomData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'voice_room_seat_requests', filter: 'room_id=eq.' + room.id }, refreshRoomData)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'voice_room_messages', filter: 'room_id=eq.' + room.id }, refreshRoomData)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [room.id, refreshRoomData]);
+  const requestSeat = async () => {
+    const { error } = await supabase.from('voice_room_seat_requests')
+      .upsert({ room_id: room.id, user_id: userId, status: 'pending' }, { onConflict: 'room_id,user_id' });
+    if (error) Alert.alert('تعذر طلب المايك', error.message);
+    else { setRequestSent(true); Alert.alert('تم إرسال الطلب', 'استنى موافقة مضيف الغرفة.'); refreshRoomData(); }
+  };
+  const decideRequest = async (request, approve) => {
+    if (!isHost) return;
+    if (approve) {
+      const occupied = new Set(seatRows.map((x) => x.seat_number));
+      const seatNumber = Array.from({ length: 8 }, (_, i) => i + 1).find((n) => !occupied.has(n));
+      if (!seatNumber) { Alert.alert('المقاعد مكتملة', 'لا يوجد مقعد متاح حاليًا.'); return; }
+      const { error: seatError } = await supabase.from('voice_room_seats')
+        .insert({ room_id: room.id, user_id: request.user_id, seat_number: seatNumber });
+      if (seatError) { Alert.alert('تعذر إضافة المتحدث', seatError.message); return; }
+    }
+    const { error } = await supabase.from('voice_room_seat_requests')
+      .update({ status: approve ? 'approved' : 'rejected' }).eq('id', request.id);
+    if (error) Alert.alert('تعذر تحديث الطلب', error.message);
+    refreshRoomData();
+  };
+  const sendMessage = async () => {
+    const body = messageText.trim();
+    if (!body) return;
+    setMessageText('');
+    const { error } = await supabase.from('voice_room_messages').insert({ room_id: room.id, user_id: userId, body });
+    if (error) { setMessageText(body); Alert.alert('تعذر إرسال الرسالة', error.message); }
+    else refreshRoomData();
+  };
   const toggleMic = async () => {
     if (busy) return;
     setBusy(true);
@@ -29,14 +83,33 @@ function VoiceStage({ room, userId, isHost, onLeave }) {
       <View style={s.stageHeader}><Text style={s.section}>مقاعد المتحدثين</Text><Text style={s.sub}>الصوت مباشر بين أعضاء الغرفة</Text></View>
       <View style={s.seats}>
         {Array.from({ length: 8 }).map((_, i) => {
-          const p = participants[i];
-          const mine = p?.identity === userId;
-          return <View key={p?.identity || 'empty-' + i} style={[s.seat, p ? s.seatActive : null]}>
-            <Text style={s.seatEmoji}>{p ? (mine ? '🎤' : '🎧') : '＋'}</Text>
-            <Text numberOfLines={1} style={s.seatName}>{p ? (mine ? 'أنت' : p.name || 'عضو') : 'مقعد فارغ'}</Text>
-            {p ? <Text style={s.seatState}>متصل</Text> : null}
+          const seat = seatRows.find((x) => x.seat_number === i + 1);
+          const p = seat && participants.find((x) => x.identity === seat.user_id);
+          return <View key={'seat-' + (i + 1)} style={[s.seat, seat ? s.seatActive : null]}>
+            <Text style={s.seatEmoji}>{seat ? (p?.isMicrophoneEnabled ? '🎙️' : '🔇') : '＋'}</Text>
+            <Text numberOfLines={1} style={s.seatName}>{seat ? (seat.user_id === userId ? 'أنت' : p?.name || 'متحدث') : 'مقعد فارغ'}</Text>
+            {seat ? <Text style={s.seatState}>مقعد {i + 1}</Text> : null}
           </View>;
         })}
+      </View>
+      {!isHost && !mySeat ? <TouchableOpacity onPress={requestSeat} disabled={requestSent} style={s.primary}>
+        <Text style={s.primaryText}>{requestSent ? 'تم إرسال طلب المايك' : '🎤 طلب الصعود للمايك'}</Text>
+      </TouchableOpacity> : null}
+      {isHost && requests.length > 0 ? <View style={s.requestBox}>
+        <Text style={s.section}>طلبات الصعود للمايك</Text>
+        {requests.map((request) => <View key={request.id} style={s.requestRow}>
+          <Text style={s.seatName}>{request.user_id.slice(0, 8)}</Text>
+          <TouchableOpacity onPress={() => decideRequest(request, true)} style={s.approve}><Text style={s.controlText}>قبول</Text></TouchableOpacity>
+          <TouchableOpacity onPress={() => decideRequest(request, false)} style={s.reject}><Text style={s.controlText}>رفض</Text></TouchableOpacity>
+        </View>)}
+      </View> : null}
+      <View style={s.chatBox}>
+        <Text style={s.section}>دردشة الغرفة</Text>
+        {messages.slice(-8).map((m) => <Text key={m.id} style={s.chatLine}>{m.user_id === userId ? 'أنت' : m.user_id.slice(0, 6)}: {m.body}</Text>)}
+        <View style={s.chatInputRow}>
+          <TextInput value={messageText} onChangeText={setMessageText} placeholder="اكتب رسالة..." placeholderTextColor={C.muted} style={[s.input, { flex: 1, marginTop: 0 }]} maxLength={500} />
+          <TouchableOpacity onPress={sendMessage} style={s.sendChat}><Text style={s.controlText}>إرسال</Text></TouchableOpacity>
+        </View>
       </View>
       <View style={s.audioInfo}><Text style={s.infoText}>🔊 خلي صوت الموبايل مفتوحًا لسماع المشاركين</Text></View>
       <View style={s.controls}>
@@ -173,5 +246,11 @@ const s = StyleSheet.create({
   audioInfo:{marginHorizontal:20,backgroundColor:C.card,borderRadius:12,padding:13,alignItems:'center'},infoText:{color:C.muted,fontSize:12},
   controls:{flexDirection:'row',justifyContent:'center',gap:14,marginTop:'auto',padding:20},control:{alignItems:'center',padding:16,borderRadius:16,minWidth:125},
   controlOn:{backgroundColor:'#382A4B'},controlOff:{backgroundColor:'#5A2D43'},leave:{backgroundColor:'#A52D4C'},controlEmoji:{fontSize:24},controlText:{color:C.white,fontWeight:'bold',marginTop:6},
-  hostTag:{color:C.gold,textAlign:'center',marginBottom:18,fontWeight:'bold'}
+  hostTag:{color:C.gold,textAlign:'center',marginBottom:18,fontWeight:'bold'},
+  requestBox:{marginHorizontal:16,marginTop:14,backgroundColor:C.card,borderRadius:14,padding:12,gap:8},
+  requestRow:{flexDirection:'row',alignItems:'center',gap:8,paddingVertical:5},
+  approve:{backgroundColor:'#247A5B',padding:9,borderRadius:9},reject:{backgroundColor:'#8A3150',padding:9,borderRadius:9},
+  chatBox:{margin:16,backgroundColor:C.card,borderRadius:14,padding:12,gap:8},
+  chatLine:{color:C.white,textAlign:'right',fontSize:13},chatInputRow:{flexDirection:'row',gap:8,alignItems:'center'},
+  sendChat:{backgroundColor:C.pink,padding:12,borderRadius:10}
 });
