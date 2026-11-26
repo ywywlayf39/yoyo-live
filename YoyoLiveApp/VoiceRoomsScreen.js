@@ -1,107 +1,14 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, SafeAreaView, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import LiveGiftPanel from './LiveGiftPanel';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { AudioSession, LiveKitRoom, useLocalParticipant, useParticipants } from '@livekit/react-native';
 import { supabase } from './supabase';
 
 const C = { bg: '#0B0912', card: '#191424', card2: '#241B35', pink: '#F34E9B', purple: '#8655F5', white: '#FFFFFF', muted: '#AAA1B8', gold: '#F5C451' };
 
-function VoiceStage({ room, userId, isHost, onLeave, onRefreshConnection }) {
+function VoiceStage({ room, userId, isHost, onLeave }) {
   const { localParticipant, isMicrophoneEnabled } = useLocalParticipant();
   const participants = useParticipants();
   const [busy, setBusy] = useState(false);
-  const [seatRows, setSeatRows] = useState([]);
-  const [seatProfiles, setSeatProfiles] = useState({});
-  const [seatsOpen, setSeatsOpen] = useState(room.seats_open !== false);
-  const [requests, setRequests] = useState([]);
-  const [messages, setMessages] = useState([]);
-  const [messageText, setMessageText] = useState('');
-  const [requestSent, setRequestSent] = useState(false);
-  const mySeat = seatRows.find((x) => x.user_id === userId);
-  const refreshedForSeat = useRef(false);
-  useEffect(() => {
-    if (mySeat && !isHost && !refreshedForSeat.current) {
-      refreshedForSeat.current = true;
-      Alert.alert('تم قبول طلب المايك', 'هنعيد الاتصال لتفعيل صلاحية التحدث.');
-      onRefreshConnection(room);
-    }
-    if (!mySeat) refreshedForSeat.current = false;
-  }, [mySeat, isHost, onRefreshConnection, room]);
-  const refreshRoomData = useCallback(async () => {
-    const [seatResult, requestResult, messageResult, roomResult] = await Promise.all([
-      supabase.from('voice_room_seats').select('id,user_id,seat_number').eq('room_id', room.id).order('seat_number'),
-      supabase.from('voice_room_seat_requests').select('id,user_id,status,created_at').eq('room_id', room.id).eq('status', 'pending').order('created_at'),
-      supabase.from('voice_room_messages').select('id,user_id,body,created_at').eq('room_id', room.id).order('created_at', { ascending: false }).limit(40),
-      supabase.from('voice_rooms').select('seats_open').eq('id', room.id).maybeSingle(),
-    ]);
-    if (!seatResult.error) {
-      const rows = seatResult.data || [];
-      setSeatRows(rows);
-      const ids = rows.map((x) => x.user_id);
-      if (ids.length) {
-        const { data: profileRows } = await supabase.from('member_public_profiles').select('id,display_name,avatar_url').in('id', ids);
-        setSeatProfiles(Object.fromEntries((profileRows || []).map((p) => [p.id, p])));
-      } else setSeatProfiles({});
-    }
-    if (!requestResult.error) {
-      setRequests(requestResult.data || []);
-      setRequestSent((requestResult.data || []).some((x) => x.user_id === userId));
-    }
-    if (!messageResult.error) setMessages((messageResult.data || []).reverse());
-    if (!roomResult.error && roomResult.data) setSeatsOpen(roomResult.data.seats_open !== false);
-  }, [room.id]);
-  useEffect(() => {
-    refreshRoomData();
-    const channel = supabase.channel('voice-room-' + room.id)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'voice_room_seats', filter: 'room_id=eq.' + room.id }, refreshRoomData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'voice_room_seat_requests', filter: 'room_id=eq.' + room.id }, refreshRoomData)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'voice_room_messages', filter: 'room_id=eq.' + room.id }, refreshRoomData)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'voice_rooms', filter: 'id=eq.' + room.id }, refreshRoomData)
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [room.id, refreshRoomData]);
-  const requestSeat = async () => {
-    if (!seatsOpen) { Alert.alert('المقاعد مغلقة', 'المضيف أغلق المقاعد حاليًا.'); return; }
-    const { error } = await supabase.from('voice_room_seat_requests')
-      .upsert({ room_id: room.id, user_id: userId, status: 'pending' }, { onConflict: 'room_id,user_id' });
-    if (error) Alert.alert('تعذر طلب المايك', error.message);
-    else { setRequestSent(true); Alert.alert('تم إرسال الطلب', 'استنى موافقة مضيف الغرفة.'); refreshRoomData(); }
-  };
-  const decideRequest = async (request, approve) => {
-    if (!isHost) return;
-    if (approve) {
-      const occupied = new Set(seatRows.map((x) => x.seat_number));
-      const seatNumber = Array.from({ length: 20 }, (_, i) => i + 1).find((n) => !occupied.has(n));
-      if (!seatsOpen) { Alert.alert('المقاعد مغلقة', 'مضيف الغرفة أغلق استقبال المتحدثين.'); return; }
-      if (!seatNumber) { Alert.alert('المقاعد مكتملة', 'لا يوجد مقعد متاح حاليًا.'); return; }
-      const { error: seatError } = await supabase.from('voice_room_seats')
-        .insert({ room_id: room.id, user_id: request.user_id, seat_number: seatNumber });
-      if (seatError) { Alert.alert('تعذر إضافة المتحدث', seatError.message); return; }
-    }
-    const { error } = await supabase.from('voice_room_seat_requests')
-      .update({ status: approve ? 'approved' : 'rejected' }).eq('id', request.id);
-    if (error) Alert.alert('تعذر تحديث الطلب', error.message);
-    refreshRoomData();
-  };
-  const leaveSeat = async () => {
-    const { error } = await supabase.from('voice_room_seats').delete().eq('room_id', room.id).eq('user_id', userId);
-    if (error) Alert.alert('تعذر مغادرة المقعد', error.message);
-    else { setRequestSent(false); refreshRoomData(); }
-  };
-  const removeSpeaker = async (seat) => {
-    if (!isHost) return;
-    const { error } = await supabase.from('voice_room_seats').delete().eq('id', seat.id);
-    if (error) Alert.alert('تعذر إنزال المتحدث', error.message);
-    else refreshRoomData();
-  };
-  const sendMessage = async () => {
-    const body = messageText.trim();
-    if (!body) return;
-    setMessageText('');
-    const { error } = await supabase.from('voice_room_messages').insert({ room_id: room.id, user_id: userId, body });
-    if (error) { setMessageText(body); Alert.alert('تعذر إرسال الرسالة', error.message); }
-    else refreshRoomData();
-  };
   const toggleMic = async () => {
     if (busy) return;
     setBusy(true);
@@ -112,7 +19,6 @@ function VoiceStage({ room, userId, isHost, onLeave, onRefreshConnection }) {
   return (
     <SafeAreaView style={s.root}>
       <StatusBar barStyle="light-content" backgroundColor={C.bg} />
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 24 }}>
       <View style={s.top}>
         <TouchableOpacity onPress={onLeave}><Text style={s.back}>رجوع ←</Text></TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'flex-end' }}>
@@ -120,40 +26,16 @@ function VoiceStage({ room, userId, isHost, onLeave, onRefreshConnection }) {
           <Text style={s.sub}>غرفة صوتية جماعية • {participants.length} متصل</Text>
         </View>
       </View>
-      <View style={s.stageHeader}><Text style={s.section}>مقاعد المتحدثين</Text><Text style={s.sub}>الصوت مباشر بين أعضاء الغرفة</Text></View>
-      <View style={s.seats}>
-        {Array.from({ length: 20 }).map((_, i) => {
-          const seat = seatRows.find((x) => x.seat_number === i + 1);
-          const p = seat && participants.find((x) => x.identity === seat.user_id);
-          return <View key={'seat-' + (i + 1)} style={[s.seat, seat ? s.seatActive : null]}>
-            {seat && seatProfiles[seat.user_id]?.avatar_url ? <Image source={{ uri: seatProfiles[seat.user_id].avatar_url }} style={s.seatAvatar} /> : <Text style={s.seatEmoji}>{seat ? (p?.isMicrophoneEnabled ? '🎙️' : '🔇') : '＋'}</Text>}
-            <Text numberOfLines={1} style={s.seatName}>{seat ? (seat.user_id === userId ? 'أنت' : seatProfiles[seat.user_id]?.display_name || p?.name || 'متحدث') : 'مقعد فارغ'}</Text>
-            {seat ? <Text style={s.seatState}>مقعد {i + 1}</Text> : null}
-            {seat && isHost && seat.user_id !== userId ? <TouchableOpacity onPress={() => removeSpeaker(seat)}><Text style={{ color: '#FF8A9C', fontSize: 10 }}>إنزال</Text></TouchableOpacity> : null}
+      <View style={s.stageHeader}><Text style={s.section}>الأعضاء المتصلون</Text><Text style={s.sub}>الصوت مباشر بين أعضاء الغرفة</Text></View>
+      <View style={s.participants}>
+        {participants.map((p) => {
+          const mine = p?.identity === userId;
+          return <View key={p.identity} style={s.participant}>
+            <Text style={s.seatEmoji}>{mine ? '🎤' : '🎧'}</Text>
+            <Text numberOfLines={1} style={s.seatName}>{mine ? 'أنت' : p.name || 'عضو'}</Text>
+            <Text style={s.seatState}>متصل</Text>
           </View>;
         })}
-      </View>
-      {isHost ? <TouchableOpacity onPress={async () => { const next = !seatsOpen; const { error } = await supabase.from('voice_rooms').update({ seats_open: next }).eq('id', room.id).eq('host_id', userId); if (error) Alert.alert('تعذر تغيير المقاعد', error.message); else setSeatsOpen(next); }} style={s.seatToggle}><Text style={s.controlText}>{seatsOpen ? '🔒 غلق المقاعد' : '🔓 فتح المقاعد'}</Text></TouchableOpacity> : null}
-      {!isHost && !mySeat && seatsOpen ? <TouchableOpacity onPress={requestSeat} disabled={requestSent} style={s.primary}>
-        <Text style={s.primaryText}>{requestSent ? 'تم إرسال طلب المايك' : '🎤 طلب الصعود للمايك'}</Text>
-      </TouchableOpacity> : null}
-      {!isHost && !seatsOpen && !mySeat ? <Text style={s.seatsClosed}>المقاعد مغلقة حاليًا بواسطة المضيف</Text> : null}
-      {mySeat && !isHost ? <TouchableOpacity onPress={leaveSeat} style={s.reject}><Text style={s.controlText}>مغادرة مقعد المتحدث</Text></TouchableOpacity> : null}
-      {isHost && requests.length > 0 ? <View style={s.requestBox}>
-        <Text style={s.section}>طلبات الصعود للمايك</Text>
-        {requests.map((request) => <View key={request.id} style={s.requestRow}>
-          <Text style={s.seatName}>{request.user_id.slice(0, 8)}</Text>
-          <TouchableOpacity onPress={() => decideRequest(request, true)} style={s.approve}><Text style={s.controlText}>قبول</Text></TouchableOpacity>
-          <TouchableOpacity onPress={() => decideRequest(request, false)} style={s.reject}><Text style={s.controlText}>رفض</Text></TouchableOpacity>
-        </View>)}
-      </View> : null}
-      <View style={s.chatBox}>
-        <Text style={s.section}>دردشة الغرفة</Text>
-        {messages.slice(-8).map((m) => <Text key={m.id} style={s.chatLine}>{m.user_id === userId ? 'أنت' : m.user_id.slice(0, 6)}: {m.body}</Text>)}
-        <View style={s.chatInputRow}>
-          <TextInput value={messageText} onChangeText={setMessageText} placeholder="اكتب رسالة..." placeholderTextColor={C.muted} style={[s.input, { flex: 1, marginTop: 0 }]} maxLength={500} />
-          <TouchableOpacity onPress={sendMessage} style={s.sendChat}><Text style={s.controlText}>إرسال</Text></TouchableOpacity>
-        </View>
       </View>
       <View style={s.audioInfo}><Text style={s.infoText}>🔊 خلي صوت الموبايل مفتوحًا لسماع المشاركين</Text></View>
       <View style={s.controls}>
@@ -166,8 +48,6 @@ function VoiceStage({ room, userId, isHost, onLeave, onRefreshConnection }) {
         </TouchableOpacity>
       </View>
       {isHost ? <Text style={s.hostTag}>أنت مضيف الغرفة</Text> : null}
-      </ScrollView>
-      <LiveGiftPanel userId={userId} receiverId={room.host_id} isHost={isHost} voiceRoomId={room.id} onOpenPackages={() => Alert.alert('باقات العملات', 'افتح صفحة المحفظة لشراء العملات.')} />
     </SafeAreaView>
   );
 }
@@ -183,7 +63,7 @@ export default function VoiceRoomsScreen({ userId, onBack }) {
 
   const loadRooms = useCallback(async () => {
     const { data, error: loadError } = await supabase.from('voice_rooms')
-      .select('id,room_name,title,host_id,created_at,seats_open').eq('status', 'live')
+      .select('id,room_name,title,host_id,created_at').eq('status', 'live')
       .order('created_at', { ascending: false });
     if (loadError) setError(loadError.message);
     else setRooms(data || []);
@@ -200,8 +80,6 @@ export default function VoiceRoomsScreen({ userId, onBack }) {
   const connect = async (room) => {
     setBusy(true); setError('');
     try {
-      const { error: memberError } = await supabase.from('voice_room_members').upsert({ room_id: room.id, user_id: userId, joined_at: new Date().toISOString() }, { onConflict: 'room_id,user_id' });
-      if (memberError) throw memberError;
       await AudioSession.startAudioSession();
       const { data, error: tokenError } = await supabase.functions.invoke('livekit-token', { body: { roomName: room.room_name } });
       if (tokenError) throw tokenError;
@@ -209,7 +87,6 @@ export default function VoiceRoomsScreen({ userId, onBack }) {
       setActive(room);
       setConnection({ token: data.token, serverUrl: data.serverUrl });
     } catch (e) {
-      await supabase.from('voice_room_members').delete().eq('room_id', room.id).eq('user_id', userId);
       setError(e?.message || 'تعذر الاتصال بالغرفة الصوتية');
       Alert.alert('تعذر دخول الغرفة', e?.message || 'حاول مرة أخرى');
       AudioSession.stopAudioSession().catch(() => {});
@@ -223,7 +100,7 @@ export default function VoiceRoomsScreen({ userId, onBack }) {
     try {
       const roomName = 'voice_' + userId.replace(/-/g, '').slice(0, 10) + '_' + Date.now().toString(36);
       const { data, error: createError } = await supabase.from('voice_rooms')
-        .insert({ room_name: roomName, title: cleanTitle, host_id: userId }).select('id,room_name,title,host_id,created_at,seats_open').single();
+        .insert({ room_name: roomName, title: cleanTitle, host_id: userId }).select('id,room_name,title,host_id,created_at').single();
       if (createError) throw createError;
       setTitle('');
       await loadRooms();
@@ -232,32 +109,20 @@ export default function VoiceRoomsScreen({ userId, onBack }) {
     finally { setBusy(false); }
   };
 
-  const refreshConnection = async (room) => {
-    setConnection(null);
-    setActive(null);
-    await AudioSession.stopAudioSession().catch(() => {});
-    await connect(room);
-  };
-
   const leave = async () => {
     const room = active;
     setConnection(null); setActive(null);
-    if (room?.id) await supabase.from('voice_room_members').delete().eq('room_id', room.id).eq('user_id', userId);
     AudioSession.stopAudioSession().catch(() => {});
     if (room?.host_id === userId) {
-      const { data, error: endError } = await supabase.functions.invoke('livekit-token', {
-        body: { roomName: room.room_name, action: 'end' },
-      });
-      if (endError || data?.ended !== true) {
-        Alert.alert('تعذر إنهاء الغرفة', endError?.message || data?.error || 'حاول مرة أخرى');
-      }
+      await supabase.from('voice_rooms').update({ status: 'ended', ended_at: new Date().toISOString() })
+        .eq('id', room.id).eq('host_id', userId);
       loadRooms();
     }
   };
 
   if (active && connection) return <LiveKitRoom serverUrl={connection.serverUrl} token={connection.token} connect audio video={false}
     options={{ adaptiveStream: true }} onDisconnected={() => {}}>
-    <VoiceStage room={active} userId={userId} isHost={active.host_id === userId} onLeave={leave} onRefreshConnection={refreshConnection} />
+    <VoiceStage room={active} userId={userId} isHost={active.host_id === userId} onLeave={leave} />
   </LiveKitRoom>;
 
   return <SafeAreaView style={s.root}>
@@ -297,17 +162,11 @@ const s = StyleSheet.create({
   roomCard:{backgroundColor:C.card,borderRadius:15,padding:15,marginBottom:10,flexDirection:'row',alignItems:'center',gap:10,borderWidth:1,borderColor:'#302640'},
   liveDot:{width:10,height:10,borderRadius:5,backgroundColor:'#F34E9B'},roomTitle:{color:C.white,fontWeight:'bold',fontSize:16},join:{color:C.pink,fontWeight:'bold'},
   empty:{color:C.muted,textAlign:'center',lineHeight:24,backgroundColor:C.card,padding:20,borderRadius:14},error:{color:'#FF8A9C',marginTop:12},
-  stageHeader:{alignItems:'center',marginTop:30,gap:6},seats:{flexDirection:'row',flexWrap:'wrap',justifyContent:'center',padding:16,gap:12},
-  seat:{width:'21%',minWidth:58,aspectRatio:0.92,backgroundColor:C.card,borderRadius:16,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:'#382A4B',padding:6},
-  seatActive:{borderColor:C.purple,backgroundColor:C.card2},seatEmoji:{fontSize:27},seatAvatar:{width:38,height:38,borderRadius:19,backgroundColor:C.card2},seatsClosed:{color:C.gold,textAlign:'center',margin:10},seatToggle:{alignSelf:'center',backgroundColor:C.card2,paddingVertical:10,paddingHorizontal:18,borderRadius:12,marginTop:8},seatName:{color:C.white,fontSize:11,marginTop:5},seatState:{color:'#62D6A4',fontSize:10,marginTop:3},
+  stageHeader:{alignItems:'center',marginTop:30,gap:6},participants:{flexDirection:'row',flexWrap:'wrap',justifyContent:'center',padding:16,gap:10},
+  participant:{minWidth:88,backgroundColor:C.card,borderRadius:14,alignItems:'center',justifyContent:'center',borderWidth:1,borderColor:'#382A4B',padding:12},
+  seatEmoji:{fontSize:27},seatName:{color:C.white,fontSize:11,marginTop:5},seatState:{color:'#62D6A4',fontSize:10,marginTop:3},
   audioInfo:{marginHorizontal:20,backgroundColor:C.card,borderRadius:12,padding:13,alignItems:'center'},infoText:{color:C.muted,fontSize:12},
   controls:{flexDirection:'row',justifyContent:'center',gap:14,marginTop:'auto',padding:20},control:{alignItems:'center',padding:16,borderRadius:16,minWidth:125},
   controlOn:{backgroundColor:'#382A4B'},controlOff:{backgroundColor:'#5A2D43'},leave:{backgroundColor:'#A52D4C'},controlEmoji:{fontSize:24},controlText:{color:C.white,fontWeight:'bold',marginTop:6},
-  hostTag:{color:C.gold,textAlign:'center',marginBottom:18,fontWeight:'bold'},
-  requestBox:{marginHorizontal:16,marginTop:14,backgroundColor:C.card,borderRadius:14,padding:12,gap:8},
-  requestRow:{flexDirection:'row',alignItems:'center',gap:8,paddingVertical:5},
-  approve:{backgroundColor:'#247A5B',padding:9,borderRadius:9},reject:{backgroundColor:'#8A3150',padding:9,borderRadius:9},
-  chatBox:{margin:16,backgroundColor:C.card,borderRadius:14,padding:12,gap:8},
-  chatLine:{color:C.white,textAlign:'right',fontSize:13},chatInputRow:{flexDirection:'row',gap:8,alignItems:'center'},
-  sendChat:{backgroundColor:C.pink,padding:12,borderRadius:10}
+  hostTag:{color:C.gold,textAlign:'center',marginBottom:18,fontWeight:'bold'}
 });
