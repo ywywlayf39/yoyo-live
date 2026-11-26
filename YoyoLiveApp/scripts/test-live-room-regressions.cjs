@@ -19,8 +19,10 @@ assert.ok(app.includes("setInterval(refreshLiveRooms, 8000)"),
   'Live room discovery must poll as a fallback when Realtime events are missed');
 assert.ok(app.includes("AppState.addEventListener('change'"),
   'Live room discovery must refresh when the app returns to the foreground');
-assert.ok(app.includes("last_heartbeat_at: new Date().toISOString()"),
-  'A newly created live room must be immediately eligible for the active live feed');
+assert.ok(app.includes("status: 'live',") && !app.includes("last_heartbeat_at: new Date().toISOString()"),
+  'A newly created live room must use the database timestamp default, not the phone clock');
+assert.ok(room.includes("rpc('yoyo_touch_live_room'"),
+  'The host heartbeat must be written using the database clock');
 assert.ok(app.includes(`finally {
         refreshing = false;
       }`),
