@@ -402,7 +402,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
                 <View style={styles.selectedGiftPreview}>
                   <View style={styles.previewStage}>
                     <View style={{ width: 112, height: 112, alignItems: "center", justifyContent: "center" }}><Text style={{ fontSize: 68 }}>{selectedGift.emoji || "🎁"}</Text></View>
-                    <Text style={styles.previewCaption}>معاينة ثلاثية الأبعاد</Text>
+                    <Text style={styles.previewCaption}>معاينة الهدية</Text>
                   </View>
                 </View>
                 <View style={styles.quantityRow}>
