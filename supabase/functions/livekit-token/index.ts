@@ -216,6 +216,19 @@ Deno.serve(async (req: Request) => {
         return json({ error: "Unable to disconnect participants from this room" }, 502);
       }
 
+      if (isVoiceRoom) {
+        const { data: endedVoiceRoom, error: voiceEndError } = await service
+          .from("voice_rooms")
+          .update({ status: "ended", ended_at: new Date().toISOString() })
+          .eq("room_name", roomName)
+          .eq("host_id", user.id)
+          .eq("status", "live")
+          .select("id")
+          .maybeSingle();
+        if (voiceEndError) return json({ error: "Voice room could not be marked as ended" }, 500);
+        return json({ ended: true, isVoiceRoom: true, roomName, alreadyEnded: !endedVoiceRoom });
+      }
+
       if (isCall && callId) {
         const { data: endedCall, error: endError } = await supabase
           .from("live_calls")
