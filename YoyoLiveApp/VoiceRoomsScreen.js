@@ -32,6 +32,7 @@ function VoiceStage({ room, userId, isHost, onLeave, onRefreshConnection }) {
       supabase.from('voice_room_seats').select('id,user_id,seat_number').eq('room_id', room.id).order('seat_number'),
       supabase.from('voice_room_seat_requests').select('id,user_id,status,created_at').eq('room_id', room.id).eq('status', 'pending').order('created_at'),
       supabase.from('voice_room_messages').select('id,user_id,body,created_at').eq('room_id', room.id).order('created_at', { ascending: false }).limit(40),
+      supabase.from('voice_rooms').select('seats_open').eq('id', room.id).maybeSingle(),
     ]);
     if (!seatResult.error) {
       const rows = seatResult.data || [];
@@ -47,6 +48,8 @@ function VoiceStage({ room, userId, isHost, onLeave, onRefreshConnection }) {
       setRequestSent((requestResult.data || []).some((x) => x.user_id === userId));
     }
     if (!messageResult.error) setMessages((messageResult.data || []).reverse());
+    const { data: roomState } = await supabase.from('voice_rooms').select('seats_open').eq('id', room.id).maybeSingle();
+    if (roomState) setSeatsOpen(roomState.seats_open !== false);
   }, [room.id]);
   useEffect(() => {
     refreshRoomData();
@@ -54,10 +57,12 @@ function VoiceStage({ room, userId, isHost, onLeave, onRefreshConnection }) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'voice_room_seats', filter: 'room_id=eq.' + room.id }, refreshRoomData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'voice_room_seat_requests', filter: 'room_id=eq.' + room.id }, refreshRoomData)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'voice_room_messages', filter: 'room_id=eq.' + room.id }, refreshRoomData)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'voice_rooms', filter: 'id=eq.' + room.id }, refreshRoomData)
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [room.id, refreshRoomData]);
   const requestSeat = async () => {
+    if (!seatsOpen) { Alert.alert('المقاعد مغلقة', 'المضيف أغلق المقاعد حاليًا.'); return; }
     const { error } = await supabase.from('voice_room_seat_requests')
       .upsert({ room_id: room.id, user_id: userId, status: 'pending' }, { onConflict: 'room_id,user_id' });
     if (error) Alert.alert('تعذر طلب المايك', error.message);
