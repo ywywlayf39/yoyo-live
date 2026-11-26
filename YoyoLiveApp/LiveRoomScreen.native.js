@@ -340,14 +340,13 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
     if (isCall || !isHost || !roomName || !userId) return undefined;
     let active = true;
     const sendHeartbeat = async () => {
-      const { error: heartbeatError } = await supabase
-        .from('live_rooms')
-        .update({ last_heartbeat_at: new Date().toISOString() })
-        .eq('room_name', roomName)
-        .eq('host_id', userId)
-        .eq('status', 'live');
+      const { data, error: heartbeatError } = await supabase.rpc('yoyo_touch_live_room', {
+        p_room_name: roomName,
+      });
       if (heartbeatError && active) {
         console.warn('YOYO LIVE host heartbeat failed:', heartbeatError.message);
+      } else if (data !== true && active) {
+        console.warn('YOYO LIVE host heartbeat did not match an active room.');
       }
     };
     sendHeartbeat();
