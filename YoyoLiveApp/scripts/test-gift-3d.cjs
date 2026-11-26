@@ -18,7 +18,9 @@ assert.ok(native.includes("k.includes('tiger')") && native.includes("k.includes(
 assert.ok(native.includes("k.includes('dragon')") && native.includes("k.includes('crown')"), 'Dragon and royal gifts need dedicated 3D models');
 assert.ok(panel.includes("import Gift3DModel from './Gift3DModel'"), 'Gift panel must mount the 3D model component');
 assert.ok(panel.includes('Gift3DModel animationKey={incoming.animationKey}'), 'Incoming gifts must render as 3D models');
-assert.ok(panel.includes('Gift3DModel animationKey={selectedGift.animation_key}'), 'Selected gifts must have a 3D preview before sending');
+assert.ok(panel.includes('Gift3DModel animationKey={incoming.animationKey}'), 'Sent and received gifts must render as native 3D models');
+assert.ok(panel.includes('styles.previewStage') && panel.includes('styles.previewEmoji'), 'Gift selection modal must use a safe lightweight preview instead of mounting WebGL');
+assert.ok(!panel.includes('Gift3DModel animationKey={selectedGift.animation_key}'), 'Gift selection modal must not mount a WebGL context that can blank the screen');
 assert.ok(pkg.dependencies['expo-gl'] && pkg.dependencies.three, '3D renderer dependencies must be declared');
 assert.ok(lock.packages['node_modules/expo-gl'] && lock.packages['node_modules/three'], '3D renderer dependencies must be locked');
 assert.ok(fallback.includes('معاينة 3D متاحة على التطبيق'), 'Web fallback must not pretend to be native 3D');
