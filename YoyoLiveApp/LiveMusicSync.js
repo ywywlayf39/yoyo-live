@@ -219,7 +219,7 @@ export default function LiveMusicSync({ roomName, userId, isHost, audienceLabel 
         <Text style={styles.icon}>🎵</Text>
         <View style={styles.nameWrap}>
           <Text style={styles.name} numberOfLines={1}>{sharedMusic.track_name}</Text>
-          <Text style={styles.status}>{sharedMusic.status === 'playing' ? 'تعمل الآن عند {audienceLabel}' : 'متوقفة مؤقتًا'}</Text>
+          <Text style={styles.status}>{sharedMusic.status === 'playing' ? `تعمل الآن عند ${audienceLabel}` : 'متوقفة مؤقتًا'}</Text>
         </View>
       </View>
       <View style={styles.controls}>
