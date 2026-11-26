@@ -10,7 +10,7 @@ assert.ok(app.includes("import VoiceRoomsScreen from './VoiceRoomsScreen'"), 'Ap
 assert.ok(app.includes('<VoiceRoomsScreen userId={session.user.id}'), 'Authenticated users must be able to open voice rooms');
 assert.ok(screen.includes('AudioSession.startAudioSession()') && screen.includes('video={false}'), 'Voice rooms must use LiveKit audio-only sessions');
 assert.ok(screen.includes('voice_room_seat_requests') && screen.includes('طلب الصعود للمايك'), 'Members must be able to request a speaker seat');
-assert.ok(screen.includes('decideRequest') && screen.includes('موافقة') === false && screen.includes('approve'), 'Hosts must be able to approve or reject requests');
+assert.ok(screen.includes('decideRequest') && screen.includes('decideRequest(request, true)') && screen.includes('decideRequest(request, false)'), 'Hosts must be able to approve or reject requests');
 assert.ok(screen.includes('voice_room_messages') && screen.includes('دردشة الغرفة'), 'Voice rooms must include persistent chat');
 assert.ok(screen.includes('مغادرة مقعد المتحدث') && screen.includes('removeSpeaker'), 'Speakers can leave and hosts can remove speakers');
 assert.ok(token.includes('voice_room_seats') && token.includes('canPublish: isCall || isHost || canSpeakInVoiceRoom'), 'Only hosts and approved seat holders may publish microphone audio');
