@@ -6,6 +6,7 @@ const screen = fs.readFileSync(path.join(root, 'VoiceRoomsScreen.js'), 'utf8');
 const app = fs.readFileSync(path.join(root, 'App.js'), 'utf8');
 const token = fs.readFileSync(path.join(root, '..', 'supabase', 'functions', 'livekit-token', 'index.ts'), 'utf8');
 const migration = fs.readFileSync(path.join(root, '..', 'supabase', 'migrations', '20261126170000_voice_room_seats_and_chat.sql'), 'utf8');
+const giftsMigration = fs.readFileSync(path.join(root, '..', 'supabase', 'migrations', '20261126180000_voice_room_20_seats_and_gifts.sql'), 'utf8');
 assert.ok(app.includes("import VoiceRoomsScreen from './VoiceRoomsScreen'"), 'App must import the voice rooms screen');
 assert.ok(app.includes('<VoiceRoomsScreen userId={session.user.id}'), 'Authenticated users must be able to open voice rooms');
 assert.ok(screen.includes('AudioSession.startAudioSession()') && screen.includes('video={false}'), 'Voice rooms must use LiveKit audio-only sessions');
@@ -21,5 +22,5 @@ assert.ok(screen.includes('مغادرة مقعد المتحدث') && screen.incl
 assert.ok(token.includes('voice_room_seats') && token.includes('canPublish: isCall || isHost || canSpeakInVoiceRoom'), 'Only hosts and approved seat holders may publish microphone audio');
 assert.ok(migration.includes('voice_room_seats') && migration.includes('voice_room_seat_requests') && migration.includes('voice_room_messages'), 'Voice room tables must be migrated');
 assert.ok(migration.includes('enable row level security'), 'Voice room tables must use RLS');
-assert.ok(migration.includes('voice_room_gift_events') && migration.includes('send_voice_room_gift'), 'Voice room gifts must have a protected event stream and RPC');
+assert.ok(giftsMigration.includes('voice_room_gift_events') && giftsMigration.includes('send_voice_room_gift'), 'Voice room gifts must have a protected event stream and RPC');
 console.log('YOYO LIVE voice room checks passed (audio-only LiveKit, speaker approval, seats, chat, RLS, publish permissions).');
