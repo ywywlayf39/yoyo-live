@@ -34,4 +34,5 @@ assert.ok(!/wallets|wallet_transactions|purchased_coins/i.test(migration), 'Batt
 console.log('YOYO BATTLE static checks passed.');
 
 assert.ok(panel.includes("last_heartbeat_at"), 'Challenge room list must filter out stale/offline broadcasts');
-assert.ok(room.includes("update({ last_heartbeat_at:"), 'Live host must publish an online heartbeat');
+assert.ok(room.includes("rpc('yoyo_touch_live_room'"), 'Live host must publish an online heartbeat using the database clock');
+assert.ok(!room.includes("update({ last_heartbeat_at:"), 'Live host must not write device-clock timestamps');
