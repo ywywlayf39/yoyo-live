@@ -84,7 +84,7 @@ Deno.serve(async (req: Request) => {
     const roomName = typeof body?.roomName === "string" ? body.roomName.trim() : "";
     const action = body?.action === undefined ? "join" : body.action;
 
-    if (action !== "join" && action !== "end") {
+    if (action !== "join" && action !== "end" && action !== "seat_permissions") {
       return json({ error: "A valid action is required" }, 400);
     }
 
@@ -111,6 +111,7 @@ Deno.serve(async (req: Request) => {
     let isHost = false;
     let isCall = false;
     let isVoiceRoom = false;
+    let voiceRoomId: string | null = null;
     let callType: string | null = null;
     let callId: string | null = null;
     let callParticipantCallerId: string | null = null;
@@ -144,6 +145,7 @@ Deno.serve(async (req: Request) => {
         if (voiceRoomError) return json({ error: "Unable to verify voice room access" }, 500);
         if (!voiceRoom || voiceRoom.status !== "live") return json({ error: "Live room, call, or voice room not found" }, 404);
         isVoiceRoom = true;
+        voiceRoomId = voiceRoom.id;
         isHost = voiceRoom.host_id === user.id;
 
       } else {
@@ -198,6 +200,35 @@ Deno.serve(async (req: Request) => {
     if (!apiKey || !apiSecret || !livekitUrl) {
       console.error("LiveKit server configuration is incomplete");
       return json({ error: "LiveKit is not configured on the server" }, 500);
+    }
+
+    if (action === "seat_permissions") {
+      if (!isVoiceRoom || !voiceRoomId || !isHost) {
+        return json({ error: "Only the voice-room host can change speaker permissions" }, 403);
+      }
+      const targetUserId = typeof body?.targetUserId === "string" ? body.targetUserId : "";
+      if (!targetUserId || targetUserId.length > 128) {
+        return json({ error: "A valid targetUserId is required" }, 400);
+      }
+      const { data: assignedSeat, error: seatError } = await service
+        .from("voice_room_seats")
+        .select("user_id")
+        .eq("room_id", voiceRoomId)
+        .eq("user_id", targetUserId)
+        .maybeSingle();
+      if (seatError) return json({ error: "Unable to verify speaker seat" }, 500);
+      const canPublish = !!assignedSeat;
+      const serviceUrl = livekitUrl.replace(/^wss:/, "https:").replace(/^ws:/, "http:");
+      try {
+        const roomService = new RoomServiceClient(serviceUrl, apiKey, apiSecret);
+        await roomService.updateParticipant(roomName, targetUserId, {
+          permission: { canPublish, canSubscribe: true, canPublishData: true },
+        });
+        return json({ updated: true, targetUserId, canPublish });
+      } catch (error) {
+        console.error("LiveKit speaker permission update failed:", error instanceof Error ? error.message : "Unknown error");
+        return json({ error: "تعذر تحديث صلاحية المايك للمشارك المتصل" }, 502);
+      }
     }
 
     if (action === "end") {
@@ -285,10 +316,22 @@ Deno.serve(async (req: Request) => {
       ttl: "1h",
     });
 
+    let voiceSeatHolder = false;
+    if (isVoiceRoom && voiceRoomId && !isHost) {
+      const { data: seat, error: seatLookupError } = await service
+        .from("voice_room_seats")
+        .select("id")
+        .eq("room_id", voiceRoomId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (seatLookupError) return json({ error: "Unable to verify speaker seat" }, 500);
+      voiceSeatHolder = !!seat;
+    }
+
     accessToken.addGrant({
       roomJoin: true,
       room: roomName,
-      canPublish: isCall || isHost || isVoiceRoom,
+      canPublish: isCall || isHost || (isVoiceRoom && voiceSeatHolder),
       canSubscribe: true,
       canPublishData: true,
     });
