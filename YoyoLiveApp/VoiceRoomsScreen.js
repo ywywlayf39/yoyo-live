@@ -79,6 +79,26 @@ function VoiceStage({ room, userId, isHost, onLeave, onOpenPackages }) {
     } finally { setBusy(false); }
   };
 
+  const manageAllSeats = async (action) => {
+    if (!isHost || busy) return;
+    setBusy(true);
+    let failures = 0;
+    try {
+      for (const seat of seats) {
+        if (action === 'close' && seat.user_id) continue;
+        const { error } = await supabase.rpc('manage_voice_room_seat', {
+          p_room_id: room.id,
+          p_seat_number: seat.seat_number,
+          p_action: action,
+          p_user_id: null,
+        });
+        if (error) failures += 1;
+      }
+      await loadRoomState();
+      if (failures) Alert.alert('تم التحديث جزئيًا', 'تعذر تحديث ' + failures + ' مقاعد. حاول مرة أخرى.');
+    } finally { setBusy(false); }
+  };
+
   const approveRequest = async (request) => {
     const freeSeat = seats.find((seat) => seat.is_open && !seat.user_id);
     if (!freeSeat) { Alert.alert('لا توجد مقاعد مفتوحة', 'افتح مقعدًا أو أخرج عضوًا أولاً.'); return; }
@@ -164,6 +184,16 @@ function VoiceStage({ room, userId, isHost, onLeave, onOpenPackages }) {
           <Text style={s.section}>مقاعد المتحدثين · 8</Text>
           <Text style={s.sub}>{isHost ? 'أنت تتحكم في المقاعد وطلبات التحدث' : 'اطلب مقعدًا للتحدث مع الجميع'}</Text>
         </View>
+        {isHost ? (
+          <View style={s.bulkSeatActions}>
+            <TouchableOpacity disabled={busy} onPress={() => manageAllSeats('open')} style={s.bulkOpen}>
+              <Text style={s.bulkText}>فتح كل المقاعد</Text>
+            </TouchableOpacity>
+            <TouchableOpacity disabled={busy} onPress={() => manageAllSeats('close')} style={s.bulkClose}>
+              <Text style={s.bulkText}>قفل المقاعد الفارغة</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
         <View style={s.seatGrid}>
           {Array.from({ length: 8 }, (_, index) => {
             const seat = seats.find((item) => item.seat_number === index + 1);
@@ -377,6 +407,7 @@ const s = StyleSheet.create({
   liveDot:{width:10,height:10,borderRadius:5,backgroundColor:C.pink},roomTitle:{color:C.white,fontWeight:'bold',fontSize:16},join:{color:C.pink,fontWeight:'bold'},
   empty:{color:C.muted,textAlign:'center',lineHeight:24,backgroundColor:C.card,padding:20,borderRadius:14},error:{color:'#FF8A9C',marginTop:12},
   stageScroll:{padding:14,paddingBottom:150},stageHeader:{alignItems:'center',marginTop:12,marginBottom:14,gap:6},
+  bulkSeatActions:{flexDirection:'row',gap:8,marginBottom:12},bulkOpen:{flex:1,backgroundColor:'#245A48',padding:11,borderRadius:10,alignItems:'center'},bulkClose:{flex:1,backgroundColor:'#55283D',padding:11,borderRadius:10,alignItems:'center'},bulkText:{color:C.white,fontWeight:'900',fontSize:11},
   seatGrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',gap:8},
   seatCard:{width:'23.5%',minHeight:128,backgroundColor:C.card,borderRadius:15,alignItems:'center',justifyContent:'center',padding:8,borderWidth:1,borderColor:'#382A4B'},
   seatOccupied:{borderColor:C.green,backgroundColor:'#172A29'},seatLocked:{borderColor:'#594B69',backgroundColor:'#17131F'},
