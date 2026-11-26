@@ -18,6 +18,7 @@ import LiveRoomScreen from './LiveRoomScreen';
 import { supabase } from './supabase';
 import {
   Alert,
+  AppState,
   Linking,
   Modal,
   View,
@@ -109,10 +110,18 @@ export default function App() {
     }
 
     let active = true;
+    let refreshing = false;
+    let lastCleanupAt = 0;
     const refreshLiveRooms = async () => {
-      // Close rooms whose broadcaster stopped sending heartbeats (app killed/offline).
-      const { error: cleanupError } = await supabase.rpc('yoyo_expire_stale_live_rooms');
-      if (cleanupError) console.warn('YOYO LIVE stale room cleanup:', cleanupError.message);
+      if (!active || refreshing) return;
+      refreshing = true;
+      // Expire abandoned rooms periodically, while refreshing the feed more often
+      // so a missed Realtime event never hides an active broadcaster from viewers.
+      if (Date.now() - lastCleanupAt >= 30000) {
+        lastCleanupAt = Date.now();
+        const { error: cleanupError } = await supabase.rpc('yoyo_expire_stale_live_rooms');
+        if (cleanupError) console.warn('YOYO LIVE stale room cleanup:', cleanupError.message);
+      }
       const { data, error } = await supabase
         .from('live_rooms')
         .select('id, room_name, host_id, host_name, title, created_at')
@@ -135,16 +144,25 @@ export default function App() {
         }
       }
       if (error) console.error('YOYO LIVE live rooms failed:', error);
+      refreshing = false;
     };
 
     refreshLiveRooms();
+    // Poll as a fallback for devices where the Realtime websocket sleeps or drops.
+    const poll = setInterval(refreshLiveRooms, 8000);
     const channel = supabase
       .channel('live-rooms-feed-' + session.user.id)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'live_rooms' }, refreshLiveRooms)
       .subscribe();
 
+    const appStateSubscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refreshLiveRooms();
+    });
+
     return () => {
       active = false;
+      clearInterval(poll);
+      appStateSubscription?.remove?.();
       supabase.removeChannel(channel);
     };
   }, [session?.user?.id]);
