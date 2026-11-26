@@ -11,6 +11,13 @@ import { GIFT_SOUND_ASSETS } from './giftSoundPlayers';
 
 const giftSoundPlayers = {};
 
+function makeGiftRequestId() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+    const random = Math.floor(Math.random() * 16);
+    return (char === 'x' ? random : (random & 0x3) | 0x8).toString(16);
+  });
+}
+
 function playGiftSound(soundKey) {
   const key = GIFT_SOUND_ASSETS[soundKey] ? soundKey : 'soft-chime';
   try {
@@ -106,6 +113,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const voiceGiftRequestId = useRef(null);
   const [giftFeedReady, setGiftFeedReady] = useState(false);
   const [voiceGiftFeedReady, setVoiceGiftFeedReady] = useState(false);
   const giftConnectionReady = voiceRoomId ? voiceGiftFeedReady : giftFeedReady;
@@ -286,7 +294,13 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
     }
     setSending(true);
     const { error } = voiceRoomId
-      ? await supabase.rpc('send_voice_room_gift', { p_room_id: voiceRoomId, p_gift_id: selectedGift.id, p_quantity: quantity, p_receiver_id: receiverId })
+      ? await supabase.rpc('send_voice_room_gift', {
+          p_room_id: voiceRoomId,
+          p_gift_id: selectedGift.id,
+          p_quantity: quantity,
+          p_receiver_id: receiverId,
+          p_request_id: voiceGiftRequestId.current || (voiceGiftRequestId.current = makeGiftRequestId()),
+        })
       : profileMode
       ? await supabase.rpc('send_profile_gift', {
           p_receiver_id: receiverId,
@@ -304,6 +318,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
       Alert.alert('تعذر إرسال الهدية', error.message || 'حاول مرة أخرى.');
       return;
     }
+    voiceGiftRequestId.current = null;
     await refreshBalance();
     setVisible(false);
     Alert.alert('وصلت هديتك 🎁', 'تم إرسال ' + selectedGift.name + ' إلى العضو بنجاح.');
