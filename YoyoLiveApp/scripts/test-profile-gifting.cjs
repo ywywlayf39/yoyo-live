@@ -3,7 +3,7 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 const app = fs.readFileSync(path.join(root, 'App.js'), 'utf8');
 const panel = fs.readFileSync(path.join(root, 'LiveGiftPanel.js'), 'utf8');
-const migration = fs.readFileSync(path.resolve(root, '..', '..', 'supabase/migrations/20261126140000_add_profile_gifting.sql'), 'utf8');
+const migration = fs.readFileSync(path.resolve(root, '..', 'supabase/migrations/20261126140000_add_profile_gifting.sql'), 'utf8');
 
 function check(condition, message) {
   if (!condition) throw new Error(message);
