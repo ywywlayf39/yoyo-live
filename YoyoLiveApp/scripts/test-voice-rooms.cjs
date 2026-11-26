@@ -15,11 +15,11 @@ assert.ok(app.includes('onOpenPackages={() => setShowPackages(true)}'), 'Voice r
 assert.ok(screen.includes('AudioSession.startAudioSession()') && screen.includes('video={false}'), 'Voice rooms must remain audio-only');
 assert.ok(screen.includes('Array.from({ length: 8 }'), 'The room must render exactly eight seat slots');
 assert.ok(screen.includes('request_voice_room_seat') && screen.includes('manage_voice_room_seat'), 'Members must request seats and hosts must approve/control them');
-assert.ok(screen.includes("p_action: 'open'") && screen.includes("p_action: 'close'"), 'Hosts must be able to open and close seats');
+assert.ok(screen.includes("seat?.is_open ? 'close' : 'open'"), 'Hosts must be able to open and close seats');
 assert.ok(screen.includes('seat_permissions') && token.includes('updateParticipant'), 'LiveKit permissions must change server-side when a speaker is approved or removed');
 assert.ok(token.includes('canPublish: isCall || isHost || (isVoiceRoom && voiceSeatHolder)'), 'Only hosts and approved seat holders may publish in voice rooms');
 assert.ok(screen.includes('LiveGiftPanel') && gifts.includes('p_receiver_id: receiverId'), 'Voice room gifts must support a selected recipient');
-assert.ok(gifts.includes('voiceRoomId && !isHost'), 'Hosts may send gifts to seated members');
+assert.ok(gifts.includes('isHost && !voiceRoomId'), 'Hosts may send gifts in voice rooms while retaining the host-only live-stream behavior');
 assert.ok(gifts.includes('voice_room_gift_events'), 'Voice room gift animations must use realtime gift events');
 assert.ok(seatsMigration.includes('generate_series(1, 8)') && seatsMigration.includes('revoke insert, update, delete on public.voice_room_seats'), 'Eight seats must be initialized and direct client seat writes must be blocked');
 assert.ok(giftsMigration.includes('v_receiver_id <> v_room.host_id') && giftsMigration.includes('voice_room_seats s'), 'Gift recipients must be limited to the host or an approved speaker');
