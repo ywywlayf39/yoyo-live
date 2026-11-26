@@ -401,8 +401,8 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
               <View style={styles.footer}>
                 <View style={styles.selectedGiftPreview}>
                   <View style={styles.previewStage}>
-                    <Text style={styles.selectedPreviewEmoji}>{selectedGift.emoji || '🎁'}</Text>
-                    <Text style={styles.previewCaption}>معاينة الهدية</Text>
+                    <Gift3DModel animationKey={selectedGift.animation_key} emoji={selectedGift.emoji} size={112} />
+                    <Text style={styles.previewCaption}>معاينة ثلاثية الأبعاد</Text>
                   </View>
                 </View>
                 <View style={styles.quantityRow}>
