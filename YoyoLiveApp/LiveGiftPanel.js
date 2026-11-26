@@ -375,7 +375,10 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
             {!!selectedGift && (
               <View style={styles.footer}>
                 <View style={styles.selectedGiftPreview}>
-                  <Gift3DModel animationKey={selectedGift.animation_key} emoji={selectedGift.emoji} size={116} />
+                  <View style={styles.previewStage}>
+                    <Text style={styles.previewEmoji}>{selectedGift.emoji || '🎁'}</Text>
+                    <Text style={styles.previewCaption}>معاينة الهدية</Text>
+                  </View>
                 </View>
                 <View style={styles.quantityRow}>
                   {[1, 5, 10].map((value) => (
@@ -385,9 +388,9 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
                     </TouchableOpacity>
                   ))}
                 </View>
-                <TouchableOpacity style={[styles.sendButton, (sending || !giftFeedReady) && { opacity: 0.6 }]}
-                  onPress={sendGift} disabled={sending || !giftFeedReady}>
-                  {sending ? <ActivityIndicator color="#fff" /> : !giftFeedReady ?
+                <TouchableOpacity style={[styles.sendButton, (sending || (!profileMode && !giftFeedReady)) && { opacity: 0.6 }]}
+                  onPress={sendGift} disabled={sending || (!profileMode && !giftFeedReady)}>
+                  {sending ? <ActivityIndicator color="#fff" /> : (!profileMode && !giftFeedReady) ?
                     <Text style={styles.sendText}>جاري الاتصال بغرفة الهدايا...</Text> :
                     <Text style={styles.sendText}>إرسال {selectedGift.emoji} — {(Number(selectedGift.coin_cost) * quantity).toLocaleString('ar-EG')} عملة</Text>}
                 </TouchableOpacity>
@@ -429,6 +432,9 @@ const styles = StyleSheet.create({
   giftPrice: { color: COLORS.gold, fontSize: 11, marginTop: 4 },
   footer: { marginTop: 12, gap: 10 },
   selectedGiftPreview: { alignItems: 'center', justifyContent: 'center', minHeight: 116, marginBottom: 2 },
+  previewStage: { width: 108, height: 108, borderRadius: 54, backgroundColor: '#241B35', borderWidth: 2, borderColor: '#8A5BEA', alignItems: 'center', justifyContent: 'center', shadowColor: '#B78BFF', shadowOpacity: 0.45, shadowRadius: 14, elevation: 8 },
+  previewEmoji: { fontSize: 48, textShadowColor: '#F5C451', textShadowRadius: 12 },
+  previewCaption: { color: '#BDA7E8', fontSize: 9, fontWeight: '800', marginTop: 2 },
   quantityRow: { flexDirection: 'row', justifyContent: 'center', gap: 8 },
   quantity: { paddingVertical: 7, paddingHorizontal: 16, borderRadius: 10, backgroundColor: COLORS.card2 },
   quantityActive: { backgroundColor: '#704078' },
