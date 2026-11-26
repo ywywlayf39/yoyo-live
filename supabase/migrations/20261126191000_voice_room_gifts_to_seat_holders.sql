@@ -107,10 +107,10 @@ begin
   returning id into v_transfer_id;
 
   insert into public.wallet_transactions
-    (user_id, transaction_type, coins, reference_id, description, points, platform_points)
+    (user_id, transaction_type, coins, amount_egp, reference_id, description, points, platform_points)
   values
-    (v_sender_id, 'gift_sent', -v_total_coins, v_transfer_id, 'إرسال ' || v_gift.name || ' داخل غرفة صوتية', 0, v_platform_points),
-    (v_receiver_id, 'gift_received', 0, v_transfer_id, 'استلام ' || v_gift.name || ' داخل غرفة صوتية', v_receiver_points, 0);
+    (v_sender_id, 'gift_sent', -v_total_coins, 0, v_transfer_id, 'إرسال ' || v_gift.name || ' داخل غرفة صوتية', 0, v_platform_points),
+    (v_receiver_id, 'gift_received', 0, 0, v_transfer_id, 'استلام ' || v_gift.name || ' داخل غرفة صوتية', v_receiver_points, 0);
 
   insert into public.voice_room_gift_events
     (transfer_id, room_id, sender_id, receiver_id, gift_id, quantity, request_id)
