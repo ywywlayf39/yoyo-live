@@ -835,7 +835,7 @@ export default function App() {
   }
 
   if (showVoiceRooms) {
-    return <VoiceRoomsScreen userId={session.user.id} onBack={() => setShowVoiceRooms(false)} />;
+    return <VoiceRoomsScreen userId={session.user.id} onBack={() => setShowVoiceRooms(false)} onOpenPackages={() => setShowPackages(true)} />;
   }
 
   if (showDiscover) {
