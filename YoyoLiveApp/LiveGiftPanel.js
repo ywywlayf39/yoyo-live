@@ -376,8 +376,8 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
               <View style={styles.footer}>
                 <View style={styles.selectedGiftPreview}>
                   <View style={styles.previewStage}>
-                    <Gift3DModel animationKey={selectedGift.animation_key} size={112} />
-                    <Text style={styles.previewCaption}>معاينة ثلاثية الأبعاد</Text>
+                    <Text style={styles.selectedPreviewEmoji}>{selectedGift.emoji || '🎁'}</Text>
+                    <Text style={styles.previewCaption}>معاينة الهدية</Text>
                   </View>
                 </View>
                 <View style={styles.quantityRow}>
@@ -434,6 +434,7 @@ const styles = StyleSheet.create({
   footer: { marginTop: 12, gap: 10 },
   selectedGiftPreview: { alignItems: 'center', justifyContent: 'center', minHeight: 116, marginBottom: 2 },
   previewStage: { width: 136, height: 136, borderRadius: 68, backgroundColor: '#241B35', borderWidth: 2, borderColor: '#8A5BEA', alignItems: 'center', justifyContent: 'center', shadowColor: '#B78BFF', shadowOpacity: 0.45, shadowRadius: 14, elevation: 8 },
+  selectedPreviewEmoji: { fontSize: 64, textShadowColor: '#F5C451', textShadowRadius: 16 },
   previewEmoji: { fontSize: 48, textShadowColor: '#F5C451', textShadowRadius: 12 },
   previewCaption: { color: '#BDA7E8', fontSize: 9, fontWeight: '800', marginTop: 2 },
   quantityRow: { flexDirection: 'row', justifyContent: 'center', gap: 8 },
