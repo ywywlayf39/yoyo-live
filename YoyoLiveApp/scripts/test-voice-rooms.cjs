@@ -12,8 +12,14 @@ assert.ok(screen.includes('AudioSession.startAudioSession()') && screen.includes
 assert.ok(screen.includes('voice_room_seat_requests') && screen.includes('طلب الصعود للمايك'), 'Members must be able to request a speaker seat');
 assert.ok(screen.includes('decideRequest') && screen.includes('decideRequest(request, true)') && screen.includes('decideRequest(request, false)'), 'Hosts must be able to approve or reject requests');
 assert.ok(screen.includes('voice_room_messages') && screen.includes('دردشة الغرفة'), 'Voice rooms must include persistent chat');
+assert.ok(screen.includes('length: 20') && screen.includes('مقعد فارغ'), 'Voice rooms must render 20 speaker seats');
+assert.ok(screen.includes('seats_open') && screen.includes('غلق المقاعد') && screen.includes('فتح المقاعد'), 'Hosts must be able to open and close speaker seats');
+assert.ok(screen.includes('LiveGiftPanel') && screen.includes('voiceRoomId={room.id}'), 'Voice rooms must provide the live gift panel');
+assert.ok(screen.includes('member_public_profiles') && screen.includes('seatAvatar'), 'Speaker seats should display member avatars when available');
+assert.ok(screen.includes('voice_room_members'), 'Voice room members must be tracked for secure gift sending');
 assert.ok(screen.includes('مغادرة مقعد المتحدث') && screen.includes('removeSpeaker'), 'Speakers can leave and hosts can remove speakers');
 assert.ok(token.includes('voice_room_seats') && token.includes('canPublish: isCall || isHost || canSpeakInVoiceRoom'), 'Only hosts and approved seat holders may publish microphone audio');
 assert.ok(migration.includes('voice_room_seats') && migration.includes('voice_room_seat_requests') && migration.includes('voice_room_messages'), 'Voice room tables must be migrated');
 assert.ok(migration.includes('enable row level security'), 'Voice room tables must use RLS');
+assert.ok(migration.includes('voice_room_gift_events') && migration.includes('send_voice_room_gift'), 'Voice room gifts must have a protected event stream and RPC');
 console.log('YOYO LIVE voice room checks passed (audio-only LiveKit, speaker approval, seats, chat, RLS, publish permissions).');
