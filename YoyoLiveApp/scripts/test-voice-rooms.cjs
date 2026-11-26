@@ -32,6 +32,15 @@ assert.ok(giftsMigration.includes('round(v_gross_points * 0.70)'), 'Voice room g
 assert.ok(giftsMigration.includes('voice_room_gift_events_sender_request_uidx') && giftsMigration.includes('e.request_id = v_request_id'), 'Voice room gift retries must not charge the sender twice');
 assert.ok(gifts.includes('p_request_id: voiceGiftRequestId.current'), 'Voice gift UI must reuse the same idempotency key after an uncertain response');
 assert.ok(screen.includes('manageAllSeats') && screen.includes('فتح كل المقاعد') && screen.includes('قفل المقاعد الفارغة'), 'Hosts must have bulk seat open and close controls');
+assert.ok(screen.includes("paddingTop:40") && screen.includes("roomTop"), 'Voice room header must be below the Android status bar');
+assert.ok(screen.includes("select('id,display_name,avatar_url')") && screen.includes('participantAvatar'), 'Voice room participants must show real profile names and avatars');
+assert.ok(screen.includes("{participants.length} متصل"), 'The connected-member count must use one consistent label');
+assert.ok(screen.includes('infoIcon') && screen.includes('flexDirection:\'row-reverse\''), 'The listening icon must sit beside, not over, the text');
+assert.ok(screen.includes('paddingBottom:48') && screen.includes('paddingBottom:220'), 'Voice room controls must clear Android system navigation');
+assert.ok(screen.includes('gap:16') && screen.includes('minHeight:48'), 'Bulk seat actions must have distinct, easy-to-tap targets');
+assert.ok(gifts.includes('left: 16, top: 112') && gifts.includes('right: 16, bottom: 184'), 'Voice gift controls must not cover the room controls or seat card');
+assert.ok(screen.includes('color:C.pink') && screen.includes('fontSize:32'), 'Open seat plus icons must be visible on dark cards');
+
 assert.ok(membershipMigration.includes('revoke insert, update, delete on public.voice_room_members') && membershipMigration.includes('public.join_voice_room'), 'Members must not forge room membership through direct table writes');
 const singleRoomMigration = fs.readFileSync(path.join(root, '..', 'supabase', 'migrations', '20261126193000_one_live_voice_room_per_host.sql'), 'utf8');
 assert.ok(singleRoomMigration.includes('create unique index if not exists voice_rooms_one_live_room_per_host_uidx') && singleRoomMigration.includes("where status = 'live'"), 'A member must be limited to one active hosted voice room at database level');
