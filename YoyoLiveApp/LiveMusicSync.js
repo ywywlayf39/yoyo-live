@@ -5,7 +5,7 @@ import { RoomEvent } from 'livekit-client';
 import { useRoomContext } from '@livekit/react-native';
 import { supabase } from './supabase';
 
-export default function LiveMusicSync({ roomName, userId, isHost }) {
+export default function LiveMusicSync({ roomName, userId, isHost, audienceLabel = 'جمهور البث' }) {
   const room = useRoomContext();
   const [sharedMusic, setSharedMusic] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -219,7 +219,7 @@ export default function LiveMusicSync({ roomName, userId, isHost }) {
         <Text style={styles.icon}>🎵</Text>
         <View style={styles.nameWrap}>
           <Text style={styles.name} numberOfLines={1}>{sharedMusic.track_name}</Text>
-          <Text style={styles.status}>{sharedMusic.status === 'playing' ? 'تعمل الآن عند جمهور البث' : 'متوقفة مؤقتًا'}</Text>
+          <Text style={styles.status}>{sharedMusic.status === 'playing' ? 'تعمل الآن عند {audienceLabel}' : 'متوقفة مؤقتًا'}</Text>
         </View>
       </View>
       <View style={styles.controls}>
