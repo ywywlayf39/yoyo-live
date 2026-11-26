@@ -409,7 +409,7 @@ const s = StyleSheet.create({
   stageScroll:{padding:14,paddingBottom:150},stageHeader:{alignItems:'center',marginTop:12,marginBottom:14,gap:6},
   bulkSeatActions:{flexDirection:'row',gap:8,marginBottom:12},bulkOpen:{flex:1,backgroundColor:'#245A48',padding:11,borderRadius:10,alignItems:'center'},bulkClose:{flex:1,backgroundColor:'#55283D',padding:11,borderRadius:10,alignItems:'center'},bulkText:{color:C.white,fontWeight:'900',fontSize:11},
   seatGrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',gap:8},
-  seatCard:{width:'23.5%',minHeight:128,backgroundColor:C.card,borderRadius:15,alignItems:'center',justifyContent:'center',padding:8,borderWidth:1,borderColor:'#382A4B'},
+  seatCard:{width:'22%',minHeight:128,backgroundColor:C.card,borderRadius:15,alignItems:'center',justifyContent:'center',padding:8,borderWidth:1,borderColor:'#382A4B'},
   seatOccupied:{borderColor:C.green,backgroundColor:'#172A29'},seatLocked:{borderColor:'#594B69',backgroundColor:'#17131F'},
   seatNumber:{color:C.muted,fontSize:10,fontWeight:'800'},seatEmoji:{fontSize:26,marginTop:6},seatName:{color:C.white,fontSize:11,fontWeight:'700',marginTop:5,maxWidth:'100%'},
   seatActions:{marginTop:7},smallAction:{paddingHorizontal:10,paddingVertical:5,backgroundColor:C.card2,borderRadius:9},smallActionText:{color:C.pink,fontSize:10,fontWeight:'900'},
