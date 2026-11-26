@@ -115,8 +115,12 @@ export default function VoiceRoomsScreen({ userId, onBack }) {
     setConnection(null); setActive(null);
     AudioSession.stopAudioSession().catch(() => {});
     if (room?.host_id === userId) {
-      await supabase.from('voice_rooms').update({ status: 'ended', ended_at: new Date().toISOString() })
-        .eq('id', room.id).eq('host_id', userId);
+      const { data, error: endError } = await supabase.functions.invoke('livekit-token', {
+        body: { roomName: room.room_name, action: 'end' },
+      });
+      if (endError || data?.ended !== true) {
+        Alert.alert('تعذر إنهاء الغرفة', endError?.message || data?.error || 'حاول مرة أخرى');
+      }
       loadRooms();
     }
   };
