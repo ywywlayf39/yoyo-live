@@ -40,3 +40,11 @@ create policy "voice chat visible in live rooms" on public.voice_room_messages f
 drop policy if exists "members send voice chat" on public.voice_room_messages;
 create policy "members send voice chat" on public.voice_room_messages for insert to authenticated with check (user_id=(select auth.uid()) and exists(select 1 from public.voice_rooms r where r.id=room_id and r.status='live'));
 grant select,insert,update,delete on public.voice_room_seat_requests,public.voice_room_seats,public.voice_room_messages to authenticated;
+
+drop policy if exists "members retry own voice seat requests" on public.voice_room_seat_requests;
+create policy "members retry own voice seat requests" on public.voice_room_seat_requests for update to authenticated using (user_id=(select auth.uid())) with check (user_id=(select auth.uid()) and status='pending');
+drop policy if exists "members leave own voice seats" on public.voice_room_seats;
+create policy "members leave own voice seats" on public.voice_room_seats for delete to authenticated using (user_id=(select auth.uid()));
+do $$ begin alter publication supabase_realtime add table public.voice_room_seat_requests; exception when duplicate_object then null; end $$;
+do $$ begin alter publication supabase_realtime add table public.voice_room_seats; exception when duplicate_object then null; end $$;
+do $$ begin alter publication supabase_realtime add table public.voice_room_messages; exception when duplicate_object then null; end $$;
