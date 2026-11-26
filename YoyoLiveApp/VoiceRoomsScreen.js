@@ -3,6 +3,8 @@ import { ActivityIndicator, Alert, Image, SafeAreaView, ScrollView, StatusBar, S
 import { AudioSession, LiveKitRoom, useLocalParticipant, useParticipants } from '@livekit/react-native';
 import { supabase } from './supabase';
 import LiveGiftPanel from './LiveGiftPanel';
+import LiveMusicLibrary from './LiveMusicLibrary';
+import LiveMusicSync from './LiveMusicSync';
 
 const C = { bg: '#0B0912', card: '#191424', card2: '#241B35', pink: '#F34E9B', purple: '#8655F5', white: '#FFFFFF', muted: '#AAA1B8', gold: '#F5C451', green: '#62D6A4' };
 
@@ -275,6 +277,9 @@ function VoiceStage({ room, userId, isHost, onLeave, onOpenPackages }) {
           <Text style={s.infoIcon}>🔊</Text>
           <Text style={s.infoText}>يمكنك الاستماع للجميع، والمايك متاح للمضيف والمتحدثين المقبولين فقط.</Text>
         </View>
+
+        {isHost ? <LiveMusicLibrary roomName={room.room_name} userId={userId} shareLabel="مشاركة الأغنية مع أعضاء الغرفة الصوتية" /> : null}
+        <LiveMusicSync roomName={room.room_name} userId={userId} isHost={isHost} />
 
         <View style={s.giftTargetCard}>
           <Text style={s.giftTargetTitle}>إرسال هدية إلى</Text>
