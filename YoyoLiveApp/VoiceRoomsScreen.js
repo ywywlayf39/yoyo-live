@@ -214,19 +214,20 @@ function VoiceStage({ room, userId, isHost, onLeave, onOpenPackages }) {
             const seat = seats.find((item) => item.seat_number === index + 1);
             const occupied = !!seat?.user_id;
             const mine = seat?.user_id === userId;
+            const isHostSeat = index === 0;
             const seatIsOpen = !!seat?.is_open;
-            const seatLabel = occupied ? (mine ? 'أنت' : names[seat.user_id] || 'متحدث') : seatIsOpen ? 'اضغط للجلوس' : 'مقفل';
+            const seatLabel = occupied ? (mine ? 'أنت' : names[seat.user_id] || 'متحدث') : isHostSeat ? 'مقعد المضيف' : seatIsOpen ? 'اضغط للجلوس' : 'مقفل';
             const seatAvatar = occupied ? avatars[seat.user_id] : null;
             return (
               <TouchableOpacity
                 key={index + 1}
                 activeOpacity={0.82}
-                disabled={isHost || occupied || !seatIsOpen || requestBusy || !!ownRequest}
+                disabled={isHost || occupied || !seatIsOpen || (isHostSeat && !isHost) || requestBusy || !!ownRequest}
                 onPress={requestSeat}
-                style={[s.seatCard, occupied && s.seatOccupied, seat && !seatIsOpen && s.seatLocked, !isHost && seatIsOpen && !occupied && s.seatTapReady]}
+                style={[s.seatCard, occupied && s.seatOccupied, mine && s.seatMine, isHostSeat && s.hostSeat, seat && !seatIsOpen && s.seatLocked, !isHost && seatIsOpen && !occupied && !isHostSeat && s.seatTapReady]}
               >
                 <Text style={s.seatNumber}>كرسي {index + 1}</Text>
-                <View style={[s.chairBack, occupied && s.chairBackOccupied, !seatIsOpen && !occupied && s.chairBackLocked]}>
+                <View style={[s.chairBack, occupied && s.chairBackOccupied, isHostSeat && !occupied && s.chairBackHost, !seatIsOpen && !occupied && s.chairBackLocked]}>
                   {seatAvatar ? (
                     <Image source={{ uri: seatAvatar }} style={s.chairAvatar} />
                   ) : (
@@ -240,7 +241,7 @@ function VoiceStage({ room, userId, isHost, onLeave, onOpenPackages }) {
                   <View style={[s.chairLeg, occupied && s.chairLegOccupied, !seatIsOpen && !occupied && s.chairLegLocked]} />
                   <View style={[s.chairLeg, occupied && s.chairLegOccupied, !seatIsOpen && !occupied && s.chairLegLocked]} />
                 </View>
-                <Text numberOfLines={1} style={[s.seatName, occupied && s.seatProfileName]}>{seatLabel}</Text>
+                <Text numberOfLines={1} style={[s.seatName, occupied && s.seatProfileName, mine && s.seatMineName, isHostSeat && !occupied && s.hostSeatName]}>{seatLabel}</Text>
                 {isHost ? (
                   <View style={s.seatActions}>
                     {occupied ? (
@@ -277,9 +278,14 @@ function VoiceStage({ room, userId, isHost, onLeave, onOpenPackages }) {
             {requestBusy ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryText}>{ownRequest ? '⏳ طلبك في انتظار المضيف' : '🎤 اطلب التحدث'}</Text>}
           </TouchableOpacity>
         ) : null}
-        {currentSeat ? <TouchableOpacity onPress={leaveSeat} style={s.leaveSeat}><Text style={s.leaveSeatText}>مغادرة مقعد التحدث</Text></TouchableOpacity> : null}
+        {currentSeat ? (
+          <View style={s.leaveSeatPanel}>
+            <Text style={s.leaveSeatCaption}>مقعدك الحالي · كرسي {currentSeat.seat_number}</Text>
+            <TouchableOpacity onPress={leaveSeat} style={s.leaveSeat}><Text style={s.leaveSeatText}>مغادرة مقعد التحدث</Text></TouchableOpacity>
+          </View>
+        ) : null}
 
-        <View style={s.participantHeader}><Text style={s.section}>المتصلون الآن</Text><Text style={s.sub}>{participants.length} متصل</Text></View>
+        <View style={s.participantHeader}><Text style={s.section}>المتصلون الآن</Text><Text style={s.participantCount}>{participants.length} متصل</Text></View>
         <View style={s.participants}>
           {participants.map((participant) => {
             const participantId = participant.identity;
@@ -494,30 +500,30 @@ const s = StyleSheet.create({
   empty:{color:C.muted,textAlign:'center',lineHeight:24,backgroundColor:C.card,padding:20,borderRadius:14},error:{color:'#FF8A9C',marginTop:12},
   stageScroll:{padding:14,paddingBottom:340},stageHeader:{alignItems:'center',marginTop:18,marginBottom:20,gap:8},
   bulkSeatActions:{flexDirection:'row',marginBottom:16},bulkOpen:{flex:1,backgroundColor:'#245A48',paddingVertical:11,paddingHorizontal:10,borderRadius:12,alignItems:'center',minHeight:44},bulkClose:{flex:1,backgroundColor:'#55283D',paddingVertical:11,paddingHorizontal:10,borderRadius:12,alignItems:'center',minHeight:44},bulkText:{color:C.white,fontWeight:'900',fontSize:11},
-  seatGrid:{direction:'rtl',flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',gap:8},
-  seatCard:{width:'22%',minHeight:158,backgroundColor:C.card,borderRadius:15,alignItems:'center',justifyContent:'flex-start',padding:7,paddingTop:10,borderWidth:1,borderColor:'#382A4B'},
-  seatTapReady:{borderColor:C.pink,backgroundColor:'#21172B'},seatOccupied:{borderColor:C.green,backgroundColor:'#172A29'},seatLocked:{borderColor:'#594B69',backgroundColor:'#17131F'},
+  seatGrid:{direction:'ltr',flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',gap:8},
+  seatCard:{width:'22%',minHeight:150,backgroundColor:C.card,borderRadius:15,alignItems:'center',justifyContent:'flex-start',padding:8,paddingTop:10,paddingBottom:10,borderWidth:1,borderColor:'#382A4B'},
+  seatTapReady:{borderColor:C.pink,backgroundColor:'#21172B'},seatOccupied:{borderColor:C.green,backgroundColor:'#172A29'},seatLocked:{borderColor:'#594B69',backgroundColor:'#17131F'},hostSeat:{borderColor:C.gold,backgroundColor:'#302718',borderWidth:2},seatMine:{borderColor:C.gold,backgroundColor:'#302718'},
   seatNumber:{color:C.muted,fontSize:10,fontWeight:'800',marginBottom:5},
-  chairBack:{width:48,height:48,borderTopLeftRadius:15,borderTopRightRadius:15,borderBottomLeftRadius:7,borderBottomRightRadius:7,backgroundColor:'#4A3565',borderWidth:2,borderColor:'#B58AFF',alignItems:'center',justifyContent:'center',marginTop:2},
-  chairBackOccupied:{backgroundColor:'#21483D',borderColor:C.green},chairBackLocked:{backgroundColor:'#25202D',borderColor:'#51475D'},
-  chairAvatar:{width:39,height:39,borderRadius:20,borderWidth:2,borderColor:C.white,backgroundColor:C.card2},
-  chairAvatarFallback:{width:39,height:39,borderRadius:20,backgroundColor:'#4A3565',alignItems:'center',justifyContent:'center'},
+  chairBack:{width:60,height:60,borderTopLeftRadius:17,borderTopRightRadius:17,borderBottomLeftRadius:8,borderBottomRightRadius:8,backgroundColor:'#4A3565',borderWidth:2,borderColor:'#B58AFF',alignItems:'center',justifyContent:'center',marginTop:2},
+  chairBackOccupied:{backgroundColor:'#21483D',borderColor:C.green},chairBackLocked:{backgroundColor:'#25202D',borderColor:'#51475D'},chairBackHost:{backgroundColor:'#5B4520',borderColor:C.gold},
+  chairAvatar:{width:52,height:52,borderRadius:26,borderWidth:2,borderColor:C.white,backgroundColor:C.card2},
+  chairAvatarFallback:{width:52,height:52,borderRadius:26,backgroundColor:'#4A3565',alignItems:'center',justifyContent:'center'},
   chairAvatarFallbackOccupied:{backgroundColor:'#28624C'},chairAvatarGlyph:{color:C.white,fontSize:22,fontWeight:'900'},
   chairBase:{width:58,height:9,borderRadius:5,backgroundColor:'#B58AFF',marginTop:3},chairBaseOccupied:{backgroundColor:C.green},chairBaseLocked:{backgroundColor:'#514B5B'},
   chairLegs:{width:43,flexDirection:'row',justifyContent:'space-between',paddingHorizontal:5},chairLeg:{width:5,height:10,borderBottomLeftRadius:3,borderBottomRightRadius:3,backgroundColor:'#B58AFF'},chairLegOccupied:{backgroundColor:C.green},chairLegLocked:{backgroundColor:'#514B5B'},
-  seatName:{color:C.white,fontSize:10,fontWeight:'700',marginTop:5,maxWidth:'100%'},seatProfileName:{color:'#A9F0D0'},
+  seatName:{color:C.white,fontSize:10,fontWeight:'700',marginTop:6,maxWidth:'100%',textAlign:'center'},seatProfileName:{color:'#A9F0D0'},seatMineName:{color:C.gold,fontWeight:'900',fontSize:12},hostSeatName:{color:C.gold,fontWeight:'900'},
   seatActions:{marginTop:6},smallAction:{paddingHorizontal:10,paddingVertical:5,backgroundColor:C.card2,borderRadius:9},smallActionText:{color:C.pink,fontSize:10,fontWeight:'900'},
   requestCard:{marginTop:16,padding:13,backgroundColor:C.card,borderRadius:14,borderWidth:1,borderColor:'#4A326A'},
   requestRow:{flexDirection:'row',alignItems:'center',gap:8,marginTop:10},requestName:{flex:1,color:C.white,fontWeight:'700'},
   acceptButton:{backgroundColor:'#245A48',paddingHorizontal:12,paddingVertical:7,borderRadius:9},acceptText:{color:'#9AF0C7',fontWeight:'900'},
   rejectButton:{backgroundColor:'#55283D',paddingHorizontal:12,paddingVertical:7,borderRadius:9},rejectText:{color:'#FFB2C6',fontWeight:'900'},
-  pendingButton:{backgroundColor:'#66522D'},leaveSeat:{alignSelf:'center',marginTop:10,padding:10},leaveSeatText:{color:C.gold,fontWeight:'800'},
-  participantHeader:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',marginTop:22,marginBottom:8},
+  pendingButton:{backgroundColor:'#66522D'},leaveSeatPanel:{marginTop:12,padding:10,backgroundColor:'#211B2D',borderRadius:12,borderWidth:1,borderColor:'#5B4828',flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:8},leaveSeatCaption:{color:C.muted,fontSize:11,fontWeight:'800',flex:1},leaveSeat:{paddingVertical:9,paddingHorizontal:12,backgroundColor:'#4A3820',borderRadius:10},leaveSeatText:{color:C.gold,fontWeight:'900',fontSize:12},
+  participantHeader:{flexDirection:'row-reverse',alignItems:'center',justifyContent:'flex-start',gap:10,marginTop:18,marginBottom:8},participantCount:{color:C.muted,fontSize:12,fontWeight:'800',marginTop:0},
   participants:{flexDirection:'row',flexWrap:'wrap',gap:7},participant:{minWidth:68,maxWidth:88,backgroundColor:C.card,borderRadius:12,alignItems:'center',padding:7,borderWidth:1,borderColor:'#382A4B'},
-  participantEmoji:{fontSize:18},participantAvatar:{width:36,height:36,borderRadius:18,backgroundColor:C.card2},participantAvatarFallback:{width:36,height:36,borderRadius:18,backgroundColor:C.card2,alignItems:'center',justifyContent:'center'},audioInfo:{marginTop:14,backgroundColor:C.card,borderRadius:12,padding:12,flexDirection:'row-reverse',alignItems:'center',justifyContent:'center',gap:9},infoIcon:{fontSize:17,marginLeft:3},infoText:{color:C.muted,fontSize:12,textAlign:'right',lineHeight:19,flexShrink:1},
+  participantEmoji:{fontSize:18},participantAvatar:{width:36,height:36,borderRadius:18,backgroundColor:C.card2},participantAvatarFallback:{width:36,height:36,borderRadius:18,backgroundColor:C.card2,alignItems:'center',justifyContent:'center'},audioInfo:{marginTop:14,backgroundColor:C.card,borderRadius:12,paddingHorizontal:14,paddingVertical:13,flexDirection:'row-reverse',alignItems:'flex-start',justifyContent:'flex-start',gap:9,width:'100%'},infoIcon:{fontSize:17,marginLeft:3,marginTop:1},infoText:{color:C.white,fontSize:11,textAlign:'right',lineHeight:20,flex:1,flexShrink:1,minWidth:0,includeFontPadding:true},
   giftTargetCard:{marginTop:14,backgroundColor:C.card,borderRadius:12,padding:12},giftTargetTitle:{color:C.white,fontWeight:'900',marginBottom:8,textAlign:'right'},
   giftTargetRow:{gap:8},targetChip:{paddingVertical:8,paddingHorizontal:12,backgroundColor:C.card2,borderRadius:18},targetChipActive:{backgroundColor:C.pink},targetChipText:{color:C.white,fontSize:12,fontWeight:'800'},
-  bottomControls:{position:'absolute',left:0,right:0,bottom:0,paddingHorizontal:14,paddingTop:10,paddingBottom:48,backgroundColor:'rgba(11,9,18,0.98)',borderTopWidth:1,borderTopColor:'#302640',flexDirection:'row',justifyContent:'center',gap:12},
-  control:{height:56,alignItems:'center',justifyContent:'center',flexDirection:'row',gap:7,paddingHorizontal:12,borderRadius:15,minWidth:132},controlOn:{backgroundColor:'#382A4B'},controlOff:{backgroundColor:'#5A2D43'},leave:{backgroundColor:'#A52D4C'},disabledControl:{opacity:0.45},
+  bottomControls:{position:'absolute',left:0,right:0,bottom:0,paddingHorizontal:20,paddingTop:12,paddingBottom:30,backgroundColor:'rgba(11,9,18,0.98)',borderTopWidth:1,borderTopColor:'#302640',flexDirection:'row',justifyContent:'center',alignItems:'center',gap:16},
+  control:{height:56,alignItems:'center',justifyContent:'center',flexDirection:'row',gap:8,paddingHorizontal:14,borderRadius:15,minWidth:140,flex:1,maxWidth:190},controlOn:{backgroundColor:'#382A4B'},controlOff:{backgroundColor:'#5A2D43'},leave:{backgroundColor:'#A52D4C'},disabledControl:{opacity:0.45},
   controlEmoji:{fontSize:18},controlText:{color:C.white,fontWeight:'bold',marginTop:0,fontSize:11},
 });
