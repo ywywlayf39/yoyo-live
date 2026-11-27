@@ -930,80 +930,62 @@ export default function App() {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor={C.bg} />
-        <ScrollView contentContainerStyle={{ padding: 22, alignItems: 'center' }}>
-          <TouchableOpacity
-            onPress={() => setSelectedMember(null)}
-            style={{ alignSelf: 'flex-start', paddingVertical: 12 }}
-          >
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 34 }}>
+          <TouchableOpacity onPress={() => setSelectedMember(null)} style={{ alignSelf: 'flex-start', paddingVertical: 12, paddingHorizontal: 8 }}>
             <Text style={{ color: C.pink, fontSize: 16, fontWeight: 'bold' }}>→ رجوع للأعضاء</Text>
           </TouchableOpacity>
-          <View style={{ marginTop: 28 }}>
-            <ProfileFrame frameCode={selectedMember.selected_frame_code} size={132}>
-              {selectedMember.avatar_url ? (
-                <Image source={{ uri: selectedMember.avatar_url }} style={{ width: '100%', height: '100%' }} />
-              ) : (
-                <View style={{ flex: 1, backgroundColor: C.card2, alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ fontSize: 54 }}>👤</Text>
+          <View style={{ backgroundColor: '#151020', borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: '#6D3E8D', marginTop: 8 }}>
+            <View style={{ height: 126, backgroundColor: '#2B1645', justifyContent: 'flex-end', padding: 14 }}>
+              <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#25153B' }} />
+              <Text style={{ color: '#E8D8FF', fontSize: 12, fontWeight: '800', letterSpacing: 2 }}>YOYO LIVE • COMMUNITY</Text>
+            </View>
+            <View style={{ paddingHorizontal: 16, paddingBottom: 18 }}>
+              <View style={{ flexDirection: 'row-reverse', alignItems: 'flex-end', marginTop: -42, gap: 12 }}>
+                <View style={{ width: 104, height: 112, borderRadius: 17, overflow: 'hidden', borderWidth: 3, borderColor: C.pink, backgroundColor: C.card2 }}>
+                  {selectedMember.avatar_url ? <Image source={{ uri: selectedMember.avatar_url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" /> : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: C.white, fontSize: 42 }}>👤</Text></View>}
                 </View>
-              )}
-            </ProfileFrame>
+                <View style={{ flex: 1, paddingBottom: 7, alignItems: 'flex-end' }}>
+                  {!!selectedMember.selected_frame_code && <Text style={{ color: C.gold, fontSize: 11, fontWeight: '900', marginBottom: 5 }}>✦ VIP MEMBER</Text>}
+                  <Text style={{ color: C.white, fontSize: 21, fontWeight: '900', textAlign: 'right' }}>{selectedMember.display_name || 'عضو YOYO LIVE'}</Text>
+                  {!!selectedMember.country && <Text style={{ color: C.muted, fontSize: 13, marginTop: 5 }}>🌍 {selectedMember.country}</Text>}
+                  <Text style={{ color: '#48D597', fontSize: 11, marginTop: 5 }}>● عضو في مجتمع YOYO LIVE</Text>
+                </View>
+              </View>
+              <Text style={{ color: '#D5CADD', fontSize: 13, lineHeight: 22, textAlign: 'right', marginTop: 18 }}>أهلاً بيك في عالم YOYO LIVE. تعرّف على الأعضاء وشاركهم اللحظات الجميلة.</Text>
+              <View style={{ flexDirection: 'row', backgroundColor: '#0D0A15', borderRadius: 15, paddingVertical: 15, marginTop: 16, borderWidth: 1, borderColor: '#30263E' }}>
+                <TouchableOpacity onPress={() => setShowFollowScreen(true)} style={{ flex: 1, alignItems: 'center' }}>
+                  <Text style={{ color: C.white, fontWeight: '900', fontSize: 19 }}>{followCounts.followers}</Text>
+                  <Text style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>المتابعون</Text>
+                </TouchableOpacity>
+                <View style={{ width: 1, backgroundColor: '#40344F' }} />
+                <TouchableOpacity onPress={() => setShowFollowScreen(true)} style={{ flex: 1, alignItems: 'center' }}>
+                  <Text style={{ color: C.white, fontWeight: '900', fontSize: 19 }}>{followCounts.following}</Text>
+                  <Text style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>يتابع</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+                <TouchableOpacity disabled={followBusy} onPress={toggleSelectedFollow} style={{ flex: 1, backgroundColor: followedSelectedMember ? C.card2 : C.pink, paddingVertical: 13, borderRadius: 13, alignItems: 'center', borderWidth: followedSelectedMember ? 1 : 0, borderColor: C.pink }}>
+                  <Text style={{ color: C.white, fontWeight: '900', fontSize: 13 }}>{followBusy ? 'جارٍ التحديث...' : followedSelectedMember ? '✓ تتابعه' : '＋ متابعة'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setChatMember(selectedMember)} style={{ flex: 1, backgroundColor: '#28203B', paddingVertical: 13, borderRadius: 13, alignItems: 'center', borderWidth: 1, borderColor: '#594273' }}>
+                  <Text style={{ color: C.white, fontWeight: '900', fontSize: 13 }}>✉ مراسلة</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+                <TouchableOpacity onPress={() => reportMember(selectedMember)} style={{ flex: 1, backgroundColor: '#211B2D', padding: 11, borderRadius: 11, alignItems: 'center' }}><Text style={{ color: C.muted, fontWeight: '800' }}>⚑ إبلاغ</Text></TouchableOpacity>
+                <TouchableOpacity onPress={() => blockMember(selectedMember)} style={{ flex: 1, backgroundColor: '#492334', padding: 11, borderRadius: 11, alignItems: 'center' }}><Text style={{ color: C.white, fontWeight: '800' }}>حظر العضو</Text></TouchableOpacity>
+              </View>
+            </View>
           </View>
-          <Text style={{ color: C.white, fontSize: 24, fontWeight: 'bold', marginTop: 18 }}>
-            {selectedMember.display_name || 'عضو YOYO LIVE'}
-          </Text>
-          {!!selectedMember.country && (
-            <Text style={{ color: C.muted, fontSize: 16, marginTop: 10 }}>
-              🌍 {selectedMember.country}
-            </Text>
-          )}
-          <Text style={{ color: C.muted, fontSize: 13, marginTop: 24, textAlign: 'center' }}>
-            عضو في مجتمع YOYO LIVE 💗
-          </Text>
-          <View style={{ flexDirection: 'row', gap: 22, marginTop: 18 }}>
-            <TouchableOpacity onPress={() => setShowFollowScreen(true)} style={{ alignItems: 'center' }}>
-              <Text style={{ color: C.white, fontWeight: 'bold', fontSize: 17 }}>{followCounts.followers}</Text>
-              <Text style={{ color: C.muted, fontSize: 12 }}>متابعون</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setShowFollowScreen(true)} style={{ alignItems: 'center' }}>
-              <Text style={{ color: C.white, fontWeight: 'bold', fontSize: 17 }}>{followCounts.following}</Text>
-              <Text style={{ color: C.muted, fontSize: 12 }}>يتابع</Text>
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity disabled={followBusy} onPress={toggleSelectedFollow}
-            style={{ backgroundColor: followedSelectedMember ? C.card2 : C.pink, paddingVertical: 13, paddingHorizontal: 36, borderRadius: 14, marginTop: 20, minWidth: 210, alignItems: 'center', borderWidth: followedSelectedMember ? 1 : 0, borderColor: C.pink }}>
-            <Text style={{ color: C.white, fontWeight: 'bold' }}>{followBusy ? 'جارٍ التحديث...' : followedSelectedMember ? '✓ تتابعه · إلغاء المتابعة' : '＋ متابعة'}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setChatMember(selectedMember)}
-            style={{ backgroundColor: C.pink, paddingVertical: 14, paddingHorizontal: 34, borderRadius: 15, marginTop: 28, minWidth: 210 }}
-          >
-            <Text style={{ color: C.white, fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>💬 إرسال رسالة خاصة</Text>
-          </TouchableOpacity>
-          <View style={{ flexDirection: 'row', gap: 12, marginTop: 18, width: '100%' }}>
-            <TouchableOpacity
-              onPress={() => reportMember(selectedMember)}
-              style={{ flex: 1, backgroundColor: C.card2, padding: 12, borderRadius: 12, alignItems: 'center' }}
-            >
-              <Text style={{ color: C.white, fontWeight: 'bold' }}>🚩 إبلاغ</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => blockMember(selectedMember)}
-              style={{ flex: 1, backgroundColor: '#612A39', padding: 12, borderRadius: 12, alignItems: 'center' }}
-            >
-              <Text style={{ color: C.white, fontWeight: 'bold' }}>🚫 حظر</Text>
-            </TouchableOpacity>
+          <View style={{ marginTop: 18, marginBottom: 8 }}>
+            <Text style={{ color: C.white, fontSize: 17, fontWeight: '900', textAlign: 'right' }}>الهدايا والتفاعل</Text>
+            <Text style={{ color: C.muted, fontSize: 11, textAlign: 'right', marginTop: 4 }}>ادعم العضو بهدية من YOYO LIVE</Text>
           </View>
         </ScrollView>
-        <LiveGiftPanel
-          userId={session.user.id}
-          receiverId={selectedMember.id}
-          profileMode
-          onOpenPackages={() => setShowPackages(true)}
-        />
+        <LiveGiftPanel userId={session.user.id} receiverId={selectedMember.id} profileMode onOpenPackages={() => setShowPackages(true)} />
       </SafeAreaView>
     );
   }
-
 
   const startLive = async () => {
     if (!session?.user?.id) {
@@ -1115,12 +1097,14 @@ export default function App() {
                 {members.map((member) => (
                   <TouchableOpacity key={member.id} style={styles.memberListCard} activeOpacity={0.86} onPress={() => setSelectedMember(member)}>
                     <View style={styles.memberListInfo}>
-                      <ProfileFrame frameCode={member.selected_frame_code} size={66}>
+                      <View style={styles.memberAvatarCard}>
                         {member.avatar_url ? <Image source={{ uri: member.avatar_url }} style={styles.memberListImage} resizeMode="cover" /> : <View style={styles.memberListFallback}><Text style={styles.memberListInitial}>{String(member.display_name || '?').trim().charAt(0)}</Text></View>}
-                      </ProfileFrame>
+                        {!!member.selected_frame_code && <View style={styles.memberVipTag}><Text style={styles.memberVipText}>VIP</Text></View>}
+                      </View>
                       <View style={styles.memberListDetails}>
                         <Text style={styles.memberListName} numberOfLines={1}>{member.display_name || 'عضو YOYO'}</Text>
-                        <Text style={styles.memberListMeta}>عضو YOYO LIVE</Text>
+                        <Text style={styles.memberListMeta}>● عضو في مجتمع YOYO LIVE</Text>
+                        {!!member.country && <Text style={styles.memberListCountry}>{member.country}</Text>}
                       </View>
                     </View>
                     <View style={styles.memberFollowButton}><Text style={styles.memberFollowText}>عرض الملف</Text></View>
@@ -1265,10 +1249,14 @@ const styles = StyleSheet.create({
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   color: C.pink,
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     },
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       memberList: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 16, gap: 10, width: '100%' },
-  memberListCard: { width: '100%', minHeight: 88, backgroundColor: '#111018', borderRadius: 17, borderWidth: 1, borderColor: '#30263E', paddingHorizontal: 12, paddingVertical: 10, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' },
+  memberListCard: { width: '100%', minHeight: 104, backgroundColor: '#111018', borderRadius: 18, borderWidth: 1, borderColor: '#49345E', paddingHorizontal: 12, paddingVertical: 10, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
   memberListInfo: { flexDirection: 'row-reverse', alignItems: 'center', flex: 1, minWidth: 0, gap: 12 },
-  memberListImage: { width: 62, height: 62, borderRadius: 31, backgroundColor: '#24202D' },
-  memberListFallback: { width: 62, height: 62, borderRadius: 31, backgroundColor: '#30202A', borderWidth: 1, borderColor: C.pink, alignItems: 'center', justifyContent: 'center' },
+  memberAvatarCard: { width: 70, height: 78, borderRadius: 13, overflow: 'hidden', borderWidth: 1.5, borderColor: C.pink, backgroundColor: '#24202D' },
+  memberListImage: { width: '100%', height: '100%', borderRadius: 11, backgroundColor: '#24202D' },
+  memberListFallback: { flex: 1, backgroundColor: '#30202A', alignItems: 'center', justifyContent: 'center' },
+  memberVipTag: { position: 'absolute', top: 3, right: 3, backgroundColor: C.gold, borderRadius: 5, paddingHorizontal: 5, paddingVertical: 2 },
+  memberVipText: { color: '#21172D', fontSize: 8, fontWeight: '900' },
+  memberListCountry: { color: C.muted, fontSize: 10, marginTop: 3, textAlign: 'right' },
   memberListInitial: { color: C.white, fontSize: 25, fontWeight: '900' },
   memberListDetails: { flex: 1, minWidth: 0, alignItems: 'flex-end' },
   memberListName: { color: C.white, fontWeight: '900', fontSize: 15, maxWidth: '100%', textAlign: 'right' },
@@ -1385,7 +1373,7 @@ storyCircle: {
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   marginTop: 7,
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       fontSize: 12,
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         },
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          bottomNav: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', backgroundColor: '#05040A', paddingHorizontal: 4, paddingTop: 7, paddingBottom: Platform.OS === 'android' ? 22 : 10, marginBottom: 0, minHeight: Platform.OS === 'android' ? 86 : 74, width: '100%', flexShrink: 0, zIndex: 100, elevation: 20, borderTopWidth: 1, borderTopColor: '#393044' },
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          bottomNav: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', backgroundColor: '#080610', paddingHorizontal: 5, paddingTop: 6, paddingBottom: Platform.OS === 'android' ? 8 : 10, marginBottom: Platform.OS === 'android' ? 8 : 0, minHeight: Platform.OS === 'android' ? 78 : 74, width: '100%', flexShrink: 0, zIndex: 100, elevation: 20, borderTopWidth: 1, borderTopColor: '#6D3E8D' },
   navItem: {
     flex: 1,
     minWidth: 0,
