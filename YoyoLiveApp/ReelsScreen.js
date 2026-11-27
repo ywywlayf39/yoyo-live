@@ -604,7 +604,7 @@ export default function ReelsScreen({ userId, onBack }) {
   );
 
   return (
-    <SafeAreaView style={[styles.screen, { paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0, paddingBottom: 0 }]}>
+    <SafeAreaView style={[styles.screen, { paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0, paddingBottom: 26 }]}>
       <StatusBar barStyle="light-content" backgroundColor={BG} />
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}><Text style={styles.backText}>→ رجوع</Text></TouchableOpacity>
@@ -782,7 +782,7 @@ export default function ReelsScreen({ userId, onBack }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: BG },
-  header: { minHeight: 68, paddingTop: 5, paddingBottom: 7, paddingHorizontal: 12, flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#302537', gap: 10 },
+  header: { minHeight: 68, paddingTop: 5, paddingBottom: 7, paddingHorizontal: 12, flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#302537', gap: 12 },
   headerAction: { width: 62, minHeight: 42, paddingHorizontal: 8, paddingVertical: 8, borderRadius: 12, backgroundColor: '#2B2033', borderWidth: 1, borderColor: '#68445F', alignItems: 'center', justifyContent: 'center' },
   headerActionText: { color: '#F4D9EA', fontSize: 12, fontWeight: 'bold' },
   createArrow: { width: 52, minHeight: 42, paddingHorizontal: 6, borderRadius: 13, backgroundColor: PINK, alignItems: 'center', justifyContent: 'center' },
@@ -845,7 +845,7 @@ const styles = StyleSheet.create({
   sideActionButton: { minWidth: 48, minHeight: 52, paddingHorizontal: 7, paddingVertical: 7, borderRadius: 22, backgroundColor: 'rgba(20,14,25,0.88)', borderWidth: 1, borderColor: '#6C4260', alignItems: 'center', justifyContent: 'center' },
   sideActionIcon: { color: '#fff', fontSize: 25, fontWeight: '900' },
   sideActionCount: { color: '#fff', fontSize: 10, fontWeight: 'bold', marginTop: 1 },
-  reelOverlay: { position: 'absolute', bottom: 14, left: 12, right: 92, minHeight: 56, paddingHorizontal: 10, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(11,9,18,0.86)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(243,78,155,0.55)', zIndex: 15, elevation: 8 },
+  reelOverlay: { position: 'absolute', bottom: 24, left: 12, right: 104, minHeight: 56, paddingHorizontal: 10, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(11,9,18,0.86)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(243,78,155,0.55)', zIndex: 15, elevation: 8 },
   authorRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8, minHeight: 40 },
   authorAvatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: PINK },
   authorAvatarFallback: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#49334F', alignItems: 'center', justifyContent: 'center' },
