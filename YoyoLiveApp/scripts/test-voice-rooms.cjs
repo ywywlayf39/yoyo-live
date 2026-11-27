@@ -64,4 +64,4 @@ console.log('YOYO LIVE voice room seats, gifts, and shared music regression chec
 
 assert.ok(screen.includes('roomHeading') && !screen.includes('hostIdentity'), 'The room name and connected count must share one clear header line');
 assert.ok(screen.includes('participantAvatar:{width:36,height:36') && screen.includes('participant:{minWidth:68'), 'Connected member cards and avatars must fit compactly above the footer');
-assert.ok(gifts.includes('voiceLiveSoundToggle: { top: 112, left: undefined, right: 16') && g.includes('voiceOpenButton: { bottom: 168, left: 16, right: undefined'), 'Voice gift sound and gift buttons must be inset and separated from the connected count');
+assert.ok(gifts.includes('voiceLiveSoundToggle: { top: 112, left: undefined, right: 16') && gifts.includes('voiceOpenButton: { bottom: 168, left: 16, right: undefined'), 'Voice gift sound and gift buttons must be inset and separated from the connected count');
