@@ -1195,11 +1195,7 @@ export default function App() {
 <TouchableOpacity key={i} style={styles.navItem} accessibilityLabel={item} onPress={() => navigateMainTab(i)} hitSlop={10} activeOpacity={0.65}>
 <View style={{ position: 'relative' }}>
 <Text style={[styles.navIcon, i === 0 ? styles.navIconActive : null]}>{['⌂', '▣', '◉', '◇', '♙'][i]}</Text>
-{i === 4 && unreadMessageCount > 0 && (
-  <View style={{ position: 'absolute', top: -7, right: -13, minWidth: 19, height: 19, borderRadius: 10, backgroundColor: '#F34E9B', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1, borderColor: C.bg }}>
-    <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: 'bold' }}>{unreadMessageCount > 99 ? '99+' : unreadMessageCount}</Text>
-  </View>
-)}
+
 </View>
 <Text style={[styles.navText, i === 0 ? styles.navTextActive : null]}>{item}</Text>
 </TouchableOpacity>
