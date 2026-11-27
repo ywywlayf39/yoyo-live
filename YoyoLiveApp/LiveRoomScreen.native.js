@@ -682,6 +682,6 @@ const styles = StyleSheet.create({
   error: { color: '#FF9EAD', textAlign: 'center', marginVertical: 12, lineHeight: 22 },
   reportButton: { backgroundColor: '#34263F', borderWidth: 1, borderColor: '#8A5578', borderRadius: 12, padding: 12, alignItems: 'center', marginTop: 12 },
   reportButtonText: { color: '#F4C5D8', fontSize: 14, fontWeight: 'bold' },
-  leaveButton: { position: 'absolute', top: 106, right: 14, minWidth: 112, zIndex: 120, elevation: 32, backgroundColor: '#E53965', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14, alignItems: 'center', marginTop: 0 }, 
-  leaveButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: 'bold' },
+  leaveButton: { position: 'absolute', top: 112, right: 14, minWidth: 142, minHeight: 46, zIndex: 300, elevation: 50, backgroundColor: '#D91F4B', borderWidth: 2, borderColor: '#FFFFFF', borderRadius: 14, paddingVertical: 11, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center', shadowColor: '#000000', shadowOpacity: 0.45, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
+  leaveButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '900', textAlign: 'center' },
 });
