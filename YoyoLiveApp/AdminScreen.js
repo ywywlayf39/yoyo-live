@@ -328,6 +328,26 @@ export default function AdminScreen({ onBack }) {
   };
 
 
+  const deleteCoinPurchaseReceipt = request => {
+    if (!request.proof_storage_path) return;
+    Alert.alert('حذف صورة الإيصال فقط؟', 'سيتم حذف صورة الإيصال من التخزين مع الاحتفاظ بطلب الشراء وسجل العملات كما هو.', [
+      { text: 'إلغاء', style: 'cancel' },
+      { text: 'حذف الصورة', style: 'destructive', onPress: async () => {
+        setCoinDeleteBusyId(request.id);
+        const { data, error: deleteError } = await supabase.functions.invoke('admin-delete-coin-purchase', {
+          body: { requestId: request.id, action: 'delete_receipt' },
+        });
+        setCoinDeleteBusyId(null);
+        if (deleteError || !data?.success) {
+          Alert.alert('تعذر حذف الإيصال', data?.error || deleteError?.message || 'حاول مرة أخرى.');
+          return;
+        }
+        await loadDashboard();
+        Alert.alert('تم حذف الإيصال', 'تم حذف الصورة مع الاحتفاظ بطلب الشراء وسجل العملات دون تغيير.');
+      }},
+    ]);
+  };
+
   const deleteCoinPurchaseRequest = request => {
     if (request.status === 'approved') {
       Alert.alert('لا يمكن الحذف', 'الطلب المعتمد مرتبط بإضافة عملات وسجل مالي، ويجب أن يظل محفوظًا.');
@@ -775,6 +795,15 @@ export default function AdminScreen({ onBack }) {
                   <TouchableOpacity disabled={!!coinReviewBusyId} style={styles.dismissButton} onPress={() => reviewCoinPurchase(request,'rejected')}><Text style={styles.actionText}>رفض الطلب</Text></TouchableOpacity>
                 </View>
               )}
+              {!!request.proof_storage_path && (
+                <TouchableOpacity
+                  disabled={!!coinDeleteBusyId}
+                  style={[styles.deleteReceiptButton, coinDeleteBusyId === request.id && { opacity: 0.55 }]}
+                  onPress={() => deleteCoinPurchaseReceipt(request)}
+                >
+                  <Text style={styles.actionText}>{coinDeleteBusyId === request.id ? 'جارٍ الحذف...' : '🧾 حذف صورة الإيصال فقط'}</Text>
+                </TouchableOpacity>
+              )}
               {request.status !== 'approved' && (
                 <TouchableOpacity
                   disabled={!!coinDeleteBusyId}
@@ -1007,6 +1036,7 @@ const styles = StyleSheet.create({
   quickNav: { flexDirection: 'row', gap: 8, paddingVertical: 12, paddingBottom: 18 },
   quickNavButton: { backgroundColor: '#241B31', borderColor: '#5B477B', borderWidth: 1, borderRadius: 18, paddingHorizontal: 12, paddingVertical: 9 },
   quickNavText: { color: '#F5C451', fontSize: 12, fontWeight: 'bold' },
+  deleteReceiptButton: { backgroundColor: '#5B477B', borderRadius: 9, padding: 12, alignItems: 'center', marginTop: 10, borderWidth: 1, borderColor: '#9274B8' },
   deleteRequestButton: { backgroundColor: '#8A263D', borderRadius: 9, padding: 12, alignItems: 'center', marginTop: 10, borderWidth: 1, borderColor: '#D75C70' },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 28, marginBottom: 12 },
   sectionTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
