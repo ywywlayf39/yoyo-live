@@ -62,7 +62,7 @@ function ReelPlayer({ uri, active, height }) {
   const progress = duration > 0 ? Math.min(1, playhead / duration) : 0;
   return (
     <View style={{ width: '100%', height, backgroundColor: '#000' }}>
-      <VideoView player={player} style={{ width: '100%', height: Math.max(1, height - 4) }} contentFit="contain" nativeControls={false} allowsFullscreen={false} allowsPictureInPicture={false} />
+      <VideoView player={player} style={{ width: '100%', height: Math.max(1, height - 4) }} contentFit="cover" nativeControls={false} allowsFullscreen={false} allowsPictureInPicture={false} />
       <View style={styles.playerControls}>
         <TouchableOpacity onPress={togglePlayback} style={styles.playerControl}><Text style={styles.playerControlText}>{playing ? 'Ⅱ' : '▶'}</Text></TouchableOpacity>
         <TouchableOpacity onPress={toggleMute} style={styles.playerControl}><Text style={styles.playerControlText}>{muted ? '🔇' : '🔊'}</Text></TouchableOpacity>
@@ -604,7 +604,7 @@ export default function ReelsScreen({ userId, onBack }) {
   );
 
   return (
-    <SafeAreaView style={[styles.screen, { paddingBottom: 26 }]}>
+    <SafeAreaView style={[styles.screen, { paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0, paddingBottom: 0 }]}>
       <StatusBar barStyle="light-content" backgroundColor={BG} />
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}><Text style={styles.backText}>→ رجوع</Text></TouchableOpacity>
@@ -782,7 +782,7 @@ export default function ReelsScreen({ userId, onBack }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: BG },
-  header: { minHeight: 60, paddingTop: 8, paddingHorizontal: 12, flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#302537', gap: 12 },
+  header: { minHeight: 68, paddingTop: 5, paddingBottom: 7, paddingHorizontal: 12, flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#302537', gap: 10 },
   headerAction: { width: 62, minHeight: 42, paddingHorizontal: 8, paddingVertical: 8, borderRadius: 12, backgroundColor: '#2B2033', borderWidth: 1, borderColor: '#68445F', alignItems: 'center', justifyContent: 'center' },
   headerActionText: { color: '#F4D9EA', fontSize: 12, fontWeight: 'bold' },
   createArrow: { width: 52, minHeight: 42, paddingHorizontal: 6, borderRadius: 13, backgroundColor: PINK, alignItems: 'center', justifyContent: 'center' },
@@ -833,8 +833,8 @@ const styles = StyleSheet.create({
   emptyIcon: { fontSize: 52, marginBottom: 12 }, emptyTitle: { color: '#fff', fontWeight: 'bold', fontSize: 19 },
   emptyText: { color: '#A99EAE', textAlign: 'center', marginTop: 9, lineHeight: 22 },
   reelCard: { backgroundColor: '#000', marginBottom: 0, position: 'relative', paddingBottom: 0, overflow: 'hidden' },
-  sideActions: { position: 'absolute', zIndex: 20, right: 14, bottom: 142, alignItems: 'center', gap: 16 },
-  playerControls: { position: 'absolute', left: 14, bottom: 112, flexDirection: 'row', gap: 12, zIndex: 25 },
+  sideActions: { position: 'absolute', zIndex: 20, left: 14, right: undefined, bottom: 142, alignItems: 'center', gap: 16 },
+  playerControls: { position: 'absolute', right: 14, left: undefined, bottom: 112, flexDirection: 'row', gap: 12, zIndex: 25 },
   playerControl: { width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(10,8,14,0.88)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   playerControlText: { color: '#fff', fontSize: 17, fontWeight: '900' },
   progressTrack: { width: '100%', height: 4, backgroundColor: 'rgba(255,255,255,0.25)', zIndex: 30 },
@@ -845,8 +845,8 @@ const styles = StyleSheet.create({
   sideActionButton: { minWidth: 48, minHeight: 52, paddingHorizontal: 7, paddingVertical: 7, borderRadius: 22, backgroundColor: 'rgba(20,14,25,0.88)', borderWidth: 1, borderColor: '#6C4260', alignItems: 'center', justifyContent: 'center' },
   sideActionIcon: { color: '#fff', fontSize: 25, fontWeight: '900' },
   sideActionCount: { color: '#fff', fontSize: 10, fontWeight: 'bold', marginTop: 1 },
-  reelOverlay: { position: 'absolute', bottom: 24, left: 12, right: 104, minHeight: 62, paddingHorizontal: 12, paddingVertical: 9, flexDirection: 'row', alignItems: 'flex-start', backgroundColor: 'rgba(11,9,18,0.82)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(243,78,155,0.55)', zIndex: 15 },
-  authorRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 10, minHeight: 42 },
+  reelOverlay: { position: 'absolute', bottom: 14, left: 12, right: 92, minHeight: 56, paddingHorizontal: 10, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(11,9,18,0.86)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(243,78,155,0.55)', zIndex: 15, elevation: 8 },
+  authorRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8, minHeight: 40 },
   authorAvatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: PINK },
   authorAvatarFallback: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#49334F', alignItems: 'center', justifyContent: 'center' },
   author: { color: '#fff', fontSize: 20, fontWeight: '900', textAlign: 'right', flexShrink: 1 },
