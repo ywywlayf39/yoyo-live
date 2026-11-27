@@ -103,7 +103,7 @@ export default function LiveRoomChat({ roomName, userId }) {
               <Text style={styles.body}>{item.body}</Text>
             </View>
           </View>
-        )) : <Text style={styles.empty}>كن أول من يكتب تعليقًا 👋</Text>}
+        ) ) : null}
       </ScrollView>
       {enabled ? (
         <View style={styles.composer}>
@@ -116,24 +116,24 @@ export default function LiveRoomChat({ roomName, userId }) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { position: 'absolute', left: 10, right: 94, bottom: 124, zIndex: 70, elevation: 22, backgroundColor: 'transparent', borderRadius: 0, borderWidth: 0, padding: 0, maxWidth: '74%' },
-  header: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5, backgroundColor: 'rgba(12,9,20,0.48)', borderRadius: 14, paddingHorizontal: 9, paddingVertical: 5 },
-  title: { color: COLORS.gold, fontSize: 12, fontWeight: 'bold' },
+  wrap: { position: 'absolute', left: 10, right: 94, bottom: 124, zIndex: 70, elevation: 22, backgroundColor: 'transparent', borderRadius: 0, borderWidth: 0, padding: 0, maxWidth: '76%' },
+  header: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 10, justifyContent: 'flex-start', marginBottom: 6, backgroundColor: 'rgba(12,9,20,0.58)', borderRadius: 12, paddingHorizontal: 9, paddingVertical: 6 },
+  title: { color: COLORS.white, fontSize: 12, fontWeight: 'bold' },
   state: { color: COLORS.muted, fontSize: 11 },
-  toggle: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 9 },
-  open: { backgroundColor: '#67334F' },
-  closed: { backgroundColor: '#287B5B' },
+  toggle: { paddingHorizontal: 11, paddingVertical: 6, borderRadius: 9, minWidth: 66, alignItems: 'center' },
+  open: { backgroundColor: '#8655F5' },
+  closed: { backgroundColor: '#493078' },
   toggleText: { color: COLORS.white, fontSize: 11, fontWeight: 'bold' },
   list: { maxHeight: 142, minHeight: 24 },
   message: { alignSelf: 'flex-start', maxWidth: '100%', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 5, marginBottom: 4, gap: 7, backgroundColor: 'rgba(12,9,20,0.48)', borderRadius: 12 },
   messageContent: { flex: 1, minWidth: 0 },
   miniAvatarFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#30243E' },
-  name: { color: COLORS.gold, fontSize: 11, fontWeight: 'bold' },
+  name: { color: '#D9C9FF', fontSize: 11, fontWeight: 'bold' },
   body: { color: COLORS.white, fontSize: 12, flex: 1, lineHeight: 17, textShadowColor: 'rgba(0,0,0,0.65)', textShadowRadius: 3 },
-  empty: { color: COLORS.white, fontSize: 11, textAlign: 'left', paddingHorizontal: 9, paddingVertical: 7, backgroundColor: 'rgba(12,9,20,0.42)', borderRadius: 12, overflow: 'hidden' },
-  composer: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, padding: 4, backgroundColor: 'rgba(12,9,20,0.42)', borderRadius: 18 },
-  input: { flex: 1, color: COLORS.white, backgroundColor: 'rgba(36,27,53,0.52)', borderRadius: 16, paddingHorizontal: 11, paddingVertical: 8, textAlign: 'right', fontSize: 12, minWidth: 0 },
-  send: { backgroundColor: 'rgba(243,78,155,0.88)', borderRadius: 15, paddingHorizontal: 11, paddingVertical: 9 },
+  
+  composer: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8, padding: 5, backgroundColor: 'rgba(12,9,20,0.58)', borderRadius: 18 },
+  input: { flex: 1, color: COLORS.white, backgroundColor: 'rgba(36,27,53,0.82)', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 9, textAlign: 'right', fontSize: 12, minWidth: 0 },
+  send: { backgroundColor: '#8655F5', borderRadius: 13, paddingHorizontal: 14, paddingVertical: 10, marginLeft: 2, minWidth: 62, alignItems: 'center' },
   sendText: { color: COLORS.white, fontWeight: 'bold', fontSize: 12 },
   closedHint: { color: COLORS.muted, fontSize: 11, textAlign: 'center', paddingVertical: 8 },
 });
