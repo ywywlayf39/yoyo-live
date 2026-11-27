@@ -637,7 +637,7 @@ const styles = StyleSheet.create({
   headerInfo: { flex: 1, flexShrink: 1, alignItems: 'flex-end', marginLeft: 10, paddingRight: 2, maxWidth: '62%' },
   hostName: { color: '#FFFFFF', fontSize: 17, fontWeight: 'bold', textAlign: 'right', lineHeight: 22 },
   roomStatus: { color: '#D4CADD', fontSize: 11, marginTop: 2, textAlign: 'right' },
-  durationBadge: { position: 'absolute', top: 66, left: 14, zIndex: 75, elevation: 26, minWidth: 94, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(12,9,20,0.94)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', paddingHorizontal: 11, paddingVertical: 7, borderRadius: 11 },
+  durationBadge: { position: 'absolute', top: 106, left: 62, zIndex: 125, elevation: 40, minWidth: 92, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(12,9,20,0.97)', borderWidth: 1, borderColor: '#F5C451', paddingHorizontal: 9, paddingVertical: 6, borderRadius: 11 },
   durationLabel: { color: '#F2DDFB', fontSize: 10, fontWeight: '700', marginBottom: 2 },
   durationText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900', textAlign: 'center', fontVariant: ['tabular-nums'], letterSpacing: 0.5 },
   livePill: { backgroundColor: '#E53965', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
