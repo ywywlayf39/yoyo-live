@@ -42,9 +42,13 @@ assert.ok(screen.includes("select('id,display_name,avatar_url')") && screen.incl
 assert.ok(screen.includes("{participants.length} متصل"), 'The connected-member count must use one consistent label');
 assert.ok(screen.includes('infoIcon') && screen.includes('flexDirection:\'row-reverse\''), 'The listening icon must sit beside, not over, the text');
 assert.ok(screen.includes('paddingBottom:48') && screen.includes('paddingBottom:340'), 'Voice room controls and the full scroll content must clear Android system navigation');
-assert.ok(screen.includes('height:56') && screen.includes('minWidth:132') && screen.includes('direction:\'rtl\''), 'Voice controls must be compact and the eight-seat grid must follow RTL order');
-assert.ok(gifts.includes('voiceLiveSoundToggle: { top: 112, left: undefined, right: 16') && gifts.includes('voiceOpenButton: { bottom: 168, left: 16, right: undefined') && gifts.includes('voiceRoomId && styles.voiceOpenButton'), 'Voice gift controls must be inset and separated from the room controls, without changing video rooms');
+assert.ok(screen.includes('height:56') && screen.includes('minWidth:140') && screen.includes("direction:'ltr'"), 'Voice controls must be safely spaced and seats must read 1-4 then 5-8 from left to right');
+assert.ok(gifts.includes('voiceLiveSoundToggle: { top: undefined, bottom: 122, left: 16') && gifts.includes('voiceOpenButton: { bottom: 122, left: undefined, right: 16') && gifts.includes('voiceRoomId && styles.voiceOpenButton'), 'Voice gift controls must share a safe bottom row away from member avatars, without changing video rooms');
 assert.ok(screen.includes('chairAvatarFallback') && screen.includes('chairAvatarGlyph') && screen.includes("seatIsOpen ? '＋'") && screen.includes('chairBaseLocked') && screen.includes('chairLegLocked'), 'Open and locked chairs must have distinct visible colors and labels');
+assert.ok(screen.includes("const isHostSeat = index === 0") && screen.includes("'مقعد المضيف'") && screen.includes('hostSeat:{') && screen.includes('chairBackHost'), 'The first chair must be clearly reserved and styled for the host');
+assert.ok(screen.includes("direction:'ltr'") && screen.includes('seatMineName') && screen.includes('width:52,height:52'), 'Seat order and the current member avatar/name must be clear and prominent');
+assert.ok(screen.includes('participantCount') && screen.includes('leaveSeatPanel') && screen.includes('minWidth:140') && screen.includes('paddingBottom:30'), 'Participant count, seat-leave action, and bottom controls must have clear grouping and safe spacing');
+assert.ok(screen.includes("fontSize:11,textAlign:'right',lineHeight:20,flex:1") && screen.includes("width:'100%'"), 'The full listening permission notice must fit without clipping');
 
 assert.ok(membershipMigration.includes('revoke insert, update, delete on public.voice_room_members') && membershipMigration.includes('public.join_voice_room'), 'Members must not forge room membership through direct table writes');
 const singleRoomMigration = fs.readFileSync(path.join(root, '..', 'supabase', 'migrations', '20261126193000_one_live_voice_room_per_host.sql'), 'utf8');
