@@ -17,6 +17,7 @@ import LiveGiftPanel from './LiveGiftPanel';
 import ReelsScreen from './ReelsScreen';
 import ReferralScreen from './ReferralScreen';
 import LiveRoomScreen from './LiveRoomScreen';
+import LiveSwipeFeed from './LiveSwipeFeed';
 import VoiceRoomsScreen from './VoiceRoomsScreen';
 import { supabase } from './supabase';
 import {
@@ -770,15 +771,25 @@ export default function App() {
   if (selectedLive) {
     return (
       <View style={{ flex: 1, backgroundColor: C.bg }}>
-        <LiveRoomScreen
-          roomName={selectedLive.roomName}
-          isHost={selectedLive.isHost}
-          hostName={selectedLive.name}
-          userId={session.user.id}
-          receiverId={selectedLive.hostId}
-          onOpenPackages={() => setShowPackages(true)}
-          onClose={returnHomeAfterLive}
-        />
+        {selectedLive.isSwipeFeed ? (
+          <LiveSwipeFeed
+            rooms={liveRooms}
+            initialRoomId={selectedLive.roomId}
+            userId={session.user.id}
+            onOpenPackages={() => setShowPackages(true)}
+            onClose={returnHomeAfterLive}
+          />
+        ) : (
+          <LiveRoomScreen
+            roomName={selectedLive.roomName}
+            isHost={selectedLive.isHost}
+            hostName={selectedLive.name}
+            userId={session.user.id}
+            receiverId={selectedLive.hostId}
+            onOpenPackages={() => setShowPackages(true)}
+            onClose={returnHomeAfterLive}
+          />
+        )}
         <Modal
           visible={showPackages}
           animationType="slide"
@@ -880,7 +891,7 @@ export default function App() {
               key={room.id}
               onPress={() => {
                 setShowDiscover(false);
-                setSelectedLive({ roomName: room.room_name, isHost: room.host_id === session?.user?.id, hostId: room.host_id, name: room.host_name });
+                setSelectedLive({ roomName: room.room_name, isHost: room.host_id === session?.user?.id, hostId: room.host_id, name: room.host_name, isSwipeFeed: true, roomId: room.id });
               }}
               activeOpacity={0.85}
               style={{ backgroundColor: C.card, borderWidth: 1, borderColor: '#E53965', borderRadius: 16, padding: 16, marginTop: 12 }}
