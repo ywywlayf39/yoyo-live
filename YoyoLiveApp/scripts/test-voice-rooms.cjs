@@ -21,6 +21,9 @@ assert.ok(connectBlock.indexOf("rpc('join_voice_room'") < connectBlock.indexOf("
 assert.ok(screen.includes("rpc('join_voice_room'") && screen.includes("rpc('leave_voice_room'"), 'Room membership must use server-authorized RPCs');
 assert.ok(screen.includes('Array.from({ length: 8 }'), 'The room must render exactly eight seat slots');
 assert.ok(screen.includes('request_voice_room_seat') && screen.includes('manage_voice_room_seat'), 'Members must request seats and hosts must approve/control them');
+assert.ok(screen.includes('chairBack') && screen.includes('chairBase') && screen.includes('chairLegs'), 'Voice room seats must render as recognizable chair shapes');
+assert.ok(screen.includes('source={{ uri: seatAvatar }}') && screen.includes('seatAvatar = occupied ? avatars[seat.user_id]'), 'Occupied chairs must display the seated member real profile avatar');
+assert.ok(screen.includes('onPress={requestSeat}') && screen.includes('seatTapReady'), 'Members must be able to tap an available chair to request sitting');
 assert.ok(screen.includes("seat?.is_open ? 'close' : 'open'"), 'Hosts must be able to open and close seats');
 assert.ok(screen.includes('seat_permissions') && token.includes('updateParticipant'), 'LiveKit permissions must change server-side when a speaker is approved or removed');
 assert.ok(token.includes('targetUserId !== user.id'), 'A speaker may revoke only their own mic permission; only the host may change another member');
