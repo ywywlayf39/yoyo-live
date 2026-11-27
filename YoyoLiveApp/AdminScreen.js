@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { supabase } from './supabase';
 import { calculateGiftEconomics } from './financialCalculator';
@@ -48,6 +48,11 @@ export default function AdminScreen({ onBack }) {
   const [giftCatalog, setGiftCatalog] = useState([]);
   const [coinReviewNote, setCoinReviewNote] = useState('');
   const [coinReviewBusyId, setCoinReviewBusyId] = useState(null);
+  const [coinDeleteBusyId, setCoinDeleteBusyId] = useState(null);
+  const scrollRef = useRef(null);
+  const [sectionPositions, setSectionPositions] = useState({});
+  const rememberSection = key => event => setSectionPositions(previous => ({ ...previous, [key]: event.nativeEvent.layout.y }));
+  const jumpToSection = key => { const y = sectionPositions[key]; if (Number.isFinite(y)) scrollRef.current?.scrollTo({ y: Math.max(0, y - 12), animated: true }); };
   const [financialInputs, setFinancialInputs] = useState({
     packagePriceEgp: '', packageCoins: '', giftCoinsSpent: '', hostRedeemablePoints: '',
     egpPerHostPoint: '', paymentFeePercent: '', storeFeePercent: '', taxPercent: '',
@@ -323,6 +328,27 @@ export default function AdminScreen({ onBack }) {
   };
 
 
+  const deleteCoinPurchaseRequest = request => {
+    if (request.status === 'approved') {
+      Alert.alert('لا يمكن الحذف', 'الطلب المعتمد مرتبط بإضافة عملات وسجل مالي، ويجب أن يظل محفوظًا.');
+      return;
+    }
+    Alert.alert('حذف طلب الشراء والإيصال؟', 'سيتم حذف الطلب وصورة الإيصال نهائيًا. لن يتم حذف أي سجل مالي لطلب معتمد.', [
+      { text: 'إلغاء', style: 'cancel' },
+      { text: 'حذف نهائي', style: 'destructive', onPress: async () => {
+        setCoinDeleteBusyId(request.id);
+        const { data, error: deleteError } = await supabase.functions.invoke('admin-delete-coin-purchase', { body: { requestId: request.id } });
+        setCoinDeleteBusyId(null);
+        if (deleteError || !data?.success) {
+          Alert.alert('تعذر الحذف', data?.error || deleteError?.message || 'حاول مرة أخرى.');
+          return;
+        }
+        await loadDashboard();
+        Alert.alert('تم الحذف', data.receiptDeleted ? 'تم حذف طلب الشراء وصورة الإيصال.' : 'تم حذف الطلب، لكن تعذر حذف صورة الإيصال من التخزين.');
+      }},
+    ]);
+  };
+
   const reviewVipRequest = (request, decision) => {
     const labels = {
       reviewing: 'نقل طلب VIP إلى قيد المراجعة',
@@ -452,11 +478,21 @@ export default function AdminScreen({ onBack }) {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView ref={scrollRef} contentContainerStyle={styles.container}>
       <TouchableOpacity onPress={onBack} style={styles.back}><Text style={styles.backText}>رجوع ←</Text></TouchableOpacity>
       <Text style={styles.logo}>YOYO LIVE 💗</Text>
       <Text style={styles.title}>لوحة الإدارة</Text>
-      <Text style={styles.subtitle}>إدارة الأعضاء ومتابعة البلاغات ونشاط المنصة</Text>
+      <Text style={styles.subtitle}>إدارة الأعضاء والمدفوعات والبثوث والبلاغات من مكان واحد</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickNav}>
+        {[
+          ['payments','💳 الدفع'],['packages','🪙 الباقات'],['members','👥 الأعضاء'],['live','🔴 البثوث'],
+          ['coins','🧾 شراء العملات'],['withdrawals','💸 السحب'],['vip','👑 VIP'],['reports','🚩 البلاغات'],['audit','📋 السجل'],['finance','📊 الأرباح'],
+        ].map(([key,label]) => (
+          <TouchableOpacity key={key} style={styles.quickNavButton} onPress={() => jumpToSection(key)}>
+            <Text style={styles.quickNavText}>{label}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
 
       <View style={styles.financialPanel}>
         <Text style={styles.sectionTitle}>💳 إعدادات وسائل الدفع</Text>
@@ -537,7 +573,7 @@ export default function AdminScreen({ onBack }) {
             </View>
           )}
 
-          <View style={styles.sectionHeader}>
+          <View style={styles.sectionHeader} onLayout={rememberSection('members')}>
             <Text style={styles.sectionTitle}>👥 إدارة الأعضاء</Text>
             <TouchableOpacity onPress={loadDashboard}><Text style={styles.refresh}>تحديث ↻</Text></TouchableOpacity>
           </View>
@@ -608,7 +644,7 @@ export default function AdminScreen({ onBack }) {
             </View>
           </View>
 
-          <View style={styles.sectionHeader}>
+          <View style={styles.sectionHeader} onLayout={rememberSection('audit')}>
             <Text style={styles.sectionTitle}>🧾 سجل الإجراءات الإدارية</Text>
             <TouchableOpacity onPress={loadDashboard}><Text style={styles.refresh}>تحديث ↻</Text></TouchableOpacity>
           </View>
@@ -633,7 +669,7 @@ export default function AdminScreen({ onBack }) {
             </View>
           ))}
 
-          <View style={styles.sectionHeader}>
+          <View style={styles.sectionHeader} onLayout={rememberSection('live')}>
             <Text style={styles.sectionTitle}>🔴 متابعة البثوث النشطة</Text>
             <TouchableOpacity onPress={loadDashboard}><Text style={styles.refresh}>تحديث ↻</Text></TouchableOpacity>
           </View>
@@ -657,7 +693,7 @@ export default function AdminScreen({ onBack }) {
           ))}
 
 
-          <View style={styles.sectionHeader}>
+          <View style={styles.sectionHeader} onLayout={rememberSection('vip')}>
             <Text style={styles.sectionTitle}>👑 طلبات عضوية VIP</Text>
             <TouchableOpacity onPress={loadDashboard}><Text style={styles.refresh}>تحديث ↻</Text></TouchableOpacity>
           </View>
@@ -686,7 +722,7 @@ export default function AdminScreen({ onBack }) {
             </View>
           ))}
 
-          <View style={styles.sectionHeader}>
+          <View style={styles.sectionHeader} onLayout={rememberSection('vip')}>
             <Text style={styles.sectionTitle}>🎁 مكافآت دعوات VIP</Text>
             <TouchableOpacity onPress={loadDashboard}><Text style={styles.refresh}>تحديث ↻</Text></TouchableOpacity>
           </View>
@@ -711,7 +747,7 @@ export default function AdminScreen({ onBack }) {
             </View>
           ))}
 
-          <View style={styles.sectionHeader}>
+          <View style={styles.sectionHeader} onLayout={rememberSection('coins')}>
             <Text style={styles.sectionTitle}>🪙 طلبات شراء العملات</Text>
             <TouchableOpacity onPress={loadDashboard}><Text style={styles.refresh}>تحديث ↻</Text></TouchableOpacity>
           </View>
@@ -739,12 +775,21 @@ export default function AdminScreen({ onBack }) {
                   <TouchableOpacity disabled={!!coinReviewBusyId} style={styles.dismissButton} onPress={() => reviewCoinPurchase(request,'rejected')}><Text style={styles.actionText}>رفض الطلب</Text></TouchableOpacity>
                 </View>
               )}
+              {request.status !== 'approved' && (
+                <TouchableOpacity
+                  disabled={!!coinDeleteBusyId}
+                  style={[styles.deleteRequestButton, coinDeleteBusyId === request.id && { opacity: 0.55 }]}
+                  onPress={() => deleteCoinPurchaseRequest(request)}
+                >
+                  <Text style={styles.actionText}>{coinDeleteBusyId === request.id ? 'جارٍ الحذف...' : '🗑 حذف الطلب والإيصال'}</Text>
+                </TouchableOpacity>
+              )}
               {!!request.admin_note && <Text style={styles.details}>ملاحظة الإدارة: {request.admin_note}</Text>}
             </View>
           ))}
 
 
-          <View style={styles.sectionHeader}>
+          <View style={styles.sectionHeader} onLayout={rememberSection('withdrawals')}>
             <Text style={styles.sectionTitle}>💸 طلبات سحب الأرباح</Text>
             <TouchableOpacity onPress={loadDashboard}><Text style={styles.refresh}>تحديث ↻</Text></TouchableOpacity>
           </View>
@@ -788,7 +833,7 @@ export default function AdminScreen({ onBack }) {
             </View>
           ))}
 
-          <View style={styles.sectionHeader}>
+          <View style={styles.sectionHeader} onLayout={rememberSection('finance')}>
             <Text style={styles.sectionTitle}>📊 مراجعة نسب الهدايا</Text>
           </View>
           <View style={styles.financialPanel}>
@@ -815,7 +860,7 @@ export default function AdminScreen({ onBack }) {
             {giftCatalog.length === 0 && <Text style={styles.memberHint}>تعذر تحميل قائمة الهدايا للمراجعة.</Text>}
           </View>
 
-          <View style={styles.sectionHeader}>
+          <View style={styles.sectionHeader} onLayout={rememberSection('finance')}>
             <Text style={styles.sectionTitle}>📊 محاكاة ربحية الباقات والهدايا</Text>
           </View>
           <Text style={styles.memberHint}>أداة حساب داخلية فقط. أدخل الرسوم والقيم من عقود موثقة. لا تغيّر أرصدة ولا تعتمد أسعارًا أو مدفوعات.</Text>
@@ -886,7 +931,7 @@ export default function AdminScreen({ onBack }) {
             )}
           </View>
 
-          <View style={styles.sectionHeader}>
+          <View style={styles.sectionHeader} onLayout={rememberSection('reports')}>
             <Text style={styles.sectionTitle}>🚩 بلاغات الأعضاء</Text>
             <TouchableOpacity onPress={loadDashboard}><Text style={styles.refresh}>تحديث ↻</Text></TouchableOpacity>
           </View>
@@ -959,6 +1004,10 @@ const styles = StyleSheet.create({
   statEmoji: { fontSize: 23 },
   statValue: { color: '#F5C451', fontSize: 23, fontWeight: 'bold', marginTop: 5 },
   statLabel: { color: '#DDD6E7', fontSize: 12, marginTop: 4 },
+  quickNav: { flexDirection: 'row', gap: 8, paddingVertical: 12, paddingBottom: 18 },
+  quickNavButton: { backgroundColor: '#241B31', borderColor: '#5B477B', borderWidth: 1, borderRadius: 18, paddingHorizontal: 12, paddingVertical: 9 },
+  quickNavText: { color: '#F5C451', fontSize: 12, fontWeight: 'bold' },
+  deleteRequestButton: { backgroundColor: '#8A263D', borderRadius: 9, padding: 12, alignItems: 'center', marginTop: 10, borderWidth: 1, borderColor: '#D75C70' },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 28, marginBottom: 12 },
   sectionTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
   refresh: { color: '#F5C451', fontWeight: 'bold' },
