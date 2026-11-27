@@ -7,7 +7,7 @@ import ProfileFrame from './ProfileFrame';
 
 const countries = ['مصر','السعودية','الإمارات','الكويت','قطر','البحرين','عمان','الأردن','العراق','لبنان','المغرب','الجزائر','تونس','ليبيا','السودان','فلسطين','اليمن','سوريا','تركيا','ألمانيا','فرنسا','بريطانيا','أمريكا','كندا','أخرى'];
 
-export default function AccountScreen({ userId, email, onBack, onAvatarChanged, onFrameChanged }) {
+export default function AccountScreen({ userId, email, onBack, onAvatarChanged, onFrameChanged, onOpenMyReports }) {
   const [profile, setProfile] = useState(null);
   const [name, setName] = useState('');
   const [country, setCountry] = useState('مصر');
@@ -280,6 +280,9 @@ export default function AccountScreen({ userId, email, onBack, onAvatarChanged, 
           <Text style={styles.hint}>تغيير الصورة يتم فور رفعها، وتعديل الاسم والبلد والنوع وتاريخ الميلاد يتم عند الضغط على حفظ التعديلات.</Text>
           <View style={styles.deleteSection}>
             <Text style={styles.deleteTitle}>إدارة الحساب</Text>
+            <TouchableOpacity onPress={onOpenMyReports} style={styles.externalDeleteLink}>
+              <Text style={styles.externalDeleteText}>شكاواي وبلاغاتي وإلغاء الشكوى</Text>
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => Linking.openURL('https://ywywlayf39.github.io/yoyo-live/privacy-policy.html')} style={styles.externalDeleteLink}>
               <Text style={styles.externalDeleteText}>سياسة الخصوصية</Text>
             </TouchableOpacity>
