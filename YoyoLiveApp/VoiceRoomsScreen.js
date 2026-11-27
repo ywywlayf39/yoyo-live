@@ -215,11 +215,33 @@ function VoiceStage({ room, userId, isHost, onLeave, onOpenPackages }) {
             const seat = seats.find((item) => item.seat_number === index + 1);
             const occupied = !!seat?.user_id;
             const mine = seat?.user_id === userId;
+            const seatIsOpen = !!seat?.is_open;
+            const seatLabel = occupied ? (mine ? 'أنت' : names[seat.user_id] || 'متحدث') : seatIsOpen ? 'اضغط للجلوس' : 'مقفل';
+            const seatAvatar = occupied ? avatars[seat.user_id] : null;
             return (
-              <View key={index + 1} style={[s.seatCard, occupied && s.seatOccupied, seat && !seat.is_open && s.seatLocked]}>
-                <Text style={s.seatNumber}>مقعد {index + 1}</Text>
-                <Text style={s.seatEmoji}>{occupied ? (mine ? '🎤' : '🗣️') : seat?.is_open ? '＋' : '🔒'}</Text>
-                <Text numberOfLines={1} style={s.seatName}>{occupied ? (mine ? 'أنت' : names[seat.user_id] || 'متحدث') : seat?.is_open ? 'متاح' : 'مقفل'}</Text>
+              <TouchableOpacity
+                key={index + 1}
+                activeOpacity={0.82}
+                disabled={isHost || occupied || !seatIsOpen || requestBusy || !!ownRequest}
+                onPress={requestSeat}
+                style={[s.seatCard, occupied && s.seatOccupied, seat && !seatIsOpen && s.seatLocked, !isHost && seatIsOpen && !occupied && s.seatTapReady]}
+              >
+                <Text style={s.seatNumber}>كرسي {index + 1}</Text>
+                <View style={[s.chairBack, occupied && s.chairBackOccupied, !seatIsOpen && !occupied && s.chairBackLocked]}>
+                  {seatAvatar ? (
+                    <Image source={{ uri: seatAvatar }} style={s.chairAvatar} />
+                  ) : (
+                    <View style={[s.chairAvatarFallback, occupied && s.chairAvatarFallbackOccupied]}>
+                      <Text style={s.chairAvatarGlyph}>{occupied ? '👤' : seatIsOpen ? '＋' : '🔒'}</Text>
+                    </View>
+                  )}
+                </View>
+                <View style={[s.chairBase, occupied && s.chairBaseOccupied]} />
+                <View style={s.chairLegs}>
+                  <View style={[s.chairLeg, occupied && s.chairLegOccupied]} />
+                  <View style={[s.chairLeg, occupied && s.chairLegOccupied]} />
+                </View>
+                <Text numberOfLines={1} style={[s.seatName, occupied && s.seatProfileName]}>{seatLabel}</Text>
                 {isHost ? (
                   <View style={s.seatActions}>
                     {occupied ? (
@@ -227,13 +249,13 @@ function VoiceStage({ room, userId, isHost, onLeave, onOpenPackages }) {
                         <Text style={s.smallActionText}>إخراج</Text>
                       </TouchableOpacity>
                     ) : (
-                      <TouchableOpacity disabled={busy} onPress={() => manageSeat(index + 1, seat?.is_open ? 'close' : 'open')} style={s.smallAction}>
-                        <Text style={s.smallActionText}>{seat?.is_open ? 'قفل' : 'فتح'}</Text>
+                      <TouchableOpacity disabled={busy} onPress={() => manageSeat(index + 1, seatIsOpen ? 'close' : 'open')} style={s.smallAction}>
+                        <Text style={s.smallActionText}>{seatIsOpen ? 'قفل' : 'فتح'}</Text>
                       </TouchableOpacity>
                     )}
                   </View>
                 ) : null}
-              </View>
+              </TouchableOpacity>
             );
           })}
         </View>
@@ -474,10 +496,18 @@ const s = StyleSheet.create({
   stageScroll:{padding:14,paddingBottom:220},stageHeader:{alignItems:'center',marginTop:18,marginBottom:20,gap:8},
   bulkSeatActions:{flexDirection:'row',gap:16,marginBottom:16},bulkOpen:{flex:1,backgroundColor:'#245A48',paddingVertical:13,paddingHorizontal:10,borderRadius:12,alignItems:'center',minHeight:48},bulkClose:{flex:1,backgroundColor:'#55283D',paddingVertical:13,paddingHorizontal:10,borderRadius:12,alignItems:'center',minHeight:48},bulkText:{color:C.white,fontWeight:'900',fontSize:11},
   seatGrid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',gap:8},
-  seatCard:{width:'22%',minHeight:128,backgroundColor:C.card,borderRadius:15,alignItems:'center',justifyContent:'center',padding:8,borderWidth:1,borderColor:'#382A4B'},
-  seatOccupied:{borderColor:C.green,backgroundColor:'#172A29'},seatLocked:{borderColor:'#594B69',backgroundColor:'#17131F'},
-  seatNumber:{color:C.muted,fontSize:10,fontWeight:'800'},seatEmoji:{fontSize:32,color:C.pink,marginTop:6,fontWeight:'900'},seatName:{color:C.white,fontSize:11,fontWeight:'700',marginTop:5,maxWidth:'100%'},
-  seatActions:{marginTop:7},smallAction:{paddingHorizontal:10,paddingVertical:5,backgroundColor:C.card2,borderRadius:9},smallActionText:{color:C.pink,fontSize:10,fontWeight:'900'},
+  seatCard:{width:'22%',minHeight:158,backgroundColor:C.card,borderRadius:15,alignItems:'center',justifyContent:'flex-start',padding:7,paddingTop:10,borderWidth:1,borderColor:'#382A4B'},
+  seatTapReady:{borderColor:C.pink,backgroundColor:'#21172B'},seatOccupied:{borderColor:C.green,backgroundColor:'#172A29'},seatLocked:{borderColor:'#594B69',backgroundColor:'#17131F'},
+  seatNumber:{color:C.muted,fontSize:10,fontWeight:'800',marginBottom:5},
+  chairBack:{width:48,height:48,borderTopLeftRadius:15,borderTopRightRadius:15,borderBottomLeftRadius:7,borderBottomRightRadius:7,backgroundColor:'#382A4B',borderWidth:2,borderColor:'#7650A4',alignItems:'center',justifyContent:'center',marginTop:2},
+  chairBackOccupied:{backgroundColor:'#21483D',borderColor:C.green},chairBackLocked:{backgroundColor:'#25202D',borderColor:'#51475D'},
+  chairAvatar:{width:39,height:39,borderRadius:20,borderWidth:2,borderColor:C.white,backgroundColor:C.card2},
+  chairAvatarFallback:{width:39,height:39,borderRadius:20,backgroundColor:'#4A3565',alignItems:'center',justifyContent:'center'},
+  chairAvatarFallbackOccupied:{backgroundColor:'#28624C'},chairAvatarGlyph:{color:C.white,fontSize:22,fontWeight:'900'},
+  chairBase:{width:58,height:9,borderRadius:5,backgroundColor:'#7650A4',marginTop:3},chairBaseOccupied:{backgroundColor:C.green},
+  chairLegs:{width:43,flexDirection:'row',justifyContent:'space-between',paddingHorizontal:5},chairLeg:{width:5,height:10,borderBottomLeftRadius:3,borderBottomRightRadius:3,backgroundColor:'#7650A4'},chairLegOccupied:{backgroundColor:C.green},
+  seatName:{color:C.white,fontSize:10,fontWeight:'700',marginTop:5,maxWidth:'100%'},seatProfileName:{color:'#A9F0D0'},
+  seatActions:{marginTop:6},smallAction:{paddingHorizontal:10,paddingVertical:5,backgroundColor:C.card2,borderRadius:9},smallActionText:{color:C.pink,fontSize:10,fontWeight:'900'},
   requestCard:{marginTop:16,padding:13,backgroundColor:C.card,borderRadius:14,borderWidth:1,borderColor:'#4A326A'},
   requestRow:{flexDirection:'row',alignItems:'center',gap:8,marginTop:10},requestName:{flex:1,color:C.white,fontWeight:'700'},
   acceptButton:{backgroundColor:'#245A48',paddingHorizontal:12,paddingVertical:7,borderRadius:9},acceptText:{color:'#9AF0C7',fontWeight:'900'},
