@@ -7,6 +7,7 @@ import PackagesScreen from './PackagesScreen';
 import VIPScreen from './VIPScreen';
 import ProfileFrame from './ProfileFrame';
 import AccountScreen from './AccountScreen';
+import MyReportsScreen from './MyReportsScreen';
 import AdminScreen from './AdminScreen';
 import ChatScreen from './ChatScreen';
 import InboxScreen from './InboxScreen';
@@ -63,6 +64,7 @@ export default function App() {
   const [showPackages, setShowPackages] = useState(false);
   const [showVIP, setShowVIP] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
+  const [showMyReports, setShowMyReports] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -797,6 +799,10 @@ export default function App() {
     return <AdminScreen onBack={() => setShowAdmin(false)} />;
   }
 
+  if (showMyReports) {
+    return <MyReportsScreen userId={session.user.id} onBack={() => setShowMyReports(false)} />;
+  }
+
   if (showAccount) {
     return (
       <AccountScreen
@@ -808,6 +814,7 @@ export default function App() {
           setSelectedMember(current => current ? { ...current, selected_frame_code: frameCode === 'classic' ? null : frameCode } : current);
         }}
         onBack={() => setShowAccount(false)}
+        onOpenMyReports={() => { setShowAccount(false); setShowMyReports(true); }}
       />
     );
   }
