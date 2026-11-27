@@ -185,6 +185,13 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
           >
             <Text style={styles.standbyButtonText}>{micBusy ? '...' : isMicrophoneEnabled ? '🎙️ الميكروفون مفتوح' : '🔇 الميكروفون مكتوم'}</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.filterMenuButton}
+            onPress={() => { setToolsVisible(false); setFiltersVisible(true); }}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.standbyButtonText}>✨ الفلاتر</Text>
+          </TouchableOpacity>
         </View>
       ) : null}
 
@@ -202,6 +209,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
           <VideoTrack
             key={track.publication.trackSid || `${track.participant.identity}-${index}`}
             trackRef={track}
+            objectFit="contain"
             style={styles.video}
           />
         )) : (
@@ -232,15 +240,14 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
       ) : null}
 
 
-      {isHost && !isCall ? (
-        <TouchableOpacity style={styles.filterToggle} onPress={() => setFiltersVisible((visible) => !visible)} activeOpacity={0.85}>
-          <Text style={styles.filterToggleText}>{filtersVisible ? '✕ إغلاق الفلاتر' : '✨ فلاتر الكاميرا'}</Text>
-        </TouchableOpacity>
-      ) : null}
-
       {isHost && !isCall && filtersVisible ? (
         <View style={styles.filterPanel}>
-          <Text style={styles.filterPanelTitle}>اختار فلتر البث</Text>
+          <View style={styles.filterPanelHeader}>
+            <Text style={styles.filterPanelTitle}>اختار فلتر البث</Text>
+            <TouchableOpacity onPress={() => setFiltersVisible(false)} style={styles.filterPanelClose}>
+              <Text style={styles.filterPanelCloseText}>إغلاق ✕</Text>
+            </TouchableOpacity>
+          </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterChoices}>
             {[
               { id: 'none', label: 'بدون', emoji: '🚫' },
@@ -265,7 +272,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
         accessibilityRole="button"
         accessibilityLabel={toolsVisible ? 'إخفاء أدوات البث' : 'إظهار أدوات البث'}
         style={styles.toolsToggle}
-        onPress={() => setToolsVisible((visible) => !visible)}
+        onPress={() => { setFiltersVisible(false); setToolsVisible((visible) => !visible); }}
         activeOpacity={0.85}
       >
         <Text style={styles.toolsToggleText}>{toolsVisible ? '‹' : '›'}</Text>
@@ -631,10 +638,11 @@ const styles = StyleSheet.create({
   videoStage: { ...StyleSheet.absoluteFillObject, backgroundColor: '#05040A', zIndex: 0, elevation: 0 },
   video: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%', backgroundColor: '#05040A', borderRadius: 0 },
   overlayPanelsScroll: { position: 'absolute', top: 210, left: 10, right: 10, bottom: 190, zIndex: 35, elevation: 8 },
-  filterToggle: { position: 'absolute', left: 14, bottom: 178, zIndex: 115, elevation: 34, backgroundColor: 'rgba(25,20,36,0.96)', borderWidth: 1, borderColor: '#8655F5', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 },
-  filterToggleText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
-  filterPanel: { position: 'absolute', left: 10, right: 10, bottom: 220, zIndex: 118, elevation: 36, backgroundColor: 'rgba(15,11,25,0.97)', borderWidth: 1, borderColor: '#8655F5', borderRadius: 18, paddingVertical: 12, paddingHorizontal: 10 },
-  filterPanelTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '900', textAlign: 'right', marginBottom: 9 },
+  filterPanel: { position: 'absolute', top: 210, left: 14, right: 14, zIndex: 118, elevation: 36, backgroundColor: 'rgba(15,11,25,0.97)', borderWidth: 1, borderColor: '#8655F5', borderRadius: 18, paddingVertical: 12, paddingHorizontal: 10 },
+  filterPanelHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 9 },
+  filterPanelTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '900', textAlign: 'right' },
+  filterPanelClose: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 9, backgroundColor: '#34263F' },
+  filterPanelCloseText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
   filterChoices: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 2 },
   filterChoice: { minWidth: 76, paddingVertical: 9, paddingHorizontal: 8, borderRadius: 12, backgroundColor: '#251D31', borderWidth: 1, borderColor: '#44364F', alignItems: 'center' },
   filterChoiceActive: { backgroundColor: '#493078', borderColor: '#8655F5' },
@@ -648,6 +656,7 @@ const styles = StyleSheet.create({
   standbyButton: { flex: 1, backgroundColor: '#34263F', borderWidth: 1, borderColor: '#8A5578', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 8, alignItems: 'center' },
   micButton: { flex: 1, backgroundColor: '#245A48', borderWidth: 1, borderColor: '#3E9B78', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 8, alignItems: 'center' },
   micButtonMuted: { backgroundColor: '#733347', borderColor: '#C45C78' },
+  filterMenuButton: { flex: 0.72, backgroundColor: '#493078', borderWidth: 1, borderColor: '#8655F5', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 8, alignItems: 'center' },
   standbyButtonActive: { backgroundColor: '#245A48', borderColor: '#3E9B78' },
   standbyButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: 'bold' },
   standbyView: { ...StyleSheet.absoluteFillObject, minHeight: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: '#191424', borderRadius: 16, padding: 20 },
