@@ -24,7 +24,7 @@ assert.ok(screen.includes('request_voice_room_seat') && screen.includes('manage_
 assert.ok(screen.includes('chairBack') && screen.includes('chairBase') && screen.includes('chairLegs'), 'Voice room seats must render as recognizable chair shapes');
 assert.ok(screen.includes('source={{ uri: seatAvatar }}') && screen.includes('seatAvatar = occupied ? avatars[seat.user_id]'), 'Occupied chairs must display the seated member real profile avatar');
 assert.ok(screen.includes('onPress={requestSeat}') && screen.includes('seatTapReady'), 'Members must be able to tap an available chair to request sitting');
-assert.ok(screen.includes("seat?.is_open ? 'close' : 'open'"), 'Hosts must be able to open and close seats');
+assert.ok(screen.includes("seatIsOpen ? 'close' : 'open'") && screen.includes("seat?.is_open"), 'Hosts must be able to open and close seats using the current seat state');
 assert.ok(screen.includes('seat_permissions') && token.includes('updateParticipant'), 'LiveKit permissions must change server-side when a speaker is approved or removed');
 assert.ok(token.includes('targetUserId !== user.id'), 'A speaker may revoke only their own mic permission; only the host may change another member');
 assert.ok(token.includes('canPublish: isCall || isHost || (isVoiceRoom && voiceSeatHolder)'), 'Only hosts and approved seat holders may publish in voice rooms');
