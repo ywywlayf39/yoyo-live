@@ -133,17 +133,17 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
   return (
     <View style={styles.room}>
       <View style={styles.roomHeader}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
-          <ProfileFrame frameCode={hostFrameCode} size={42}>
-            {hostAvatar ? <Image source={{ uri: hostAvatar }} style={{ width: '100%', height: '100%' }} /> : <View style={{ flex: 1, backgroundColor: '#34263F', alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#fff' }}>👤</Text></View>}
-          </ProfileFrame>
-          <View>
-            <Text style={styles.hostName}>{hostName || 'بث YOYO LIVE'}</Text>
-            <Text style={styles.roomStatus}>{isCall ? (callType === 'audio' ? 'مكالمة صوتية' : 'مكالمة فيديو') : isHost ? 'أنت تبث الآن' : 'أنت تشاهد البث المباشر'} 🔴</Text>
-            {!isCall ? <Text style={styles.durationText}>مدة البث: {broadcastDuration || '00:00:00'}</Text> : null}
-          </View>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="رجوع" style={styles.backButton} onPress={() => onLeave?.()} activeOpacity={0.85}>
+            <Text style={styles.backButtonText}>‹</Text>
+          </TouchableOpacity>
+          <View style={styles.livePill}><Text style={styles.livePillText}>LIVE</Text></View>
         </View>
-        <View style={styles.livePill}><Text style={styles.livePillText}>LIVE</Text></View>
+        <View style={styles.headerInfo}>
+          <Text numberOfLines={1} style={styles.hostName}>{hostName || 'بث YOYO LIVE'}</Text>
+          <Text style={styles.roomStatus}>{isCall ? (callType === 'audio' ? 'مكالمة صوتية' : 'مكالمة فيديو') : isHost ? 'أنت تبث الآن' : 'أنت تشاهد البث المباشر'}</Text>
+          {!isCall ? <Text style={styles.durationText}>{broadcastDuration || '00:00:00'}</Text> : null}
+        </View>
       </View>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -618,27 +618,31 @@ export default function LiveRoomScreen({ roomName, isHost, isCall = false, callT
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0B0912' },
   room: { flex: 1, padding: 0, backgroundColor: '#05040A' },
-  roomHeader: { position: 'absolute', top: 14, left: 16, right: 16, zIndex: 60, elevation: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 0 },
-  hostName: { color: '#FFFFFF', fontSize: 20, fontWeight: 'bold', textAlign: 'left' },
-  roomStatus: { color: '#AAA1B8', fontSize: 12, marginTop: 3, textAlign: 'left' },
-  durationText: { color: '#F5C451', fontSize: 12, fontWeight: 'bold', marginTop: 4, textAlign: 'left', fontVariant: ['tabular-nums'] },
-  livePill: { backgroundColor: '#E53965', borderRadius: 9, paddingHorizontal: 12, paddingVertical: 7 },
-  livePillText: { color: '#FFFFFF', fontWeight: 'bold' },
+  roomHeader: { position: 'absolute', top: 12, left: 12, right: 12, zIndex: 60, elevation: 20, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  backButton: { width: 32, height: 32, borderRadius: 10, backgroundColor: 'rgba(20,14,30,0.88)', alignItems: 'center', justifyContent: 'center' },
+  backButtonText: { color: '#FFFFFF', fontSize: 25, lineHeight: 28, fontWeight: '600', marginTop: -3 },
+  headerInfo: { flex: 1, alignItems: 'flex-end', marginLeft: 12, paddingRight: 2, maxWidth: '68%' },
+  hostName: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', textAlign: 'right', lineHeight: 25 },
+  roomStatus: { color: '#D4CADD', fontSize: 12, marginTop: 5, textAlign: 'right' },
+  durationText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700', marginTop: 9, textAlign: 'right', fontVariant: ['tabular-nums'], backgroundColor: 'rgba(12,9,20,0.62)', paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8 },
+  livePill: { backgroundColor: '#E53965', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
+  livePillText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 12 },
   videoStage: { ...StyleSheet.absoluteFillObject, backgroundColor: '#05040A', zIndex: 0, elevation: 0 },
   video: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%', backgroundColor: '#05040A', borderRadius: 0 },
   overlayPanelsScroll: { position: 'absolute', top: 210, left: 10, right: 10, bottom: 190, zIndex: 35, elevation: 8 },
-  filterToggle: { position: 'absolute', left: 14, top: 158, zIndex: 115, elevation: 34, backgroundColor: 'rgba(25,20,36,0.94)', borderWidth: 1, borderColor: '#F5C451', borderRadius: 14, paddingHorizontal: 13, paddingVertical: 10 },
-  filterToggleText: { color: '#F5C451', fontSize: 13, fontWeight: '900' },
-  filterPanel: { position: 'absolute', left: 10, right: 10, bottom: 96, zIndex: 118, elevation: 36, backgroundColor: 'rgba(15,11,25,0.97)', borderWidth: 1, borderColor: '#6F4B70', borderRadius: 18, paddingVertical: 12, paddingHorizontal: 10 },
+  filterToggle: { position: 'absolute', left: 14, bottom: 178, zIndex: 115, elevation: 34, backgroundColor: 'rgba(25,20,36,0.96)', borderWidth: 1, borderColor: '#8655F5', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 },
+  filterToggleText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+  filterPanel: { position: 'absolute', left: 10, right: 10, bottom: 220, zIndex: 118, elevation: 36, backgroundColor: 'rgba(15,11,25,0.97)', borderWidth: 1, borderColor: '#8655F5', borderRadius: 18, paddingVertical: 12, paddingHorizontal: 10 },
   filterPanelTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '900', textAlign: 'right', marginBottom: 9 },
   filterChoices: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 2 },
   filterChoice: { minWidth: 76, paddingVertical: 9, paddingHorizontal: 8, borderRadius: 12, backgroundColor: '#251D31', borderWidth: 1, borderColor: '#44364F', alignItems: 'center' },
-  filterChoiceActive: { backgroundColor: '#59304D', borderColor: '#F5C451' },
+  filterChoiceActive: { backgroundColor: '#493078', borderColor: '#8655F5' },
   filterChoiceEmoji: { fontSize: 21, marginBottom: 4 },
   filterChoiceLabel: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
   filterHint: { color: '#BFB3C8', fontSize: 10, textAlign: 'center', marginTop: 8 },
-  toolsToggle: { position: 'absolute', right: 10, top: '46%', zIndex: 110, elevation: 30, width: 42, height: 58, borderRadius: 18, borderWidth: 1, borderColor: '#F5C451', backgroundColor: 'rgba(25,20,36,0.92)', alignItems: 'center', justifyContent: 'center' },
-  toolsToggleText: { color: '#F5C451', fontSize: 34, lineHeight: 38, fontWeight: '900' }, 
+  toolsToggle: { position: 'absolute', right: 12, top: 58, zIndex: 110, elevation: 30, width: 32, height: 32, borderRadius: 10, borderWidth: 1, borderColor: '#8655F5', backgroundColor: 'rgba(25,20,36,0.92)', alignItems: 'center', justifyContent: 'center' },
+  toolsToggleText: { color: '#FFFFFF', fontSize: 22, lineHeight: 25, fontWeight: '700' }, 
   overlayPanelsContent: { paddingBottom: 12, gap: 10 },
   hostControls: { position: 'absolute', top: 100, left: 12, right: 12, zIndex: 55, elevation: 18, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 0 },
   standbyButton: { flex: 1, backgroundColor: '#34263F', borderWidth: 1, borderColor: '#8A5578', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 8, alignItems: 'center' },
@@ -662,6 +666,6 @@ const styles = StyleSheet.create({
   error: { color: '#FF9EAD', textAlign: 'center', marginVertical: 12, lineHeight: 22 },
   reportButton: { backgroundColor: '#34263F', borderWidth: 1, borderColor: '#8A5578', borderRadius: 12, padding: 12, alignItems: 'center', marginTop: 12 },
   reportButtonText: { color: '#F4C5D8', fontSize: 14, fontWeight: 'bold' },
-  leaveButton: { position: 'absolute', bottom: 42, left: 16, right: 16, zIndex: 120, elevation: 32, backgroundColor: '#E53965', borderRadius: 14, paddingVertical: 13, paddingHorizontal: 16, alignItems: 'center', marginTop: 0 }, 
-  leaveButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
+  leaveButton: { position: 'absolute', bottom: 28, alignSelf: 'center', minWidth: 148, zIndex: 120, elevation: 32, backgroundColor: '#E53965', borderRadius: 12, paddingVertical: 9, paddingHorizontal: 16, alignItems: 'center', marginTop: 0 }, 
+  leaveButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: 'bold' },
 });
