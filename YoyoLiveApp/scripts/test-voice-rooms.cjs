@@ -43,7 +43,7 @@ assert.ok(screen.includes("{participants.length} متصل"), 'The connected-memb
 assert.ok(screen.includes('infoIcon') && screen.includes('flexDirection:\'row-reverse\''), 'The listening icon must sit beside, not over, the text');
 assert.ok(screen.includes('paddingBottom:48') && screen.includes('paddingBottom:340'), 'Voice room controls and the full scroll content must clear Android system navigation');
 assert.ok(screen.includes('height:56') && screen.includes('minWidth:132') && screen.includes('direction:\'rtl\''), 'Voice controls must be compact and the eight-seat grid must follow RTL order');
-assert.ok(gifts.includes('voiceLiveSoundToggle: { top: 112 }') && gifts.includes('voiceOpenButton: { bottom: 184 }') && gifts.includes('voiceRoomId && styles.voiceOpenButton'), 'Voice gift controls must not cover the room controls or seat card, without changing video rooms');
+assert.ok(gifts.includes('voiceLiveSoundToggle: { top: 112, left: undefined, right: 16') && gifts.includes('voiceOpenButton: { bottom: 168, left: 16, right: undefined') && gifts.includes('voiceRoomId && styles.voiceOpenButton'), 'Voice gift controls must be inset and separated from the room controls, without changing video rooms');
 assert.ok(screen.includes('chairAvatarFallback') && screen.includes('chairAvatarGlyph') && screen.includes("seatIsOpen ? '＋'") && screen.includes('chairBaseLocked') && screen.includes('chairLegLocked'), 'Open and locked chairs must have distinct visible colors and labels');
 
 assert.ok(membershipMigration.includes('revoke insert, update, delete on public.voice_room_members') && membershipMigration.includes('public.join_voice_room'), 'Members must not forge room membership through direct table writes');
@@ -64,4 +64,4 @@ console.log('YOYO LIVE voice room seats, gifts, and shared music regression chec
 
 assert.ok(screen.includes('roomHeading') && !screen.includes('hostIdentity'), 'The room name and connected count must share one clear header line');
 assert.ok(screen.includes('participantAvatar:{width:36,height:36') && screen.includes('participant:{minWidth:68'), 'Connected member cards and avatars must fit compactly above the footer');
-assert.ok(g.includes('voiceLiveSoundToggle: { top: 112, left: undefined, right: 16') && g.includes('voiceOpenButton: { bottom: 168, left: 16, right: undefined'), 'Voice gift sound and gift buttons must be inset and separated from the connected count');
+assert.ok(gifts.includes('voiceLiveSoundToggle: { top: 112, left: undefined, right: 16') && g.includes('voiceOpenButton: { bottom: 168, left: 16, right: undefined'), 'Voice gift sound and gift buttons must be inset and separated from the connected count');
