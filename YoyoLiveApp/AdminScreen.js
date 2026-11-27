@@ -494,7 +494,7 @@ export default function AdminScreen({ onBack }) {
         ))}
       </ScrollView>
 
-      <View style={styles.financialPanel}>
+      <View style={styles.financialPanel} onLayout={rememberSection('payments')}>
         <Text style={styles.sectionTitle}>💳 إعدادات وسائل الدفع</Text>
         <Text style={styles.memberHint}>حدّث الأرقام وبيانات الحساب هنا. التغييرات تظهر للأعضاء في صفحة الباقات بعد الحفظ.</Text>
         {[
@@ -517,7 +517,7 @@ export default function AdminScreen({ onBack }) {
         </TouchableOpacity>
       </View>
 
-      <View style={[styles.financialPanel,{marginTop:18}]}>
+      <View style={[styles.financialPanel,{marginTop:18}]} onLayout={rememberSection('packages')}>
         <Text style={styles.sectionTitle}>🪙 إدارة باقات العملات</Text>
         <Text style={styles.memberHint}>أدخل الأسعار والعملات التي تعتمدها بنفسك. الباقة غير النشطة لا تظهر للمستخدمين.</Text>
         <TextInput value={packageForm.name} onChangeText={value => setPackageForm(current => ({...current,name:value}))}
@@ -722,7 +722,7 @@ export default function AdminScreen({ onBack }) {
             </View>
           ))}
 
-          <View style={styles.sectionHeader} onLayout={rememberSection('vip')}>
+          <View style={styles.sectionHeader} onLayout={rememberSection('referrals')}>
             <Text style={styles.sectionTitle}>🎁 مكافآت دعوات VIP</Text>
             <TouchableOpacity onPress={loadDashboard}><Text style={styles.refresh}>تحديث ↻</Text></TouchableOpacity>
           </View>
