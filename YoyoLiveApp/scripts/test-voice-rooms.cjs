@@ -44,7 +44,7 @@ assert.ok(screen.includes('infoIcon') && screen.includes('flexDirection:\'row-re
 assert.ok(screen.includes('paddingBottom:48') && screen.includes('paddingBottom:220'), 'Voice room controls must clear Android system navigation');
 assert.ok(screen.includes('gap:16') && screen.includes('minHeight:48'), 'Bulk seat actions must have distinct, easy-to-tap targets');
 assert.ok(gifts.includes('voiceLiveSoundToggle: { top: 112 }') && gifts.includes('voiceOpenButton: { bottom: 184 }') && gifts.includes('voiceRoomId && styles.voiceOpenButton'), 'Voice gift controls must not cover the room controls or seat card, without changing video rooms');
-assert.ok(screen.includes('color:C.pink') && screen.includes('fontSize:32'), 'Open seat plus icons must be visible on dark cards');
+assert.ok(screen.includes('chairAvatarFallback') && screen.includes('chairAvatarGlyph') && screen.includes("seatIsOpen ? '＋'"), 'Open seat plus icons must be visible inside the chair on dark cards');
 
 assert.ok(membershipMigration.includes('revoke insert, update, delete on public.voice_room_members') && membershipMigration.includes('public.join_voice_room'), 'Members must not forge room membership through direct table writes');
 const singleRoomMigration = fs.readFileSync(path.join(root, '..', 'supabase', 'migrations', '20261126193000_one_live_voice_room_per_host.sql'), 'utf8');
