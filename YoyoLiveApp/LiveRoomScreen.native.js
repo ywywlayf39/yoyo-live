@@ -28,7 +28,6 @@ import LiveMusicLibrary from './LiveMusicLibrary';
 import LiveMusicSync from './LiveMusicSync';
 import LiveRoomChat from './LiveRoomChat';
 import LiveBattleVote from './LiveBattleVote';
-import LiveQuizPanel from './LiveQuizPanel';
 import ProfileFrame from './ProfileFrame';
 
 function formatBroadcastDuration(totalSeconds) {
@@ -223,7 +222,6 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
         {!isCall && isHost && userId ? <LiveMusicLibrary roomName={roomName} userId={userId} /> : null}
         
         {!isCall && isHost && userId ? <LiveBattlePanel userId={userId} roomName={roomName} isHost={isHost} /> : null}
-        {!isCall && userId && (isHost || viewerPresenceReady) ? <LiveQuizPanel roomName={roomName} userId={userId} isHost={isHost} /> : null}
         {!isCall && userId ? <LiveBattleVote roomName={roomName} userId={userId} /> : null}
         {!isCall && !isHost && userId ? (
           <TouchableOpacity style={styles.reportButton} onPress={reportLiveRoom} activeOpacity={0.85}>
