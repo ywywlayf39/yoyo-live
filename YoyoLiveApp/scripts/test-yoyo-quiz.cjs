@@ -16,7 +16,7 @@ assert.ok(panel.includes('answered || secondsLeft <= 0'), 'Players must not answ
 assert.ok(panel.includes('correct_index'), 'Correct answer reveal must be driven by server state');
 assert.ok(panel.includes('النقاط للترتيب والتحدي فقط'), 'Quiz points must be clearly non-cash');
 assert.ok(!/wallets|wallet_transactions|purchased_coins|withdrawal/i.test(panel), 'Quiz must not touch wallet or withdrawal logic');
-assert.ok(room.includes("import LiveQuizPanel from './LiveQuizPanel'"), 'Native room must import quiz panel');
-assert.ok(room.includes('<LiveQuizPanel') && room.includes('userId={userId}'), 'Quiz must be mounted in the live room');
+assert.ok(!room.includes("import LiveQuizPanel from './LiveQuizPanel'"), 'YOYO QUIZ must not be imported into live rooms');
+assert.ok(!room.includes('<LiveQuizPanel'), 'YOYO QUIZ must not be mounted in the live room');
 
 console.log('YOYO QUIZ static checks passed.');
