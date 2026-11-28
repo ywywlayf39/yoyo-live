@@ -4,6 +4,7 @@ import { usePreventScreenCapture } from 'expo-screen-capture';
 import AuthScreen from './AuthScreen';
 import ProfileScreen from './ProfileScreen';
 import WalletScreen from './WalletScreen';
+import FrameStoreScreen from './FrameStoreScreen';
 import PackagesScreen from './PackagesScreen';
 import VIPScreen from './VIPScreen';
 import ProfileFrame from './ProfileFrame';
@@ -65,6 +66,7 @@ export default function App() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutMessage, setLogoutMessage] = useState('');
   const [showWallet, setShowWallet] = useState(false);
+  const [showFrameStore, setShowFrameStore] = useState(false);
   const [showPackages, setShowPackages] = useState(false);
   const [showVIP, setShowVIP] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
@@ -331,7 +333,7 @@ export default function App() {
       setProfileLoading(true);
       const { data, error } = await supabase
         .from('profiles')
-         .select('id, display_name, avatar_url, birth_date')
+         .select('id, display_name, avatar_url, birth_date, selected_frame_code')
         .eq('id', session.user.id)
         .maybeSingle();
       if (active && !error && data?.birth_date) {
@@ -824,6 +826,7 @@ export default function App() {
         email={session.user.email}
         onAvatarChanged={(avatarUrl) => setCurrentProfile(current => current ? { ...current, avatar_url: avatarUrl } : current)}
         onFrameChanged={(frameCode) => {
+          setCurrentProfile(current => current ? { ...current, selected_frame_code: frameCode === 'classic' ? null : frameCode } : current);
           setMembers(current => current.map(member => member.id === session.user.id ? { ...member, selected_frame_code: frameCode === 'classic' ? null : frameCode } : member));
           setSelectedMember(current => current ? { ...current, selected_frame_code: frameCode === 'classic' ? null : frameCode } : current);
         }}
@@ -839,6 +842,20 @@ export default function App() {
 
   if (showVIP) {
     return <VIPScreen userId={session.user.id} onBack={() => setShowVIP(false)} />;
+  }
+
+  if (showFrameStore) {
+    return <FrameStoreScreen
+      userId={session.user.id}
+      onBack={() => setShowFrameStore(false)}
+      onOpenPackages={() => { setShowFrameStore(false); setShowPackages(true); }}
+      onFrameChanged={(frameCode) => {
+        const value = frameCode === 'classic' ? null : frameCode;
+        setCurrentProfile(current => current ? { ...current, selected_frame_code: value } : current);
+        setMembers(current => current.map(member => member.id === session.user.id ? { ...member, selected_frame_code: value } : member));
+        setSelectedMember(current => current ? { ...current, selected_frame_code: value } : current);
+      }}
+    />;
   }
 
   if (showWallet) {
@@ -962,9 +979,9 @@ export default function App() {
             </View>
             <View style={{ paddingHorizontal: 16, paddingBottom: 18 }}>
               <View style={{ flexDirection: 'row-reverse', alignItems: 'flex-end', marginTop: -42, gap: 12 }}>
-                <View style={{ width: 104, height: 112, borderRadius: 17, overflow: 'hidden', borderWidth: 3, borderColor: C.pink, backgroundColor: C.card2 }}>
+                <ProfileFrame frameCode={selectedMember.selected_frame_code} size={104}>
                   {selectedMember.avatar_url ? <Image source={{ uri: selectedMember.avatar_url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" /> : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: C.white, fontSize: 42 }}>👤</Text></View>}
-                </View>
+                </ProfileFrame>
                 <View style={{ flex: 1, paddingBottom: 7, alignItems: 'flex-end' }}>
                   {!!selectedMember.selected_frame_code && <Text style={{ color: C.gold, fontSize: 11, fontWeight: '900', marginBottom: 5 }}>✦ VIP MEMBER</Text>}
                   <Text style={{ color: C.white, fontSize: 21, fontWeight: '900', textAlign: 'right' }}>{selectedMember.display_name || 'عضو YOYO LIVE'}</Text>
@@ -1062,11 +1079,9 @@ export default function App() {
                                                                                                                                                                                                                                                                                                                                                                                                                                                       عالمك .. لحظتك .. جمهورك
                                                                                                                                                                                                                                                                                                                                                                                                                                                                   </Text>
         <TouchableOpacity style={styles.currentUser} onPress={() => setShowAccount(true)}>
-          {currentProfile?.avatar_url ? (
-            <Image source={{ uri: currentProfile.avatar_url }} style={styles.currentUserAvatar} />
-          ) : (
-            <View style={styles.currentUserFallback}><Text style={styles.currentUserFallbackText}>👤</Text></View>
-          )}
+          <ProfileFrame frameCode={currentProfile?.selected_frame_code} size={58}>
+            {currentProfile?.avatar_url ? <Image source={{ uri: currentProfile.avatar_url }} style={{ width: '100%', height: '100%' }} /> : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={styles.currentUserFallbackText}>👤</Text></View>}
+          </ProfileFrame>
           <Text style={styles.currentUserName} numberOfLines={1}>
             {currentProfile?.display_name || 'حسابي'}
           </Text>
@@ -1079,6 +1094,7 @@ export default function App() {
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     <TouchableOpacity onPress={() => setShowPackages(true)}><Text style={styles.coins}>🎁 العملات</Text></TouchableOpacity>
           <TouchableOpacity onPress={() => setShowVIP(true)}><Text style={styles.coins}>👑 VIP</Text></TouchableOpacity>
           <TouchableOpacity onPress={() => setShowWallet(true)}><Text style={styles.coins}>🪙 المحفظة</Text></TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowFrameStore(true)}><Text style={styles.coins}>💎 إطارات 3D</Text></TouchableOpacity>
           <TouchableOpacity onPress={() => setShowFollowScreen(true)}><Text style={styles.coins}>👥 المتابعة</Text></TouchableOpacity>
           <TouchableOpacity onPress={() => setShowDiscover(true)}><Text style={styles.coins}>🔴 البثوث</Text></TouchableOpacity>
           <TouchableOpacity disabled={loggingOut} onPress={() => Alert.alert('تسجيل الخروج', 'هل تريد تسجيل الخروج من YOYO LIVE؟', [{ text: 'إلغاء', style: 'cancel' }, { text: 'خروج', style: 'destructive', onPress: handleLogout }])}><Text style={styles.coins}>{loggingOut ? 'جارٍ الخروج…' : '🚪 خروج'}</Text></TouchableOpacity>
