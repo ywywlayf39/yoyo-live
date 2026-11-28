@@ -875,7 +875,7 @@ export default function App() {
       }}
       onTitleChanged={(titleCode) => {
         setCurrentProfile(current => current ? { ...current, selected_title: titleCode || null } : current);
-        setMembers(current => current.map(member => member.id === session.user.id ? { ...member, selected_title_code: titleCode || null } : member));
+        setMembers(current => current.map(member => member.id === session.user.id ? { ...member, selected_title: titleCode || null } : member));
         setSelectedMember(current => current?.id === session.user.id ? { ...current, selected_title_code: titleCode || null } : current);
       }}
     />;
