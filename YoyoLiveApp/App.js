@@ -356,7 +356,7 @@ export default function App() {
       setProfileLoading(true);
       const { data, error } = await supabase
         .from('profiles')
-         .select('id, display_name, avatar_url, birth_date, selected_frame_code, selected_title_code')
+         .select('id, display_name, avatar_url, birth_date, selected_frame_code, selected_title')
         .eq('id', session.user.id)
         .maybeSingle();
       if (active && !error && data?.birth_date) {
@@ -413,7 +413,7 @@ export default function App() {
       setMembersError('');
       const [{ data, error }, { data: blockRows, error: blockError }] = await Promise.all([
         supabase.from('member_public_profiles')
-          .select('id, display_name, avatar_url, country, selected_frame_code, selected_title_code, selected_title_text, selected_title_emoji')
+          .select('id, display_name, avatar_url, country, selected_frame_code, selected_title')
           .neq('id', session.user.id)
           .order('display_name', { ascending: true })
           .limit(50),
@@ -874,7 +874,7 @@ export default function App() {
         setSelectedMember(current => current ? { ...current, selected_frame_code: value } : current);
       }}
       onTitleChanged={(titleCode) => {
-        setCurrentProfile(current => current ? { ...current, selected_title_code: titleCode || null } : current);
+        setCurrentProfile(current => current ? { ...current, selected_title: titleCode || null } : current);
         setMembers(current => current.map(member => member.id === session.user.id ? { ...member, selected_title_code: titleCode || null } : member));
         setSelectedMember(current => current?.id === session.user.id ? { ...current, selected_title_code: titleCode || null } : current);
       }}
@@ -1012,7 +1012,7 @@ export default function App() {
                 <View style={{ flex: 1, paddingBottom: 7, alignItems: 'flex-end' }}>
                   {!!selectedMember.selected_frame_code && <Text style={{ color: C.gold, fontSize: 11, fontWeight: '900', marginBottom: 5 }}>✦ VIP MEMBER</Text>}
                   <Text style={{ color: C.white, fontSize: 21, fontWeight: '900', textAlign: 'right' }}>{selectedMember.display_name || 'عضو YOYO LIVE'}</Text>
-                  <TitleBadge code={selectedMember.selected_title_code} title={selectedMember.selected_title_text} emoji={selectedMember.selected_title_emoji} />
+                  <TitleBadge code={selectedMember.selected_title} />
                   {!!selectedMember.country && <Text style={{ color: C.muted, fontSize: 13, marginTop: 5 }}>🌍 {selectedMember.country}</Text>}
                   <Text style={{ color: '#48D597', fontSize: 11, marginTop: 5 }}>● عضو في مجتمع YOYO LIVE</Text>
                 </View>
@@ -1173,7 +1173,7 @@ export default function App() {
                       </View>
                       <View style={styles.memberListDetails}>
                         <Text style={styles.memberListName} numberOfLines={1}>{member.display_name || 'عضو YOYO'}</Text>
-                        <TitleBadge compact code={member.selected_title_code} title={member.selected_title_text} emoji={member.selected_title_emoji} />
+                        <TitleBadge compact code={member.selected_title} />
                         <Text style={styles.memberListMeta}>● عضو في مجتمع YOYO LIVE</Text>
                         {!!member.country && <Text style={styles.memberListCountry}>{member.country}</Text>}
                       </View>
