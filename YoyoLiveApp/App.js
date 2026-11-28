@@ -1137,8 +1137,9 @@ export default function App() {
                   <TouchableOpacity key={member.id} style={styles.memberListCard} activeOpacity={0.86} onPress={() => setSelectedMember(member)}>
                     <View style={styles.memberListInfo}>
                       <View style={styles.memberAvatarCard}>
-                        {member.avatar_url ? <Image source={{ uri: member.avatar_url }} style={styles.memberListImage} resizeMode="cover" /> : <View style={styles.memberListFallback}><Text style={styles.memberListInitial}>{String(member.display_name || '?').trim().charAt(0)}</Text></View>}
-                        {!!member.selected_frame_code && <View style={styles.memberVipTag}><Text style={styles.memberVipText}>VIP</Text></View>}
+                        <ProfileFrame frameCode={member.selected_frame_code} size={54}>
+                          {member.avatar_url ? <Image source={{ uri: member.avatar_url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" /> : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={styles.memberListInitial}>{String(member.display_name || '?').trim().charAt(0)}</Text></View>}
+                        </ProfileFrame>
                       </View>
                       <View style={styles.memberListDetails}>
                         <Text style={styles.memberListName} numberOfLines={1}>{member.display_name || 'عضو YOYO'}</Text>
