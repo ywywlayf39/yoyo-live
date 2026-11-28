@@ -4,6 +4,7 @@ import { usePreventScreenCapture } from 'expo-screen-capture';
 import AuthScreen from './AuthScreen';
 import ProfileScreen from './ProfileScreen';
 import WalletScreen from './WalletScreen';
+import StoreScreen from './StoreScreen';
 import PackagesScreen from './PackagesScreen';
 import VIPScreen from './VIPScreen';
 import ProfileFrame from './ProfileFrame';
@@ -65,6 +66,7 @@ export default function App() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutMessage, setLogoutMessage] = useState('');
   const [showWallet, setShowWallet] = useState(false);
+  const [showStore, setShowStore] = useState(false);
   const [showPackages, setShowPackages] = useState(false);
   const [showVIP, setShowVIP] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
@@ -837,6 +839,10 @@ export default function App() {
     return <PackagesScreen userId={session.user.id} onBack={() => setShowPackages(false)} />;
   }
 
+  if (showStore) {
+    return <StoreScreen userId={session.user.id} onBack={() => setShowStore(false)} onOpenPackages={() => { setShowStore(false); setShowPackages(true); }} />;
+  }
+
   if (showVIP) {
     return <VIPScreen userId={session.user.id} onBack={() => setShowVIP(false)} />;
   }
@@ -1078,6 +1084,7 @@ export default function App() {
 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     <TouchableOpacity onPress={() => setShowPackages(true)}><Text style={styles.coins}>🎁 العملات</Text></TouchableOpacity>
           <TouchableOpacity onPress={() => setShowVIP(true)}><Text style={styles.coins}>👑 VIP</Text></TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowStore(true)}><Text style={styles.coins}>🛍️ المتجر</Text></TouchableOpacity>
           <TouchableOpacity onPress={() => setShowWallet(true)}><Text style={styles.coins}>🪙 المحفظة</Text></TouchableOpacity>
           <TouchableOpacity onPress={() => setShowFollowScreen(true)}><Text style={styles.coins}>👥 المتابعة</Text></TouchableOpacity>
           <TouchableOpacity onPress={() => setShowDiscover(true)}><Text style={styles.coins}>🔴 البثوث</Text></TouchableOpacity>
