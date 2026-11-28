@@ -117,6 +117,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [sendNotice, setSendNotice] = useState('');
   const voiceGiftRequestId = useRef(null);
   const [giftFeedReady, setGiftFeedReady] = useState(false);
   const [voiceGiftFeedReady, setVoiceGiftFeedReady] = useState(false);
@@ -279,7 +280,8 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
     }
     const runner = Animated.parallel(animations);
     runner.start();
-    const timer = setTimeout(() => setIncoming((current) => current?.id === incoming.id ? null : current), effect?.duration || 4500);
+    const displayDuration = incoming.coinCost >= 100000 ? 4800 : incoming.coinCost >= 1000 ? 3900 : 3100;
+    const timer = setTimeout(() => setIncoming((current) => current?.id === incoming.id ? null : current), Math.min(effect?.duration || displayDuration, displayDuration));
     return () => { runner.stop(); clearTimeout(timer); };
   }, [incoming, entrance, glow, drift, shake, depthSpin]);
 
@@ -341,7 +343,9 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
     voiceGiftRequestId.current = null;
     await refreshBalance();
     setVisible(false);
-    Alert.alert('وصلت هديتك 🎁', 'تم إرسال ' + selectedGift.name + ' إلى العضو بنجاح.');
+    // In a live room the realtime gift event renders the actual gift animation for everyone;
+    // avoid a blocking system alert over the video. Profile gifts get a small inline confirmation.
+    if (profileMode) setSendNotice('تم إرسال ' + selectedGift.name + ' بنجاح 🎁');
   };
 
   const effect = incoming ? effectFor({ animation_key: incoming.animationKey }) : null;
@@ -375,7 +379,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
         </View>
         <Text style={styles.megaLabel}>{incoming.coinCost >= 100000 ? 'هدية أسطورية وصلت!' : 'هدية وصلت!'}</Text>
         <Animated.View style={{ transform: [{ perspective: 700 }, { rotateY }, { rotateX }, { scale: entrance.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1.08] }) }] }}>
-          <View style={{ width: incoming.coinCost >= 100000 ? 190 : 160, height: incoming.coinCost >= 100000 ? 190 : 160, alignItems: "center", justifyContent: "center", marginVertical: 2 }}><Text style={{ fontSize: incoming.coinCost >= 100000 ? 112 : 92 }}>{incoming.emoji || "🎁"}</Text></View>
+          <View style={{ width: incoming.coinCost >= 100000 ? 86 : 70, height: incoming.coinCost >= 100000 ? 86 : 70, alignItems: "center", justifyContent: "center", marginVertical: 0 }}><Text style={{ fontSize: incoming.coinCost >= 100000 ? 66 : 54 }}>{incoming.emoji || "🎁"}</Text></View>
         </Animated.View>
         <Text style={[styles.effectTitle, { color: tint }]}>{incoming.name}</Text>
         <Text style={styles.effectSubtitle}>
@@ -397,6 +401,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
       <TouchableOpacity disabled={!receiverId} style={[styles.openButton, voiceRoomId && styles.voiceOpenButton, !receiverId && { opacity: 0.45 }]} onPress={() => setVisible(true)}>
         <Text style={styles.openButtonText}>{profileMode ? '🎁 إرسال هدية' : '🎁 الهدايا'}</Text>
       </TouchableOpacity>
+      {sendNotice ? <View style={styles.sendNotice}><Text style={styles.sendNoticeText}>{sendNotice}</Text></View> : null}
       {visible ? <View style={styles.modalOverlay}>
         <View style={styles.backdrop}>
           <View style={styles.sheet}>
@@ -475,6 +480,8 @@ const styles = StyleSheet.create({
   soundToggleText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   openButton: { position: 'absolute', right: 16, bottom: 116, backgroundColor: COLORS.pink, borderRadius: 24, paddingVertical: 12, paddingHorizontal: 18, zIndex: 20, elevation: 8 },
   openButtonText: { color: '#fff', fontWeight: '900', fontSize: 15 },
+  sendNotice: { position: 'absolute', right: 16, bottom: 164, backgroundColor: 'rgba(25,20,36,0.94)', borderWidth: 1, borderColor: '#4D3A65', borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12, zIndex: 30 },
+  sendNoticeText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
   modalOverlay: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 1000, elevation: 30 },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'flex-end' },
   sheet: { backgroundColor: COLORS.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 34, maxHeight: '88%', borderWidth: 1, borderColor: '#45375B' },
@@ -511,15 +518,15 @@ const styles = StyleSheet.create({
   quantityText: { color: '#fff', fontWeight: 'bold' },
   sendButton: { backgroundColor: COLORS.pink, borderRadius: 14, padding: 14, alignItems: 'center' },
   sendText: { color: '#fff', fontWeight: '900' },
-  effectLayer: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, zIndex: 80, alignItems: 'center', justifyContent: 'center' },
-  effectGlow: { position: 'absolute', width: 300, height: 300, borderWidth: 5, borderRadius: 150, backgroundColor: 'rgba(170,120,255,0.08)' },
-  effectCard: { width: '88%', maxWidth: 360, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(13,8,23,0.94)', borderWidth: 2, borderRadius: 28, paddingVertical: 22, paddingHorizontal: 16, elevation: 18, shadowOpacity: 0.65, shadowRadius: 24, shadowOffset: { width: 0, height: 0 } },
+  effectLayer: { position: 'absolute', left: 12, right: 12, top: undefined, bottom: 178, zIndex: 80, alignItems: 'center', justifyContent: 'flex-end' },
+  effectGlow: { position: 'absolute', width: 142, height: 142, borderWidth: 3, borderRadius: 71, backgroundColor: 'rgba(170,120,255,0.06)' },
+  effectCard: { width: 224, maxWidth: '78%', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(13,8,23,0.78)', borderWidth: 1.5, borderRadius: 20, paddingVertical: 8, paddingHorizontal: 12, elevation: 12, shadowOpacity: 0.5, shadowRadius: 14, shadowOffset: { width: 0, height: 0 } },
   particleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 18, marginBottom: 4 },
   particle: { fontSize: 27 },
-  megaLabel: { color: '#FFFFFF', fontSize: 13, fontWeight: '900', letterSpacing: 1, marginBottom: 8 },
+  megaLabel: { color: '#FFFFFF', fontSize: 10, fontWeight: '900', letterSpacing: 0.6, marginBottom: 2 },
   effectEmoji: { fontSize: 72 },
   megaEmoji: { fontSize: 104 },
-  effectTitle: { fontSize: 24, fontWeight: '900', marginTop: 8, textAlign: 'center' },
-  effectSubtitle: { color: '#FFFFFF', fontSize: 14, marginTop: 8, textAlign: 'center' },
+  effectTitle: { fontSize: 16, fontWeight: '900', marginTop: 2, textAlign: 'center' },
+  effectSubtitle: { color: '#FFFFFF', fontSize: 10, marginTop: 3, textAlign: 'center' },
   valueLabel: { fontSize: 17, fontWeight: '900', marginTop: 10 },
 });
