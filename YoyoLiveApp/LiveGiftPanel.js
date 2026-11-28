@@ -166,13 +166,10 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
       if (error) console.error('YOYO gift catalog:', error);
       setGifts(data || []);
       setSelectedGift((data || [])[0] || null);
-      const { data: recentTransfers, error: transfersError } = await supabase
-        .from('gift_transfers').select('gift_id,quantity').order('created_at', { ascending: false }).limit(500);
-      if (!transfersError && recentTransfers) {
+      const { data: popularity, error: popularityError } = await supabase.rpc('yoyo_gift_popularity');
+      if (!popularityError && popularity) {
         const counts = {};
-        recentTransfers.forEach((transfer) => {
-          counts[transfer.gift_id] = (counts[transfer.gift_id] || 0) + Number(transfer.quantity || 1);
-        });
+        popularity.forEach((item) => { counts[item.gift_id] = Number(item.sent_count || 0); });
         setPopularGiftCounts(counts);
       }
       setLoading(false);
