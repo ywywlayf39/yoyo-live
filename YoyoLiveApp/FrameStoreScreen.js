@@ -157,7 +157,7 @@ export default function FrameStoreScreen({ userId, onBack, onOpenPackages, onFra
         <Text style={s.heroEyebrow}>YOUR STYLE • YOUR STATUS</Text>
         <Text style={s.heroTitle}>{storeTab==='frames'?'خلي حضورك مختلف':'اختار لقب يميزك'}</Text>
         <Text style={s.heroText}>{storeTab==='frames'?'إطارات بتصميمات وتأثيرات مختلفة، مش مجرد تغيير ألوان.':'ألقاب حصرية تظهر بجوار اسمك في الملف الشخصي والشات والبث المباشر.'}</Text>
-        <Text style={s.heroCount}>{frames.length} مقتنيات متاحة الآن</Text>
+        <Text style={s.heroCount}>{storeTab==='frames'?frames.length:titles.length} {storeTab==='frames'?'إطارات متاحة الآن':'ألقاب متاحة الآن'}</Text>
       </View>
       <View style={s.heroAvatar}>
         <ProfileFrame frameCode={selected || 'vip_royal'} size={94}>
