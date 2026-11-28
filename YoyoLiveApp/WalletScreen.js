@@ -162,7 +162,7 @@ export default function WalletScreen({ userId, onBack, onOpenPackages }) {
 
   const submitWithdrawal = () => {
     const available = Number(wallet?.earned_points || 0);
-    const points = Math.floor(available);
+    const points = Math.floor(available / MIN_WITHDRAWAL_POINTS) * MIN_WITHDRAWAL_POINTS;
     if (points < MIN_WITHDRAWAL_POINTS) {
       Alert.alert('النقاط غير كافية', 'يمكنك طلب السحب عند الوصول إلى 100,000 نقطة مكتسبة على الأقل.');
       return;
@@ -171,10 +171,11 @@ export default function WalletScreen({ userId, onBack, onOpenPackages }) {
       Alert.alert('بيانات الاستلام ناقصة', 'اكتب رقم المحفظة أو معرف InstaPay أو بيانات الحساب بشكل صحيح.');
       return;
     }
+    const remaining = available - points;
     const amount = (points / MIN_WITHDRAWAL_POINTS) * EGP_PER_100K_POINTS;
     Alert.alert(
       'تأكيد طلب السحب',
-      'سيتم حجز ' + coins(points) + ' نقطة من رصيدك وتحويلها إلى نقاط معلّقة لحين مراجعة الأدمن. القيمة التقديرية ' + money(amount) + ' جنيه.',
+      'سيتم حجز ' + coins(points) + ' نقطة فقط (مضاعفات 100,000)، ويتبقى ' + coins(remaining) + ' نقطة في محفظتك. القيمة التقديرية ' + money(amount) + ' جنيه.',
       [
         { text: 'إلغاء', style: 'cancel' },
         { text: 'إرسال الطلب', onPress: async () => {
@@ -301,7 +302,7 @@ export default function WalletScreen({ userId, onBack, onOpenPackages }) {
 
               <View style={styles.withdrawPanel}>
                 <Text style={styles.cardTitle}>💸 طلب سحب النقاط</Text>
-                <Text style={styles.muted}>الحد الأدنى لطلب السحب 100,000 نقطة. يمكنك طلب رصيدك المكتسب بالكامل فوق الحد الأدنى، وتظل النقاط محجوزة لحين مراجعة الإدارة.</Text>
+                <Text style={styles.muted}>الحد الأدنى 100,000 نقطة، والسحب يكون بمضاعفات 100,000 فقط. التطبيق يسحب أكبر عدد كامل من المضاعفات ويترك باقي النقاط في محفظتك لحين طلب لاحق.</Text>
                 <Text style={styles.financialLabel}>طريقة استلام الأرباح</Text>
                 <View style={styles.methodRow}>
                   {[
@@ -326,6 +327,12 @@ export default function WalletScreen({ userId, onBack, onOpenPackages }) {
                   maxLength={300}
                 />
                 <Text style={styles.payoutPrivacy}>بيانات الاستلام تظهر للأدمن المصرح له فقط لمراجعة طلبك.</Text>
+                <View style={styles.conversionPreview}>
+                  <Text style={styles.muted}>النقاط التي سيتم سحبها الآن</Text>
+                  <Text style={styles.conversionValue}>{coins(Math.floor(Number(wallet.earned_points || 0) / MIN_WITHDRAWAL_POINTS) * MIN_WITHDRAWAL_POINTS)} نقطة</Text>
+                  <Text style={styles.muted}>المتبقي في محفظتك: {coins(Number(wallet.earned_points || 0) % MIN_WITHDRAWAL_POINTS)} نقطة</Text>
+                  <Text style={styles.muted}>المبلغ التقديري: {money(Math.floor(Number(wallet.earned_points || 0) / MIN_WITHDRAWAL_POINTS) * EGP_PER_100K_POINTS)} جنيه</Text>
+                </View>
                 <TouchableOpacity
                   style={[styles.withdrawSubmit, (withdrawalBusy || Number(wallet.earned_points || 0) < MIN_WITHDRAWAL_POINTS) && styles.withdrawDisabled]}
                   onPress={submitWithdrawal}
