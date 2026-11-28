@@ -208,7 +208,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
               {hostAvatar ? <Image source={{ uri: hostAvatar }} style={{ width: '100%', height: '100%' }} /> : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#34263F' }}><Text style={styles.standbyAvatarEmoji}>👤</Text></View>}
             </ProfileFrame>
             <Text style={styles.standbyTitle}>{hostName || 'صاحب البث'}</Text>
-            <TitleBadge code={hostTitle?.code} title={hostTitle?.title} emoji={hostTitle?.emoji} />
+            <TitleBadge code={hostTitle} />
             <Text style={styles.standbyText}>في وضع الانتظار</Text>
             <Text style={styles.standbySubtext}>الصوت مستمر ويمكنك الاستماع للبث</Text>
           </View>
