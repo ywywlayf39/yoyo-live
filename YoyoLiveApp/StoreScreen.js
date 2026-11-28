@@ -65,11 +65,9 @@ export default function StoreScreen({ userId, onBack, onOpenPackages }) {
 
   const buyFrame = async (frame) => {
     if (busyId) return;
-    if (frame.vip_only) {
-      Alert.alert('إطار VIP', 'هذا الإطار مخصص لأعضاء VIP. راجع باقات VIP أولاً.');
-      return;
-    }
-    if (Number(frame.coin_cost) > balance) {
+    const alreadyOwned = ownedFrames.includes(frame.code);
+    const shouldSelect = alreadyOwned || frame.vip_only || Number(frame.coin_cost) === 0;
+    if (!shouldSelect && Number(frame.coin_cost) > balance) {
       Alert.alert('رصيد غير كافٍ', 'اشحن محفظتك ثم ارجع لإكمال الشراء.', [
         { text: 'لاحقًا', style: 'cancel' },
         { text: 'شحن المحفظة', onPress: onOpenPackages },
@@ -78,7 +76,7 @@ export default function StoreScreen({ userId, onBack, onOpenPackages }) {
     }
     setBusyId(frame.code);
     try {
-      const rpc = Number(frame.coin_cost) > 0 ? 'yoyo_unlock_profile_frame' : 'yoyo_select_profile_frame';
+      const rpc = shouldSelect ? 'yoyo_select_profile_frame' : 'yoyo_unlock_profile_frame';
       const { error: purchaseError } = await supabase.rpc(rpc, { p_frame_code: frame.code });
       if (purchaseError) throw purchaseError;
       Alert.alert('تم بنجاح', 'تم تفعيل الإطار على ملفك الشخصي.');
@@ -145,8 +143,8 @@ export default function StoreScreen({ userId, onBack, onOpenPackages }) {
         {type === 'gift' ? (
           <Text style={styles.giftHint}>ترسل الهدية من داخل البث المباشر</Text>
         ) : (
-          <TouchableOpacity disabled={busyId === id || (isFrame && owned)} onPress={() => isFrame ? buyFrame(item) : buyItem(item)} style={[styles.action, owned && styles.ownedAction]}>
-            {busyId === id ? <ActivityIndicator color={C.white} /> : <Text style={styles.actionText}>{owned ? (isFrame ? 'مملوك' : 'تفعيل') : 'شراء'}</Text>}
+          <TouchableOpacity disabled={busyId === id} onPress={() => isFrame ? buyFrame(item) : buyItem(item)} style={[styles.action, owned && styles.ownedAction]}>
+            {busyId === id ? <ActivityIndicator color={C.white} /> : <Text style={styles.actionText}>{owned ? 'تفعيل' : 'شراء'}</Text>}
           </TouchableOpacity>
         )}
       </View>
