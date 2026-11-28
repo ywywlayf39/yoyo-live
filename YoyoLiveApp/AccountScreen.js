@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { File } from 'expo-file-system';
 import { supabase } from './supabase';
 import ProfileFrame from './ProfileFrame';
+import TitleBadge from './TitleBadge';
 
 const countries = ['مصر','السعودية','الإمارات','الكويت','قطر','البحرين','عمان','الأردن','العراق','لبنان','المغرب','الجزائر','تونس','ليبيا','السودان','فلسطين','اليمن','سوريا','تركيا','ألمانيا','فرنسا','بريطانيا','أمريكا','كندا','أخرى'];
 
@@ -30,7 +31,7 @@ export default function AccountScreen({ userId, email, onBack, onAvatarChanged, 
   const loadProfile = async () => {
     setLoading(true);
     const { data, error: loadError } = await supabase.from('profiles')
-      .select('display_name,country,gender,birth_date,avatar_url,selected_frame_code')
+      .select('display_name,country,gender,birth_date,avatar_url,selected_frame_code,selected_title')
       .eq('id', userId).maybeSingle();
     if (loadError) setError('تعذر تحميل بيانات الحساب: ' + loadError.message);
     else {
@@ -232,6 +233,7 @@ export default function AccountScreen({ userId, email, onBack, onAvatarChanged, 
             <TouchableOpacity style={styles.avatarWrap} onPress={changeAvatar} disabled={uploading}>
               {profile?.avatar_url ? <Image source={{ uri: profile.avatar_url }} style={styles.avatar} /> : <View style={styles.avatarPlaceholder}><Text style={styles.avatarEmoji}>👤</Text></View>}
               <Text style={styles.changePhoto}>{uploading ? 'جارٍ رفع الصورة...' : '📷 تغيير صورة البروفايل'}</Text>
+              <TitleBadge code={profile?.selected_title} />
             </TouchableOpacity>
             <View style={styles.frameSection}>
               <Text style={styles.frameTitle}>إطار صورتك الشخصية</Text>
