@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
 import { supabase } from './supabase';
 import ProfileFrame from './ProfileFrame';
+import TitleBadge from './TitleBadge';
 
 const C = { bg:'#090711', card:'#171222', card2:'#21182F', purple:'#8655F5', gold:'#F5C451', white:'#FFFFFF', muted:'#AAA1B8', pink:'#F34E9B' };
 const fmt = n => Number(n || 0).toLocaleString('ar-EG');
@@ -22,8 +23,12 @@ const FRAME_META = {
 };
 const tierName = tier => ({ starter:'بداية', gold:'ذهبي', diamond:'ماسي', legendary:'أسطوري' }[tier] || 'مميز');
 
-export default function FrameStoreScreen({ userId, onBack, onOpenPackages, onFrameChanged }) {
+export default function FrameStoreScreen({ userId, onBack, onOpenPackages, onFrameChanged, onTitleChanged }) {
   const [frames,setFrames] = useState([]);
+  const [titles,setTitles] = useState([]);
+  const [ownedTitles,setOwnedTitles] = useState([]);
+  const [selectedTitle,setSelectedTitle] = useState(null);
+  const [storeTab,setStoreTab] = useState('frames');
   const [owned,setOwned] = useState([]);
   const [selected,setSelected] = useState('classic');
   const [avatar,setAvatar] = useState(null);
@@ -37,15 +42,17 @@ export default function FrameStoreScreen({ userId, onBack, onOpenPackages, onFra
     if (!userId) return;
     setLoading(true);
     try {
-      const [f,p,o,w,v] = await Promise.all([
+      const [f,p,o,w,v,t,ot] = await Promise.all([
         supabase.from('yoyo_profile_frames').select('code,name,tier,coin_cost,vip_only').eq('active',true).order('sort_order'),
-        supabase.from('profiles').select('avatar_url,selected_frame_code').eq('id',userId).maybeSingle(),
+        supabase.from('profiles').select('avatar_url,selected_frame_code,selected_title_code').eq('id',userId).maybeSingle(),
         supabase.from('yoyo_user_profile_frames').select('frame_code').eq('user_id',userId),
         supabase.from('wallets').select('purchased_coins').eq('user_id',userId).maybeSingle(),
         supabase.from('user_vip_subscriptions').select('status,expires_at').eq('user_id',userId).maybeSingle(),
+        supabase.from('yoyo_profile_titles').select('code,title,emoji,rarity,coin_cost').eq('active',true).order('sort_order'),
+        supabase.from('yoyo_user_profile_titles').select('title_code').eq('user_id',userId),
       ]);
-      const failed=[f,p,o,w,v].find(x=>x.error); if(failed) throw failed.error;
-      setFrames(f.data||[]); setAvatar(p.data?.avatar_url||null);
+      const failed=[f,p,o,w,v,t,ot].find(x=>x.error); if(failed) throw failed.error;
+      setFrames(f.data||[]); setTitles(t.data||[]); setOwnedTitles((ot.data||[]).map(x=>x.title_code)); setSelectedTitle(p.data?.selected_title_code||null); setAvatar(p.data?.avatar_url||null);
       setSelected(p.data?.selected_frame_code||'classic');
       setOwned((o.data||[]).map(x=>x.frame_code));
       setBalance(Number(w.data?.purchased_coins||0));
@@ -60,6 +67,50 @@ export default function FrameStoreScreen({ userId, onBack, onOpenPackages, onFra
     if (filter === 'vip') return frame.vip_only;
     return frame.tier === filter;
   }), [frames,filter]);
+
+  const chooseTitle = title => {
+    const hasIt=ownedTitles.includes(title.code);
+    if(hasIt) {
+      Alert.alert('تفعيل اللقب','هل تريد إظهار لقب '+title.title+' بجوار اسمك؟',[
+        {text:'إلغاء',style:'cancel'},
+        {text:'تفعيل',onPress:async()=>{
+          setBusy('title:'+title.code);
+          const {error}=await supabase.rpc('yoyo_select_profile_title',{p_title_code:title.code});
+          if(error) Alert.alert('تعذر التفعيل',error.message);
+          else { setSelectedTitle(title.code); onTitleChanged?.(title.code); Alert.alert('تم التفعيل','لقبك ظاهر الآن بجوار اسمك.'); }
+          setBusy('');
+        }}
+      ]);
+      return;
+    }
+    if(balance<Number(title.coin_cost)) {
+      Alert.alert('رصيد غير كافٍ','اشحن الكوينز ثم ارجع لشراء اللقب.',[{text:'إلغاء',style:'cancel'},{text:'شحن الكوينز',onPress:onOpenPackages}]);
+      return;
+    }
+    Alert.alert('تأكيد شراء اللقب','سيتم خصم '+fmt(title.coin_cost)+' كوينز لامتلاك لقب '+title.title+'. هل تريد المتابعة؟',[
+      {text:'إلغاء',style:'cancel'},
+      {text:'شراء وتفعيل',onPress:async()=>{
+        setBusy('title:'+title.code);
+        const {data,error}=await supabase.rpc('yoyo_purchase_profile_title',{p_title_code:title.code});
+        if(error) Alert.alert('فشل الشراء',error.message);
+        else {
+          setOwnedTitles(cur=>cur.includes(title.code)?cur:[...cur,title.code]);
+          if(data?.balance!==undefined) setBalance(Number(data.balance));
+          setSelectedTitle(title.code); onTitleChanged?.(title.code);
+          Alert.alert('مبروك! 🎉','اشتريت لقب '+title.title+' وأصبح ظاهرًا بجوار اسمك.');
+        }
+        setBusy('');
+      }}
+    ]);
+  };
+
+  const clearTitle = async () => {
+    setBusy('title-clear');
+    const {error}=await supabase.rpc('yoyo_select_profile_title',{p_title_code:null});
+    if(error) Alert.alert('تعذر إخفاء اللقب',error.message);
+    else { setSelectedTitle(null); onTitleChanged?.(null); }
+    setBusy('');
+  };
 
   const activate = async code => {
     setBusy(code);
@@ -102,8 +153,8 @@ export default function FrameStoreScreen({ userId, onBack, onOpenPackages, onFra
     <View style={s.hero}>
       <View style={s.heroCopy}>
         <Text style={s.heroEyebrow}>YOUR STYLE • YOUR STATUS</Text>
-        <Text style={s.heroTitle}>خلي حضورك مختلف</Text>
-        <Text style={s.heroText}>إطارات بتصميمات وتأثيرات مختلفة، مش مجرد تغيير ألوان.</Text>
+        <Text style={s.heroTitle}>{storeTab==='frames'?'خلي حضورك مختلف':'اختار لقب يميزك'}</Text>
+        <Text style={s.heroText}>{storeTab==='frames'?'إطارات بتصميمات وتأثيرات مختلفة، مش مجرد تغيير ألوان.':'ألقاب حصرية تظهر بجوار اسمك في الملف الشخصي والشات والبث المباشر.'}</Text>
         <Text style={s.heroCount}>{frames.length} مقتنيات متاحة الآن</Text>
       </View>
       <View style={s.heroAvatar}>
@@ -114,47 +165,76 @@ export default function FrameStoreScreen({ userId, onBack, onOpenPackages, onFra
       </View>
       <Text style={s.heroSpark}>✦</Text>
     </View>
-    <View style={s.sectionHead}>
-      <Text style={s.sectionTitle}>اختار مجموعتك</Text>
-      <Text style={s.sectionHint}>اسحب للتصفح</Text>
+    <View style={s.storeTabs}>
+      <TouchableOpacity onPress={()=>setStoreTab('frames')} style={[s.storeTab,storeTab==='frames'&&s.storeTabActive]}><Text style={[s.storeTabText,storeTab==='frames'&&s.storeTabTextActive]}>🖼️ إطارات الصور</Text></TouchableOpacity>
+      <TouchableOpacity onPress={()=>setStoreTab('titles')} style={[s.storeTab,storeTab==='titles'&&s.storeTabActive]}><Text style={[s.storeTabText,storeTab==='titles'&&s.storeTabTextActive]}>🏅 الألقاب</Text></TouchableOpacity>
     </View>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filters}>
-      {FILTERS.map(item=><TouchableOpacity key={item.id} onPress={()=>setFilter(item.id)} style={[s.filter,filter===item.id&&s.filterActive]}><Text style={[s.filterText,filter===item.id&&s.filterTextActive]}>{item.label}</Text></TouchableOpacity>)}
-    </ScrollView>
-    {loading ? <ActivityIndicator color={C.gold} size="large" style={{marginTop:40}}/> :
-    <ScrollView contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
-      <View style={s.listHeading}><Text style={s.listHeadingTitle}>{filter==='all'?'كل المقتنيات':FILTERS.find(x=>x.id===filter)?.label}</Text><Text style={s.listHeadingCount}>{visibleFrames.length} عنصر</Text></View>
-      <View style={s.grid}>
-      {visibleFrames.map(frame=>{
-        const meta=FRAME_META[frame.code]||{icon:'✦',subtitle:'تصميم حصري',tone:C.purple,tag:tierName(frame.tier)};
-        const isOwned=owned.includes(frame.code), isVip=frame.vip_only&&vip, isSelected=selected===frame.code;
-        const locked=frame.vip_only&&!isOwned&&!vip;
-        const price=Number(frame.coin_cost||0)===0?'مجاني':frame.vip_only&&!isOwned&&!vip?'VIP حصري':isOwned?'مملوك لك':fmt(frame.coin_cost)+' كوينز';
-        return <View key={frame.code} style={[s.card,{borderColor:isSelected?meta.tone:'#382C49'}]}>
-          <View style={[s.cardTop,{backgroundColor:meta.tone+'18'}]}>
-            <View style={[s.tierPill,{borderColor:meta.tone}]}><Text style={[s.tierText,{color:meta.tone}]}>{meta.tag}</Text></View>
-            {isSelected&&<View style={s.activePill}><Text style={s.activePillText}>✓ مركب</Text></View>}
-            <View style={s.frameStage}>
-              <View style={[s.stageHalo,{borderColor:meta.tone+'66',shadowColor:meta.tone}]}/>
-              <ProfileFrame frameCode={frame.code} size={104}>
-                {avatar?<Image source={{uri:avatar}} style={{width:'100%',height:'100%'}} resizeMode="cover"/>:<View style={s.avatarFallback}><Text style={{fontSize:38}}>👤</Text></View>}
-              </ProfileFrame>
-              <Text style={s.frameIcon}>{meta.icon}</Text>
-            </View>
-          </View>
-          <View style={s.cardInfo}>
-            <Text style={s.name}>{frame.name}</Text>
-            <Text style={s.description}>{meta.subtitle}</Text>
-            <View style={s.priceLine}><Text style={s.price}>{price}</Text><Text style={s.priceIcon}>{locked?'🔒':isOwned?'✓':'✦'}</Text></View>
-            <TouchableOpacity disabled={!!busy||isSelected} onPress={()=>choose(frame)} style={[s.action,isSelected&&s.active,locked&&s.locked]}>
-              {busy===frame.code?<ActivityIndicator color={C.white}/>:<Text style={s.actionText}>{isSelected?'مفعّل الآن':isOwned||isVip?'تفعيل المظهر':locked?'عضوية VIP':'اقتناء وتفعيل'}</Text>}
-            </TouchableOpacity>
-          </View>
-        </View>;
-      })}
+    {loading ? <ActivityIndicator color={C.gold} size="large" style={{marginTop:40}}/> : storeTab==='frames' ? <>
+      <View style={s.sectionHead}>
+        <Text style={s.sectionTitle}>اختار مجموعتك</Text>
+        <Text style={s.sectionHint}>اسحب للتصفح</Text>
       </View>
-      {!visibleFrames.length&&<Text style={s.empty}>لا توجد مقتنيات في هذه المجموعة حاليًا.</Text>}
-      <Text style={s.note}>جرّب المعاينة أولًا. الشراء لا يتم إلا بعد تأكيدك، والإطار الذي تملكه يمكنك تغييره مجانًا في أي وقت.</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filters}>
+        {FILTERS.map(item=><TouchableOpacity key={item.id} onPress={()=>setFilter(item.id)} style={[s.filter,filter===item.id&&s.filterActive]}><Text style={[s.filterText,filter===item.id&&s.filterTextActive]}>{item.label}</Text></TouchableOpacity>)}
+      </ScrollView>
+      <ScrollView contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
+        <View style={s.listHeading}><Text style={s.listHeadingTitle}>{filter==='all'?'كل المقتنيات':FILTERS.find(x=>x.id===filter)?.label}</Text><Text style={s.listHeadingCount}>{visibleFrames.length} عنصر</Text></View>
+        <View style={s.grid}>
+        {visibleFrames.map(frame=>{
+          const meta=FRAME_META[frame.code]||{icon:'✦',subtitle:'تصميم حصري',tone:C.purple,tag:tierName(frame.tier)};
+          const isOwned=owned.includes(frame.code), isVip=frame.vip_only&&vip, isSelected=selected===frame.code;
+          const locked=frame.vip_only&&!isOwned&&!vip;
+          const price=Number(frame.coin_cost||0)===0?'مجاني':frame.vip_only&&!isOwned&&!vip?'VIP حصري':isOwned?'مملوك لك':fmt(frame.coin_cost)+' كوينز';
+          return <View key={frame.code} style={[s.card,{borderColor:isSelected?meta.tone:'#382C49'}]}>
+            <View style={[s.cardTop,{backgroundColor:meta.tone+'18'}]}>
+              <View style={[s.tierPill,{borderColor:meta.tone}]}><Text style={[s.tierText,{color:meta.tone}]}>{meta.tag}</Text></View>
+              {isSelected&&<View style={s.activePill}><Text style={s.activePillText}>✓ مركب</Text></View>}
+              <View style={s.frameStage}>
+                <View style={[s.stageHalo,{borderColor:meta.tone+'66',shadowColor:meta.tone}]}/>
+                <ProfileFrame frameCode={frame.code} size={104}>
+                  {avatar?<Image source={{uri:avatar}} style={{width:'100%',height:'100%'}} resizeMode="cover"/>:<View style={s.avatarFallback}><Text style={{fontSize:38}}>👤</Text></View>}
+                </ProfileFrame>
+                <Text style={s.frameIcon}>{meta.icon}</Text>
+              </View>
+            </View>
+            <View style={s.cardInfo}>
+              <Text style={s.name}>{frame.name}</Text>
+              <Text style={s.description}>{meta.subtitle}</Text>
+              <View style={s.priceLine}><Text style={s.price}>{price}</Text><Text style={s.priceIcon}>{locked?'🔒':isOwned?'✓':'✦'}</Text></View>
+              <TouchableOpacity disabled={!!busy||isSelected} onPress={()=>choose(frame)} style={[s.action,isSelected&&s.active,locked&&s.locked]}>
+                {busy===frame.code?<ActivityIndicator color={C.white}/>:<Text style={s.actionText}>{isSelected?'مفعّل الآن':isOwned||isVip?'تفعيل المظهر':locked?'عضوية VIP':'اقتناء وتفعيل'}</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>;
+        })}
+        </View>
+        {!visibleFrames.length&&<Text style={s.empty}>لا توجد مقتنيات في هذه المجموعة حاليًا.</Text>}
+        <Text style={s.note}>جرّب المعاينة أولًا. الشراء لا يتم إلا بعد تأكيدك، والإطار الذي تملكه يمكنك تغييره مجانًا في أي وقت.</Text>
+      </ScrollView>
+    </> : <ScrollView contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
+      <View style={s.listHeading}><Text style={s.listHeadingTitle}>ألقاب YOYO الحصرية</Text><Text style={s.listHeadingCount}>{titles.length} لقب</Text></View>
+      <View style={s.grid}>
+        {titles.map(title=>{
+          const hasIt=ownedTitles.includes(title.code), active=selectedTitle===title.code;
+          const tone=({star:'#A9B7C9',lion:'#D69A48',legend:'#E46B45',king:'#F5C451',diamond:'#7DDCF5',emperor:'#C19BFF'}[title.code]||C.purple);
+          return <View key={title.code} style={[s.titleCard,{borderColor:active?tone:'#382C49'}]}>
+            <View style={[s.titleStage,{borderColor:tone+'66'}]}>
+              <Text style={{fontSize:42}}>{title.emoji}</Text>
+              <TitleBadge code={title.code} title={title.title} emoji={title.emoji}/>
+              {active&&<Text style={{color:'#8EF0C4',fontSize:9,fontWeight:'900',marginTop:7}}>✓ لقبك الحالي</Text>}
+            </View>
+            <Text style={s.titleName}>{title.title}</Text>
+            <Text style={s.description}>{({star:'بداية مشوارك في YOYO',lion:'شخصية قوية وحضور مميز',legend:'لقب الأسطورة بين الأعضاء',king:'هيبة ملكية لعشاق التميز',diamond:'بريق الماس في كل ظهور',emperor:'أعلى ألقاب المتجر ندرة'}[title.code]||'لقب حصري لأعضاء YOYO')}</Text>
+            <Text style={s.titlePrice}>{hasIt?'مملوك لك':fmt(title.coin_cost)+' كوينز'}</Text>
+            <TouchableOpacity disabled={!!busy||active} onPress={()=>chooseTitle(title)} style={[s.action,active&&s.active]}>
+              {busy==='title:'+title.code?<ActivityIndicator color={C.white}/>:<Text style={s.actionText}>{active?'مفعّل الآن':hasIt?'تفعيل اللقب':'شراء وتفعيل'}</Text>}
+            </TouchableOpacity>
+          </View>;
+        })}
+      </View>
+      {selectedTitle&&<TouchableOpacity disabled={!!busy} onPress={clearTitle} style={s.clearTitle}><Text style={s.clearTitleText}>إخفاء اللقب الحالي</Text></TouchableOpacity>}
+      {!titles.length&&<Text style={s.empty}>الألقاب غير متاحة حاليًا.</Text>}
+      <Text style={s.note}>كل لقب تشتريه يظل ملكك، ويمكنك تغييره أو إخفاؤه مجانًا. سيظهر بجوار اسمك في ملفك والشات والبث المباشر.</Text>
     </ScrollView>}
   </SafeAreaView>;
 }
@@ -172,8 +252,9 @@ const s=StyleSheet.create({
  heroAvatar:{width:112,alignItems:'center',justifyContent:'center'},heroCaption:{color:'#D4C2F1',fontSize:9,fontWeight:'800',marginTop:8},heroSpark:{position:'absolute',top:8,left:14,color:C.gold,fontSize:24},
  sectionHead:{marginHorizontal:18,flexDirection:'row',justifyContent:'space-between',alignItems:'center'},sectionTitle:{color:C.white,fontSize:15,fontWeight:'900'},sectionHint:{color:C.muted,fontSize:10},
  filters:{paddingHorizontal:16,paddingVertical:11,gap:8},filter:{paddingVertical:9,paddingHorizontal:16,borderRadius:14,backgroundColor:C.card2,borderWidth:1,borderColor:'#342943'},filterActive:{backgroundColor:'#4B2C68',borderColor:'#B58AF6'},filterText:{color:C.muted,fontWeight:'800',fontSize:11},filterTextActive:{color:C.white},
+ storeTabs:{flexDirection:'row',marginHorizontal:16,marginBottom:12,padding:4,borderRadius:14,backgroundColor:C.card,borderWidth:1,borderColor:'#3C3150'},storeTab:{flex:1,paddingVertical:11,alignItems:'center',borderRadius:11},storeTabActive:{backgroundColor:'#4B2C68',borderWidth:1,borderColor:'#A77BE8'},storeTabText:{color:C.muted,fontSize:11,fontWeight:'900'},storeTabTextActive:{color:C.white},
  list:{paddingHorizontal:14,paddingBottom:30},listHeading:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:10},listHeadingTitle:{color:'#E9DDF8',fontSize:13,fontWeight:'900'},listHeadingCount:{color:C.muted,fontSize:10},
- grid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',rowGap:12},card:{width:'48.5%',backgroundColor:C.card,borderRadius:18,borderWidth:1,overflow:'hidden'},cardTop:{height:160,alignItems:'center',justifyContent:'center',position:'relative'},tierPill:{position:'absolute',top:10,right:10,paddingHorizontal:8,paddingVertical:4,borderRadius:8,borderWidth:1,backgroundColor:'#120D1D'},tierText:{fontSize:9,fontWeight:'900'},activePill:{position:'absolute',top:10,left:10,paddingHorizontal:7,paddingVertical:4,borderRadius:8,backgroundColor:'#194C3D'},activePillText:{color:'#8EF0C4',fontSize:8,fontWeight:'900'},
+ grid:{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-between',rowGap:12},titleCard:{width:'48.5%',backgroundColor:C.card,borderRadius:18,borderWidth:1,padding:12,alignItems:'center'},titleStage:{width:'100%',minHeight:118,borderRadius:14,backgroundColor:'#21182F',borderWidth:1,alignItems:'center',justifyContent:'center',padding:10},titleName:{color:C.white,fontWeight:'900',fontSize:14,marginTop:10},titlePrice:{color:C.gold,fontSize:11,fontWeight:'900',marginTop:10},clearTitle:{alignSelf:'center',marginTop:18,padding:12,borderRadius:10,backgroundColor:'#33243D',borderWidth:1,borderColor:'#7950A5'},clearTitleText:{color:'#E7D4FF',fontWeight:'900',fontSize:11},card:{width:'48.5%',backgroundColor:C.card,borderRadius:18,borderWidth:1,overflow:'hidden'},cardTop:{height:160,alignItems:'center',justifyContent:'center',position:'relative'},tierPill:{position:'absolute',top:10,right:10,paddingHorizontal:8,paddingVertical:4,borderRadius:8,borderWidth:1,backgroundColor:'#120D1D'},tierText:{fontSize:9,fontWeight:'900'},activePill:{position:'absolute',top:10,left:10,paddingHorizontal:7,paddingVertical:4,borderRadius:8,backgroundColor:'#194C3D'},activePillText:{color:'#8EF0C4',fontSize:8,fontWeight:'900'},
  frameStage:{width:126,height:126,alignItems:'center',justifyContent:'center'},stageHalo:{position:'absolute',width:116,height:116,borderRadius:58,borderWidth:2,shadowOpacity:0.8,shadowRadius:18,elevation:8},frameIcon:{position:'absolute',right:0,bottom:4,fontSize:22,textShadowColor:'#000',textShadowRadius:8},
  cardInfo:{padding:11},name:{color:C.white,fontWeight:'900',fontSize:12,textAlign:'right'},description:{color:C.muted,fontSize:9,textAlign:'right',marginTop:4,minHeight:14},priceLine:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginTop:10},price:{color:C.gold,fontSize:10,fontWeight:'900'},priceIcon:{color:'#C8A8FF',fontSize:13},
  action:{marginTop:10,paddingVertical:10,borderRadius:10,backgroundColor:C.purple,alignItems:'center'},active:{backgroundColor:'#194C3D'},locked:{backgroundColor:'#40334B'},actionText:{color:C.white,fontWeight:'900',fontSize:10},
