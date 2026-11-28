@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { supabase } from './supabase';
+import TitleBadge from './TitleBadge';
 
 const C = {
   bg: '#0B0912',
@@ -168,6 +169,7 @@ export default function ChatScreen({ userId, member, onBack, onStartCall, onRepo
         </TouchableOpacity>
         <View style={styles.headerInfo}>
           <Text style={styles.name}>{member.display_name || 'عضو YOYO LIVE'}</Text>
+          <TitleBadge compact code={member.selected_title_code} title={member.selected_title_text} emoji={member.selected_title_emoji} />
           <Text style={styles.subtitle}>محادثة خاصة 🔒</Text>
         </View>
         <View style={styles.callActions}>
