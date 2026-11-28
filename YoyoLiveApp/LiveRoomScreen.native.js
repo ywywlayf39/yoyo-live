@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Image,
   SafeAreaView,
   ScrollView,
@@ -48,6 +49,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
   const [toolsVisible, setToolsVisible] = useState(false);
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [selectedVideoFilter, setSelectedVideoFilter] = useState('none');
+  const [reportDialogVisible, setReportDialogVisible] = useState(false);
   const showStandby = isHost ? isStandby : roomStandby;
 
   useEffect(() => {
@@ -94,12 +96,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
 
   const reportLiveRoom = () => {
     if (!userId || isHost || isCall) return;
-    Alert.alert('الإبلاغ عن البث', 'اختار سبب الإبلاغ عن البث الحالي:', [
-      { text: 'محتوى غير لائق', onPress: () => submitLiveReport('محتوى غير لائق') },
-      { text: 'إساءة أو تحرش أثناء البث', onPress: () => submitLiveReport('إساءة أو تحرش أثناء البث') },
-      { text: 'احتيال أو انتحال شخصية', onPress: () => submitLiveReport('احتيال أو انتحال شخصية') },
-      { text: 'إلغاء', style: 'cancel' },
-    ]);
+    setReportDialogVisible(true);
   };
 
   const submitLiveReport = async (reason) => {
@@ -297,6 +294,23 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
       {!isCall && userId && (isHost || viewerPresenceReady) ? <LiveMusicSync roomName={roomName} userId={userId} isHost={isHost} /> : null}
       {!isCall && userId ? <LiveRoomChat roomName={roomName} userId={userId} isHost={isHost} /> : null}
       {!isCall && userId ? <LiveGiftPanel userId={userId} receiverId={receiverId} isHost={isHost} roomName={roomName} onOpenPackages={onOpenPackages} /> : null}
+
+      <Modal visible={reportDialogVisible} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setReportDialogVisible(false)}>
+        <View style={styles.reportModalOverlay}>
+          <View style={styles.reportModalCard}>
+            <Text style={styles.reportModalTitle}>الإبلاغ عن البث</Text>
+            <Text style={styles.reportModalHint}>اختار سبب الإبلاغ. لن يتم إرسال البلاغ إلا بعد اختيار السبب.</Text>
+            {['محتوى غير لائق', 'إساءة أو تحرش أثناء البث', 'احتيال أو انتحال شخصية'].map((reason) => (
+              <TouchableOpacity key={reason} style={styles.reportReasonButton} onPress={() => { setReportDialogVisible(false); submitLiveReport(reason); }} activeOpacity={0.85}>
+                <Text style={styles.reportReasonText}>{reason}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={styles.reportCancelButton} onPress={() => setReportDialogVisible(false)} activeOpacity={0.85}>
+              <Text style={styles.reportCancelText}>إلغاء البلاغ والرجوع</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
     </View>
   );
@@ -682,6 +696,14 @@ const styles = StyleSheet.create({
   error: { color: '#FF9EAD', textAlign: 'center', marginVertical: 12, lineHeight: 22 },
   reportButton: { backgroundColor: '#34263F', borderWidth: 1, borderColor: '#8A5578', borderRadius: 12, padding: 12, alignItems: 'center', marginTop: 12 },
   reportButtonText: { color: '#F4C5D8', fontSize: 14, fontWeight: 'bold' },
+  reportModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.72)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 22, paddingVertical: 28 },
+  reportModalCard: { width: '100%', maxWidth: 420, backgroundColor: '#191424', borderWidth: 1, borderColor: '#8655F5', borderRadius: 20, padding: 18, elevation: 40 },
+  reportModalTitle: { color: '#FFFFFF', fontSize: 19, fontWeight: '900', textAlign: 'right', marginBottom: 8 },
+  reportModalHint: { color: '#C8BED2', fontSize: 13, lineHeight: 21, textAlign: 'right', marginBottom: 12 },
+  reportReasonButton: { backgroundColor: '#2A2038', borderWidth: 1, borderColor: '#49345E', borderRadius: 12, paddingVertical: 13, paddingHorizontal: 12, marginTop: 8 },
+  reportReasonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', textAlign: 'right' },
+  reportCancelButton: { backgroundColor: '#382536', borderWidth: 1, borderColor: '#B85A82', borderRadius: 12, paddingVertical: 13, paddingHorizontal: 12, marginTop: 14, alignItems: 'center' },
+  reportCancelText: { color: '#FFD6E5', fontSize: 14, fontWeight: '900' },
   leaveButton: { position: 'absolute', top: 112, right: 14, minWidth: 142, minHeight: 46, zIndex: 300, elevation: 50, backgroundColor: '#D91F4B', borderWidth: 2, borderColor: '#FFFFFF', borderRadius: 14, paddingVertical: 11, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center', shadowColor: '#000000', shadowOpacity: 0.45, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
   leaveButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '900', textAlign: 'center' },
 });
