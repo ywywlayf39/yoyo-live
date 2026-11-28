@@ -44,15 +44,15 @@ export default function FrameStoreScreen({ userId, onBack, onOpenPackages, onFra
     try {
       const [f,p,o,w,v,t,ot] = await Promise.all([
         supabase.from('yoyo_profile_frames').select('code,name,tier,coin_cost,vip_only').eq('active',true).order('sort_order'),
-        supabase.from('profiles').select('avatar_url,selected_frame_code,selected_title_code').eq('id',userId).maybeSingle(),
+        supabase.from('profiles').select('avatar_url,selected_frame_code,selected_title').eq('id',userId).maybeSingle(),
         supabase.from('yoyo_user_profile_frames').select('frame_code').eq('user_id',userId),
         supabase.from('wallets').select('purchased_coins').eq('user_id',userId).maybeSingle(),
         supabase.from('user_vip_subscriptions').select('status,expires_at').eq('user_id',userId).maybeSingle(),
-        supabase.from('yoyo_profile_titles').select('code,title,emoji,rarity,coin_cost').eq('active',true).order('sort_order'),
-        supabase.from('yoyo_user_profile_titles').select('title_code').eq('user_id',userId),
+        supabase.from('yoyo_store_items').select('id,item_code,name,description,emoji,coin_cost').eq('category','title').eq('active',true).order('sort_order'),
+        supabase.from('yoyo_user_store_inventory').select('item_id').eq('user_id',userId),
       ]);
       const failed=[f,p,o,w,v,t,ot].find(x=>x.error); if(failed) throw failed.error;
-      setFrames(f.data||[]); setTitles(t.data||[]); setOwnedTitles((ot.data||[]).map(x=>x.title_code)); setSelectedTitle(p.data?.selected_title_code||null); setAvatar(p.data?.avatar_url||null);
+      setFrames(f.data||[]); setTitles(t.data||[]); setOwnedTitles((ot.data||[]).map(x=>x.item_id)); setSelectedTitle(p.data?.selected_title||null); setAvatar(p.data?.avatar_url||null);
       setSelected(p.data?.selected_frame_code||'classic');
       setOwned((o.data||[]).map(x=>x.frame_code));
       setBalance(Number(w.data?.purchased_coins||0));
@@ -69,15 +69,15 @@ export default function FrameStoreScreen({ userId, onBack, onOpenPackages, onFra
   }), [frames,filter]);
 
   const chooseTitle = title => {
-    const hasIt=ownedTitles.includes(title.code);
+    const hasIt=ownedTitles.includes(title.id);
     if(hasIt) {
-      Alert.alert('تفعيل اللقب','هل تريد إظهار لقب '+title.title+' بجوار اسمك؟',[
+      Alert.alert('تفعيل اللقب','هل تريد إظهار لقب '+title.name+' بجوار اسمك؟',[
         {text:'إلغاء',style:'cancel'},
         {text:'تفعيل',onPress:async()=>{
-          setBusy('title:'+title.code);
-          const {error}=await supabase.rpc('yoyo_select_profile_title',{p_title_code:title.code});
+          setBusy('title:'+title.item_code);
+          const {error}=await supabase.rpc('yoyo_equip_store_item',{p_item_id:title.id});
           if(error) Alert.alert('تعذر التفعيل',error.message);
-          else { setSelectedTitle(title.code); onTitleChanged?.(title.code); Alert.alert('تم التفعيل','لقبك ظاهر الآن بجوار اسمك.'); }
+          else { setSelectedTitle(title.item_code); onTitleChanged?.(title.item_code); Alert.alert('تم التفعيل','لقبك ظاهر الآن بجوار اسمك.'); }
           setBusy('');
         }}
       ]);
@@ -91,12 +91,15 @@ export default function FrameStoreScreen({ userId, onBack, onOpenPackages, onFra
       {text:'إلغاء',style:'cancel'},
       {text:'شراء وتفعيل',onPress:async()=>{
         setBusy('title:'+title.code);
-        const {data,error}=await supabase.rpc('yoyo_purchase_profile_title',{p_title_code:title.code});
+        const {data,error}=await supabase.rpc('yoyo_purchase_store_item',{p_item_id:title.id});
         if(error) Alert.alert('فشل الشراء',error.message);
         else {
-          setOwnedTitles(cur=>cur.includes(title.code)?cur:[...cur,title.code]);
+          setOwnedTitles(cur=>cur.includes(title.id)?cur:[...cur,title.id]);
           if(data?.balance!==undefined) setBalance(Number(data.balance));
-          setSelectedTitle(title.code); onTitleChanged?.(title.code);
+          const {error: equipError}=await supabase.rpc('yoyo_equip_store_item',{p_item_id:title.id});
+          if(equipError) Alert.alert('تم الشراء','تم حفظ اللقب في مقتنياتك، لكن تعذر تفعيله الآن. يمكنك تفعيله من المتجر لاحقًا.');
+          else { setSelectedTitle(title.item_code); onTitleChanged?.(title.item_code); }
+          if(!equipError) Alert.alert('مبروك! 🎉','اشتريت لقب '+title.name+' وأصبح ظاهرًا بجوار اسمك.');
           Alert.alert('مبروك! 🎉','اشتريت لقب '+title.title+' وأصبح ظاهرًا بجوار اسمك.');
         }
         setBusy('');
@@ -106,7 +109,7 @@ export default function FrameStoreScreen({ userId, onBack, onOpenPackages, onFra
 
   const clearTitle = async () => {
     setBusy('title-clear');
-    const {error}=await supabase.rpc('yoyo_select_profile_title',{p_title_code:null});
+    const {error}=await supabase.rpc('yoyo_clear_profile_title');
     if(error) Alert.alert('تعذر إخفاء اللقب',error.message);
     else { setSelectedTitle(null); onTitleChanged?.(null); }
     setBusy('');
