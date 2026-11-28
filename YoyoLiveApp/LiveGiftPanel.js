@@ -37,11 +37,14 @@ const COLORS = {
   pink: '#F34E9B', gold: '#F5C451', white: '#FFFFFF', muted: '#AAA1B8',
 };
 const CATEGORIES = [
-  { id: 'starter', label: 'اقتصادية' },
-  { id: 'popular', label: 'مميزة' },
-  { id: 'premium', label: 'فخمة' },
-  { id: 'legendary', label: 'أسطورية' },
-  { id: 'animals', label: '🐾 عالم الحيوانات' },
+  { id: 'all', label: '🎁 الكل' },
+  { id: 'top', label: '🔥 الأكثر إرسالاً' },
+  { id: 'starter', label: '🌸 اقتصادية' },
+  { id: 'popular', label: '💖 مميزة' },
+  { id: 'premium', label: '💎 فخمة' },
+  { id: 'legendary', label: '👑 أسطورية' },
+  { id: 'animals', label: '🐾 الحيوانات' },
+  { id: 'vip', label: '✨ VIP' },
 ];
 
 const GIFT_ANIMATION_EFFECTS = {
@@ -107,7 +110,8 @@ function effectFor(gift) {
 export default function LiveGiftPanel({ userId, receiverId, isHost = false, roomName, voiceRoomId, onOpenPackages, profileMode = false }) {
   const [visible, setVisible] = useState(false);
   const [gifts, setGifts] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('starter');
+  const [popularGiftCounts, setPopularGiftCounts] = useState({});
+  const [selectedCategory, setSelectedCategory] = useState('top');
   const [selectedGift, setSelectedGift] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [balance, setBalance] = useState(0);
@@ -162,6 +166,15 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
       if (error) console.error('YOYO gift catalog:', error);
       setGifts(data || []);
       setSelectedGift((data || [])[0] || null);
+      const { data: recentTransfers, error: transfersError } = await supabase
+        .from('gift_transfers').select('gift_id,quantity').order('created_at', { ascending: false }).limit(500);
+      if (!transfersError && recentTransfers) {
+        const counts = {};
+        recentTransfers.forEach((transfer) => {
+          counts[transfer.gift_id] = (counts[transfer.gift_id] || 0) + Number(transfer.quantity || 1);
+        });
+        setPopularGiftCounts(counts);
+      }
       setLoading(false);
       await refreshBalance();
     };
@@ -273,10 +286,20 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
     return () => { runner.stop(); clearTimeout(timer); };
   }, [incoming, entrance, glow, drift, shake, depthSpin]);
 
-  const visibleGifts = useMemo(
-    () => gifts.filter((gift) => gift.category === selectedCategory),
-    [gifts, selectedCategory],
-  );
+  const visibleGifts = useMemo(() => {
+    let list = gifts;
+    if (['starter', 'popular', 'premium', 'legendary', 'animals'].includes(selectedCategory)) {
+      list = gifts.filter((gift) => gift.category === selectedCategory);
+    } else if (selectedCategory === 'vip') {
+      list = gifts.filter((gift) => Number(gift.coin_cost) >= 1000);
+    }
+    if (selectedCategory === 'top') {
+      return [...list].sort((a, b) =>
+        (popularGiftCounts[b.id] || 0) - (popularGiftCounts[a.id] || 0) ||
+        Number(b.coin_cost) - Number(a.coin_cost));
+    }
+    return [...list].sort((a, b) => Number(a.coin_cost) - Number(b.coin_cost));
+  }, [gifts, selectedCategory, popularGiftCounts]);
 
   const sendGift = async () => {
     if (!selectedGift || !receiverId || (!profileMode && !roomName && !voiceRoomId) || sending) return;
@@ -385,6 +408,7 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
               <TouchableOpacity onPress={() => setVisible(false)}><Text style={styles.close}>إغلاق ✕</Text></TouchableOpacity>
             </View>
             <Text style={styles.balance}>رصيدك: 🪙 {balance.toLocaleString('ar-EG')}</Text>
+            <Text style={styles.catalogHint}>اختار هديتك، وحدد العدد، وشوف إجمالي الكوينز قبل الإرسال.</Text>
             <TouchableOpacity style={styles.soundSetting} onPress={toggleGiftSounds}><Text style={styles.soundToggleText}>{soundEnabled ? '🔊 كتم أصوات الهدايا' : '🔇 تشغيل أصوات الهدايا'}</Text></TouchableOpacity>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
               {CATEGORIES.map((item) => (
@@ -402,11 +426,12 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
                     <TouchableOpacity key={gift.id}
                       style={[styles.gift, selectedGift?.id === gift.id && styles.giftSelected,
                         Number(gift.coin_cost) >= 100000 && styles.megaGift]}
-                      onPress={() => setSelectedGift(gift)}>
+                      onPress={() => { setSelectedGift(gift); setQuantity(1); }}>
                       <Text style={styles.giftEmoji}>{gift.emoji}</Text>
                       <Text style={styles.giftName} numberOfLines={1}>{gift.name}</Text>
                       <Text style={styles.giftPrice}>🪙 {Number(gift.coin_cost).toLocaleString('ar-EG')}</Text>
-                      {Number(gift.coin_cost) >= 100000 ? <Text style={styles.megaTag}>فائقة الندرة</Text> : null}
+                      {selectedCategory === 'top' && popularGiftCounts[gift.id] ? <Text style={styles.popularTag}>🔥 {Number(popularGiftCounts[gift.id]).toLocaleString('ar-EG')} إرسال</Text> : null}
+                      {Number(gift.coin_cost) >= 100000 ? <Text style={styles.megaTag}>فائقة الندرة</Text> : Number(gift.coin_cost) >= 1000 ? <Text style={styles.megaTag}>VIP</Text> : null}
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -421,13 +446,14 @@ export default function LiveGiftPanel({ userId, receiverId, isHost = false, room
                   </View>
                 </View>
                 <View style={styles.quantityRow}>
-                  {[1, 5, 10].map((value) => (
+                  {[1, 5, 10, 50, 99].map((value) => (
                     <TouchableOpacity key={value} style={[styles.quantity, quantity === value && styles.quantityActive]}
                       onPress={() => setQuantity(value)}>
                       <Text style={styles.quantityText}>×{value}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
+                <Text style={styles.totalCost}>الإجمالي: {(Number(selectedGift.coin_cost) * quantity).toLocaleString('ar-EG')} كوينز</Text>
                 <TouchableOpacity style={[styles.sendButton, (sending || !receiverId || (!profileMode && !giftConnectionReady)) && { opacity: 0.6 }]}
                   onPress={sendGift} disabled={sending || (!profileMode && !giftConnectionReady)}>
                   {sending ? <ActivityIndicator color="#fff" /> : !receiverId ? <Text style={styles.sendText}>اختر مستلمًا أولًا</Text> : (!profileMode && !giftConnectionReady) ?
@@ -458,7 +484,10 @@ const styles = StyleSheet.create({
   sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   sheetTitle: { color: COLORS.white, fontSize: 18, fontWeight: '900' },
   close: { color: COLORS.muted, fontSize: 13 },
-  balance: { color: COLORS.gold, textAlign: 'right', marginBottom: 12, fontWeight: 'bold' },
+  balance: { color: COLORS.gold, textAlign: 'right', marginBottom: 6, fontWeight: 'bold' },
+  catalogHint: { color: COLORS.muted, fontSize: 11, textAlign: 'right', marginBottom: 8 },
+  totalCost: { color: COLORS.gold, textAlign: 'center', fontSize: 13, fontWeight: '900' },
+  popularTag: { color: '#FFB86B', fontSize: 9, fontWeight: '900', marginTop: 3 },
   tabs: { gap: 8, paddingBottom: 12 },
   tab: { backgroundColor: COLORS.card2, borderRadius: 16, paddingHorizontal: 15, paddingVertical: 9 },
   tabActive: { backgroundColor: COLORS.pink },
