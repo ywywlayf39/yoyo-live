@@ -100,7 +100,6 @@ export default function FrameStoreScreen({ userId, onBack, onOpenPackages, onFra
           if(equipError) Alert.alert('تم الشراء','تم حفظ اللقب في مقتنياتك، لكن تعذر تفعيله الآن. يمكنك تفعيله من المتجر لاحقًا.');
           else { setSelectedTitle(title.item_code); onTitleChanged?.(title.item_code); }
           if(!equipError) Alert.alert('مبروك! 🎉','اشتريت لقب '+title.name+' وأصبح ظاهرًا بجوار اسمك.');
-          Alert.alert('مبروك! 🎉','اشتريت لقب '+title.title+' وأصبح ظاهرًا بجوار اسمك.');
         }
         setBusy('');
       }}
@@ -226,7 +225,7 @@ export default function FrameStoreScreen({ userId, onBack, onOpenPackages, onFra
               <TitleBadge code={title.item_code} title={title.name} emoji={title.emoji}/>
               {active&&<Text style={{color:'#8EF0C4',fontSize:9,fontWeight:'900',marginTop:7}}>✓ لقبك الحالي</Text>}
             </View>
-            <Text style={s.titleName}>{title.title}</Text>
+            <Text style={s.titleName}>{title.name}</Text>
             <Text style={s.description}>{(title.description || 'لقب حصري لأعضاء YOYO')}</Text>
             <Text style={s.titlePrice}>{hasIt?'مملوك لك':fmt(title.coin_cost)+' كوينز'}</Text>
             <TouchableOpacity disabled={!!busy||active} onPress={()=>chooseTitle(title)} style={[s.action,active&&s.active]}>
