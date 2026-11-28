@@ -45,6 +45,7 @@ const transactionLabel = (type) => ({
   withdrawal_rejected: 'إعادة نقاط طلب مرفوض',
   refund: 'استرداد',
   admin_adjustment: 'تسوية رصيد',
+  points_to_coins: 'تحويل نقاط إلى كوينز',
 }[type] || 'حركة رصيد');
 
 const statusLabel = (status) => ({
@@ -65,6 +66,8 @@ export default function WalletScreen({ userId, onBack, onOpenPackages }) {
   const [payoutMethod, setPayoutMethod] = useState('vodafone_cash');
   const [payoutDetails, setPayoutDetails] = useState('');
   const [withdrawalBusy, setWithdrawalBusy] = useState(false);
+  const [conversionPoints, setConversionPoints] = useState('10000');
+  const [conversionBusy, setConversionBusy] = useState(false);
 
   const loadWallet = useCallback(async (isRefresh = false) => {
     if (!userId) return;
@@ -81,7 +84,7 @@ export default function WalletScreen({ userId, onBack, onOpenPackages }) {
           .maybeSingle(),
         supabase
           .from('wallet_transactions')
-          .select('id,transaction_type,coins,amount_egp,description,created_at')
+          .select('id,transaction_type,coins,amount_egp,points,platform_points,description,created_at')
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
           .limit(20),
@@ -111,6 +114,51 @@ export default function WalletScreen({ userId, onBack, onOpenPackages }) {
   useEffect(() => {
     loadWallet();
   }, [loadWallet]);
+
+  const previewConversionCoins = Math.floor(Math.max(0, Number(conversionPoints) || 0) * 0.8);
+  const submitPointsConversion = () => {
+    const points = Math.floor(Number(conversionPoints));
+    const available = Number(wallet?.earned_points || 0);
+    if (!Number.isSafeInteger(points) || points <= 0) {
+      Alert.alert('عدد النقاط غير صحيح', 'اكتب عددًا صحيحًا من النقاط أكبر من صفر.');
+      return;
+    }
+    if (points > available) {
+      Alert.alert('رصيد النقاط غير كافٍ', 'رصيدك المتاح ' + coins(available) + ' نقطة فقط.');
+      return;
+    }
+    const coinsToAdd = Math.floor(points * 0.8);
+    if (coinsToAdd < 1) {
+      Alert.alert('عدد النقاط قليل', 'أدخل عددًا أكبر من النقاط للتحويل.');
+      return;
+    }
+    Alert.alert(
+      'تأكيد تحويل النقاط',
+      'سيتم خصم ' + coins(points) + ' نقطة وإضافة ' + coins(coinsToAdd) + ' كوين إلى محفظتك. لا يمكن عكس التحويل.',
+      [
+        { text: 'إلغاء', style: 'cancel' },
+        { text: 'تأكيد التحويل', onPress: async () => {
+          if (conversionBusy) return;
+          setConversionBusy(true);
+          const operationId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (ch) => {
+            const r = Math.floor(Math.random() * 16);
+            return (ch === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+          });
+          const { data, error: conversionError } = await supabase.rpc('yoyo_convert_points_to_coins', {
+            p_points: points,
+            p_operation_id: operationId,
+          });
+          setConversionBusy(false);
+          if (conversionError || !data?.success) {
+            Alert.alert('تعذر التحويل', conversionError?.message || 'حاول مرة أخرى بعد تحديث المحفظة.');
+            return;
+          }
+          await loadWallet(true);
+          Alert.alert('تم التحويل بنجاح 🪙', 'تم خصم ' + coins(data.points_spent) + ' نقطة وإضافة ' + coins(data.coins_added) + ' كوين إلى رصيدك.');
+        }},
+      ]
+    );
+  };
 
   const submitWithdrawal = () => {
     const available = Number(wallet?.earned_points || 0);
@@ -224,6 +272,33 @@ export default function WalletScreen({ userId, onBack, onOpenPackages }) {
                 </View>
               </View>
 
+              <View style={styles.convertPanel}>
+                <Text style={styles.cardTitle}>🔄 تحويل النقاط إلى كوينز</Text>
+                <Text style={styles.muted}>متاح للمضيف والمشاهد. كل 10,000 نقطة تتحول إلى 8,000 كوين. يتم خصم النقاط كاملة وإضافة 80% ككوينز.</Text>
+                <Text style={styles.financialLabel}>عدد النقاط المراد تحويلها</Text>
+                <TextInput
+                  value={conversionPoints}
+                  onChangeText={(value) => setConversionPoints(value.replace(/[^0-9]/g, ''))}
+                  keyboardType="number-pad"
+                  placeholder="مثال: 10000"
+                  placeholderTextColor="#8F849F"
+                  style={styles.payoutInput}
+                  maxLength={15}
+                />
+                <View style={styles.conversionPreview}>
+                  <Text style={styles.muted}>الكوينز التي ستضاف</Text>
+                  <Text style={styles.conversionValue}>🪙 {coins(previewConversionCoins)}</Text>
+                  <Text style={styles.muted}>رصيد النقاط المتاح: {coins(wallet.earned_points)} نقطة</Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.withdrawSubmit, (conversionBusy || previewConversionCoins < 1 || Number(conversionPoints) > Number(wallet.earned_points || 0)) && styles.withdrawDisabled]}
+                  onPress={submitPointsConversion}
+                  disabled={conversionBusy || previewConversionCoins < 1 || Number(conversionPoints) > Number(wallet.earned_points || 0)}
+                >
+                  <Text style={styles.actionText}>{conversionBusy ? 'جارٍ التحويل...' : 'تحويل النقاط إلى كوينز'}</Text>
+                </TouchableOpacity>
+              </View>
+
               <View style={styles.withdrawPanel}>
                 <Text style={styles.cardTitle}>💸 طلب سحب النقاط</Text>
                 <Text style={styles.muted}>الحد الأدنى لطلب السحب 100,000 نقطة. يمكنك طلب رصيدك المكتسب بالكامل فوق الحد الأدنى، وتظل النقاط محجوزة لحين مراجعة الإدارة.</Text>
@@ -265,7 +340,7 @@ export default function WalletScreen({ userId, onBack, onOpenPackages }) {
           <View style={styles.noticeCard}>
             <Text style={styles.cardTitle}>معلومات مهمة</Text>
             <Text style={styles.muted}>
-              سعر التحويل المعتمد داخل التطبيق: كل 100,000 نقطة مكتسبة = 500 جنيه (0.005 جنيه للنقطة). الحد الأدنى للسحب 100,000 نقطة. المبلغ المعروض تقديري، وطلب السحب والصرف الفعلي ما زالا متوقفين حتى تجهيز مراجعة الأدمن ومسار صرف آمن. شراء العملات متاح بطلب تحويل يدوي، ولا تُضاف العملات إلا بعد مراجعة الأدمن.
+              سعر السحب المعتمد داخل التطبيق: كل 100,000 نقطة مكتسبة = 500 جنيه (0.005 جنيه للنقطة). تحويل النقاط إلى كوينز يخصم النقاط المختارة ويضيف 80% منها كوينز؛ والـ20% المتبقية فرق تحويل للمنصة. الحد الأدنى للسحب 100,000 نقطة. المبلغ المعروض تقديري، وطلب السحب والصرف الفعلي ما زالا متوقفين حتى تجهيز مراجعة الأدمن ومسار صرف آمن. شراء العملات متاح بطلب تحويل يدوي، ولا تُضاف العملات إلا بعد مراجعة الأدمن.
             </Text>
             <Text style={styles.noticeFoot}>نسبة توزيع الهدايا المعتمدة: 70٪ للمضيف و30٪ للمنصة.</Text>
           </View>
@@ -367,6 +442,9 @@ const styles = StyleSheet.create({
   progressFill: { height: 9, borderRadius: 9, backgroundColor: '#8FE0B0' },
   progressCaption: { color: C.muted, fontSize: 12, textAlign: 'right', marginTop: 7 },
   estimatedValue: { color: '#8FE0B0', fontSize: 15, fontWeight: '800', textAlign: 'right', marginTop: 10 },
+  convertPanel: { backgroundColor: C.card2, borderRadius: 16, padding: 16, marginTop: 14, borderWidth: 1, borderColor: '#65419A', gap: 10 },
+  conversionPreview: { backgroundColor: C.card, borderRadius: 12, padding: 12, alignItems: 'flex-end', gap: 5 },
+  conversionValue: { color: C.gold, fontSize: 24, fontWeight: '900', textAlign: 'right' },
   withdrawPanel: { backgroundColor: C.card, borderRadius: 16, padding: 16, marginTop: 14, borderWidth: 1, borderColor: C.border, gap: 10 },
   financialLabel: { color: '#D6CBE5', fontSize: 13, textAlign: 'right', fontWeight: '700' },
   methodRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 7 },
