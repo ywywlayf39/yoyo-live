@@ -218,7 +218,7 @@ export default function FrameStoreScreen({ userId, onBack, onOpenPackages, onFra
       <View style={s.grid}>
         {titles.map(title=>{
           const hasIt=ownedTitles.includes(title.id), active=selectedTitle===title.item_code;
-          const tone=({star:'#A9B7C9',lion:'#D69A48',legend:'#E46B45',king:'#F5C451',diamond:'#7DDCF5',emperor:'#C19BFF'}[title.code]||C.purple);
+          const tone=({title_star:'#A9B7C9',title_lion:'#D69A48',title_legend:'#E46B45',title_royal:'#F5C451',title_diamond:'#7DDCF5',title_emperor:'#C19BFF'}[title.item_code]||C.purple);
           return <View key={title.id} style={[s.titleCard,{borderColor:active?tone:'#382C49'}]}>
             <View style={[s.titleStage,{borderColor:tone+'66'}]}>
               <Text style={{fontSize:42}}>{title.emoji}</Text>
