@@ -49,6 +49,27 @@ import {
                               gold: '#F5C451',
                               };
 
+function MemberReportModal({ member, onClose, onSubmit }) {
+  const reasons = ['محتوى غير لائق', 'تحرش أو إساءة', 'رسائل مزعجة أو احتيال'];
+  return (
+    <Modal visible={!!member} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
+      <View style={{flex:1,backgroundColor:'rgba(0,0,0,0.78)',justifyContent:'center',padding:24}}>
+        <View style={{backgroundColor:'#171222',borderRadius:22,borderWidth:1,borderColor:'#7950A5',padding:20}}>
+          <Text style={{color:'#FFFFFF',fontSize:19,fontWeight:'900',textAlign:'right'}}>إبلاغ عن العضو</Text>
+          <Text style={{color:'#AAA1B8',fontSize:12,textAlign:'right',marginTop:8,lineHeight:20}}>{member?.display_name ? 'اختار سبب الإبلاغ عن '+member.display_name : 'اختار سبب الإبلاغ. لن يتم إرسال البلاغ قبل اختيار السبب.'}</Text>
+          {reasons.map(reason => (
+            <TouchableOpacity key={reason} onPress={()=>onSubmit(reason)} activeOpacity={0.85} style={{marginTop:11,padding:14,borderRadius:12,backgroundColor:'#251B35',borderWidth:1,borderColor:'#49365F'}}>
+              <Text style={{color:'#FFFFFF',fontWeight:'800',textAlign:'right'}}>{reason}</Text>
+            </TouchableOpacity>
+          ))}
+          <TouchableOpacity onPress={onClose} activeOpacity={0.85} style={{marginTop:14,padding:14,borderRadius:12,backgroundColor:'#392B45',alignItems:'center',borderWidth:1,borderColor:'#8B6BA6'}}>
+            <Text style={{color:'#FFFFFF',fontWeight:'900'}}>إلغاء والرجوع</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
 export default function App() {
   // Protect member photos, private files, and all authenticated app screens from screenshots and recordings.
   usePreventScreenCapture('yoyo-private-content');
@@ -97,6 +118,7 @@ export default function App() {
     return () => { active = false; };
   }, [session?.user?.id]);
   const [selectedMember, setSelectedMember] = useState(null);
+  const [reportingMember, setReportingMember] = useState(null);
   const [chatMember, setChatMember] = useState(null);
   const [showInbox, setShowInbox] = useState(false);
   const [showFollowScreen, setShowFollowScreen] = useState(false);
@@ -602,12 +624,7 @@ export default function App() {
 
   const reportMember = (member) => {
     if (!member?.id || member.id === session?.user?.id) return;
-    Alert.alert('إبلاغ عن العضو', 'اختار سبب الإبلاغ:', [
-      { text: 'محتوى غير لائق', onPress: () => submitMemberReport(member, 'محتوى غير لائق') },
-      { text: 'تحرش أو إساءة', onPress: () => submitMemberReport(member, 'تحرش أو إساءة') },
-      { text: 'رسائل مزعجة أو احتيال', onPress: () => submitMemberReport(member, 'رسائل مزعجة أو احتيال') },
-      { text: 'إلغاء', style: 'cancel' },
-    ]);
+    setReportingMember(member);
   };
 
   const submitMemberReport = async (member, reason) => {
@@ -939,14 +956,18 @@ export default function App() {
 
   if (chatMember) {
     return (
-      <ChatScreen
-        userId={session.user.id}
-        member={chatMember}
-        onBack={() => setChatMember(null)}
-        onStartCall={(call) => setSelectedCall(call)}
-        onReport={() => reportMember(chatMember)}
-        onBlock={() => blockMember(chatMember)}
-      />
+      <>
+        <ChatScreen
+          userId={session.user.id}
+          member={chatMember}
+          onBack={() => setChatMember(null)}
+          onStartCall={(call) => setSelectedCall(call)}
+          onReport={() => reportMember(chatMember)}
+          onBlock={() => blockMember(chatMember)}
+        />
+        <MemberReportModal member={reportingMember} onClose={() => setReportingMember(null)}
+          onSubmit={(reason) => { const target = reportingMember; setReportingMember(null); submitMemberReport(target, reason); }} />
+      </>
     );
   }
 
@@ -1021,6 +1042,8 @@ export default function App() {
           </View>
         </ScrollView>
         <LiveGiftPanel userId={session.user.id} receiverId={selectedMember.id} profileMode onOpenPackages={() => setShowPackages(true)} />
+        <MemberReportModal member={reportingMember} onClose={() => setReportingMember(null)}
+          onSubmit={(reason) => { const target = reportingMember; setReportingMember(null); submitMemberReport(target, reason); }} />
       </SafeAreaView>
     );
   }
