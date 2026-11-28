@@ -6,6 +6,8 @@ const frames = fs.readFileSync(path.join(root, 'ProfileFrame.js'), 'utf8');
 const app = fs.readFileSync(path.join(root, 'App.js'), 'utf8');
 const gifts = fs.readFileSync(path.join(root, 'LiveGiftPanel.js'), 'utf8');
 const titleBadge = fs.readFileSync(path.join(root, 'TitleBadge.js'), 'utf8');
+const chat = fs.readFileSync(path.join(root, 'ChatScreen.js'), 'utf8');
+const live = fs.readFileSync(path.join(root, 'LiveRoomScreen.native.js'), 'utf8');
 function check(ok, message) { if (!ok) throw new Error(message); }
 check(store.includes('YOYO EXCLUSIVE') && store.includes('اقتناء وتفعيل'), 'Frame store must render premium collectible cards');
 check(store.includes('FRAME_META') && store.includes('stageHalo') && store.includes('FILTERS'), 'Frame store must show distinct categorized previews');
@@ -13,6 +15,9 @@ check(store.includes(".eq('category','title')") && store.includes('yoyo_purchase
 check(store.includes('🏅 الألقاب') && store.includes('شراء وتفعيل') && store.includes('إخفاء اللقب الحالي'), 'Store must show a dedicated titles section with purchase, activation, and hide actions');
 check(titleBadge.includes('title_royal') && titleBadge.includes('title_emperor'), 'Title badges must map the existing inventory title codes');
 check(app.includes('selected_title') && app.includes('<TitleBadge'), 'Purchased titles must appear on member profiles and in the member directory');
+check(chat.includes('<TitleBadge compact code={member.selected_title}'), 'Purchased titles must appear in private chat headers');
+check(live.includes("select('avatar_url,selected_frame_code,selected_title')") && live.includes('<TitleBadge compact code={hostTitle}'), 'Purchased titles must appear in live room headers');
+check(store.includes(".rpc('yoyo_clear_profile_title')") && store.includes('storeTab===\'titles\''), 'Members must be able to hide their equipped title and switch store tabs');
 check(frames.includes('crest:') && frames.includes('side:') && frames.includes('vip_fire') && frames.includes('vip_galaxy'), 'Profile frames must have distinct ornaments, not color-only rings');
 check(app.includes('function MemberReportModal') && app.includes('إلغاء والرجوع'), 'Member report must use a visible custom cancel action');
 check(app.includes('setReportingMember(member)'), 'Report action must open the custom report dialog');
