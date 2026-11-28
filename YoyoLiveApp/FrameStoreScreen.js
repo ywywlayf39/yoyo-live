@@ -87,10 +87,10 @@ export default function FrameStoreScreen({ userId, onBack, onOpenPackages, onFra
       Alert.alert('رصيد غير كافٍ','اشحن الكوينز ثم ارجع لشراء اللقب.',[{text:'إلغاء',style:'cancel'},{text:'شحن الكوينز',onPress:onOpenPackages}]);
       return;
     }
-    Alert.alert('تأكيد شراء اللقب','سيتم خصم '+fmt(title.coin_cost)+' كوينز لامتلاك لقب '+title.title+'. هل تريد المتابعة؟',[
+    Alert.alert('تأكيد شراء اللقب','سيتم خصم '+fmt(title.coin_cost)+' كوينز لامتلاك لقب '+title.name+'. هل تريد المتابعة؟',[
       {text:'إلغاء',style:'cancel'},
       {text:'شراء وتفعيل',onPress:async()=>{
-        setBusy('title:'+title.code);
+        setBusy('title:'+title.item_code);
         const {data,error}=await supabase.rpc('yoyo_purchase_store_item',{p_item_id:title.id});
         if(error) Alert.alert('فشل الشراء',error.message);
         else {
@@ -218,19 +218,19 @@ export default function FrameStoreScreen({ userId, onBack, onOpenPackages, onFra
       <View style={s.listHeading}><Text style={s.listHeadingTitle}>ألقاب YOYO الحصرية</Text><Text style={s.listHeadingCount}>{titles.length} لقب</Text></View>
       <View style={s.grid}>
         {titles.map(title=>{
-          const hasIt=ownedTitles.includes(title.code), active=selectedTitle===title.code;
+          const hasIt=ownedTitles.includes(title.id), active=selectedTitle===title.item_code;
           const tone=({star:'#A9B7C9',lion:'#D69A48',legend:'#E46B45',king:'#F5C451',diamond:'#7DDCF5',emperor:'#C19BFF'}[title.code]||C.purple);
-          return <View key={title.code} style={[s.titleCard,{borderColor:active?tone:'#382C49'}]}>
+          return <View key={title.id} style={[s.titleCard,{borderColor:active?tone:'#382C49'}]}>
             <View style={[s.titleStage,{borderColor:tone+'66'}]}>
               <Text style={{fontSize:42}}>{title.emoji}</Text>
-              <TitleBadge code={title.code} title={title.title} emoji={title.emoji}/>
+              <TitleBadge code={title.item_code} title={title.name} emoji={title.emoji}/>
               {active&&<Text style={{color:'#8EF0C4',fontSize:9,fontWeight:'900',marginTop:7}}>✓ لقبك الحالي</Text>}
             </View>
             <Text style={s.titleName}>{title.title}</Text>
-            <Text style={s.description}>{({star:'بداية مشوارك في YOYO',lion:'شخصية قوية وحضور مميز',legend:'لقب الأسطورة بين الأعضاء',king:'هيبة ملكية لعشاق التميز',diamond:'بريق الماس في كل ظهور',emperor:'أعلى ألقاب المتجر ندرة'}[title.code]||'لقب حصري لأعضاء YOYO')}</Text>
+            <Text style={s.description}>{(title.description || 'لقب حصري لأعضاء YOYO')}</Text>
             <Text style={s.titlePrice}>{hasIt?'مملوك لك':fmt(title.coin_cost)+' كوينز'}</Text>
             <TouchableOpacity disabled={!!busy||active} onPress={()=>chooseTitle(title)} style={[s.action,active&&s.active]}>
-              {busy==='title:'+title.code?<ActivityIndicator color={C.white}/>:<Text style={s.actionText}>{active?'مفعّل الآن':hasIt?'تفعيل اللقب':'شراء وتفعيل'}</Text>}
+              {busy==='title:'+title.item_code?<ActivityIndicator color={C.white}/>:<Text style={s.actionText}>{active?'مفعّل الآن':hasIt?'تفعيل اللقب':'شراء وتفعيل'}</Text>}
             </TouchableOpacity>
           </View>;
         })}
