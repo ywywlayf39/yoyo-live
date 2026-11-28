@@ -30,6 +30,7 @@ import LiveMusicSync from './LiveMusicSync';
 import LiveRoomChat from './LiveRoomChat';
 import LiveBattleVote from './LiveBattleVote';
 import ProfileFrame from './ProfileFrame';
+import TitleBadge from './TitleBadge';
 
 function formatBroadcastDuration(totalSeconds) {
   const seconds = Math.max(0, Math.floor(totalSeconds || 0));
@@ -46,6 +47,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
   const [roomStandby, setRoomStandby] = useState(false);
   const [hostAvatar, setHostAvatar] = useState(null);
   const [hostFrameCode, setHostFrameCode] = useState(null);
+  const [hostTitle, setHostTitle] = useState(null);
   const [toolsVisible, setToolsVisible] = useState(false);
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [selectedVideoFilter, setSelectedVideoFilter] = useState('none');
@@ -63,10 +65,11 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
       if (isHost) onStandbyChange?.(room.is_standby === true);
       if (room.host_id) {
         const { data: profile } = await supabase.from('member_public_profiles')
-          .select('avatar_url,selected_frame_code').eq('id', room.host_id).maybeSingle();
+          .select('avatar_url,selected_frame_code,selected_title_code,selected_title_text,selected_title_emoji').eq('id', room.host_id).maybeSingle();
         if (active && profile) {
           setHostAvatar(profile.avatar_url || null);
           setHostFrameCode(profile.selected_frame_code || null);
+          setHostTitle({code:profile.selected_title_code,title:profile.selected_title_text,emoji:profile.selected_title_emoji});
         }
       }
     };
@@ -138,6 +141,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
         </View>
         <View style={styles.headerInfo}>
           <Text numberOfLines={1} style={styles.hostName}>{hostName || 'بث YOYO LIVE'}</Text>
+          <TitleBadge compact code={hostTitle?.code} title={hostTitle?.title} emoji={hostTitle?.emoji} />
           <Text style={styles.roomStatus}>{isCall ? (callType === 'audio' ? 'مكالمة صوتية' : 'مكالمة فيديو') : isHost ? 'أنت تبث الآن' : 'أنت تشاهد البث المباشر'}</Text>
         </View>
       </View>
@@ -204,6 +208,7 @@ function RoomContent({ isHost, isCall, callType, hostName, onLeave, error, userI
               {hostAvatar ? <Image source={{ uri: hostAvatar }} style={{ width: '100%', height: '100%' }} /> : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#34263F' }}><Text style={styles.standbyAvatarEmoji}>👤</Text></View>}
             </ProfileFrame>
             <Text style={styles.standbyTitle}>{hostName || 'صاحب البث'}</Text>
+            <TitleBadge code={hostTitle?.code} title={hostTitle?.title} emoji={hostTitle?.emoji} />
             <Text style={styles.standbyText}>في وضع الانتظار</Text>
             <Text style={styles.standbySubtext}>الصوت مستمر ويمكنك الاستماع للبث</Text>
           </View>
